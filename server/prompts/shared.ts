@@ -49,6 +49,7 @@ const LETTER_NEWS: Record<string, (nation: string, answer: string) => string> = 
         : `The Warden stood to fight ${nation}'s army.`,
   raid: (nation, answer) => (answer === 'pay' ? `The Warden paid off ${nation}'s foragers.` : `The Warden let ${nation}'s foragers burn a region rather than pay.`),
   passage: (nation, answer) => (answer === 'refuse' ? `The Warden refused ${nation}'s army passage.` : `The Warden granted ${nation}'s army passage through the Crossing.`),
+  spoils: (nation, answer) => (answer === 'land' ? `The Warden took a region from ${nation} as spoils of war.` : `The Warden took ${nation}'s gold as spoils of war.`),
   talks: (nation, answer) => (answer === 'host' ? `The Warden hosted peace talks for ${nation}.` : `The Warden declined to host ${nation}'s peace talks.`),
   trade: (nation, answer) => (answer === 'waive' ? `The Warden waived the toll on ${nation}'s caravans.` : `The Warden charged ${nation}'s caravans the full toll.`),
   last: (nation) => `The Warden received the last letter of the fallen ruler of ${nation}.`,
@@ -79,6 +80,10 @@ export function renderNews(news: readonly News[]): string {
             : `- The Warden let ${who(n.nation)}'s army march through the Crossing to attack ${who(n.target)}.`;
         case 'burn':
           return `- Foragers from ${who(n.nation)} burned ${n.region}, in the Crossing.`;
+        case 'gain':
+          return n.how === 'claim' || n.from === 'unclaimed'
+            ? `- The Warden claimed the ruins of ${n.region} for the Crossing.`
+            : `- ${who(n.from)} ${n.how === 'spoils' ? 'gave the Warden' : 'ceded to the Warden'} ${n.region}${n.how === 'payment' ? ' as payment' : n.how === 'spoils' ? ' as spoils of war' : ''}.`;
         case 'cede':
           return `- ${who(n.nation)} ceded ${n.region} to ${who(n.target)}.`;
         case 'lie_caught':

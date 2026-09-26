@@ -8,6 +8,7 @@ const KIND_LABEL: Record<LetterKind, string> = {
   attack: 'An army marches on you',
   raid: 'Raiders at the border',
   passage: 'Asks to march through',
+  spoils: 'Offers you the spoils',
   talks: 'Would talk peace',
   trade: 'Caravans on the road',
   last: 'A last letter',

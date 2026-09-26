@@ -8,6 +8,7 @@ import { attackTheCrossing, recoverBurning, resolveMarches } from './crossing.js
 import { computeIncome } from './economy.js';
 import { checkEnding } from './endings.js';
 import { runGossip } from './gossip.js';
+import { honourOffers } from './land.js';
 import { closeLetters, deliverLetters } from './letters.js';
 import { planIntents, sparkedByWords, warHolds } from './policy.js';
 import { Rng } from './rng.js';
@@ -72,7 +73,8 @@ export function resolveSeason(state: WorldState): { state: WorldState; events: G
   formAlliances(w, rng, events);
   wearyPeace(w, rng, events);
 
-  // 5. Tolls, then the realm settles.
+  // 5. Rulers hand over the land they offered; tolls are paid; the realm settles.
+  honourOffers(w, events);
   const income = computeIncome(w);
   w.player.gold += income.gold;
   w.player.goldEarned += income.gold;

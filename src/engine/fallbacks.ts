@@ -68,6 +68,9 @@ export function fallbackChronicle(news: readonly News[], seasonTitle: string): s
       case 'burn':
         add(`Smoke rose over ${n.region}, where foragers from ${mid(n.nation)} put the barns to the torch.`);
         break;
+      case 'gain':
+        add(`${n.region} now flies the Warden's colours, and the valley grows a little larger, and a little more envied.`);
+        break;
       default:
         break;
     }
@@ -78,7 +81,7 @@ export function fallbackChronicle(news: readonly News[], seasonTitle: string): s
 }
 
 /** What each ruler writes on each kind of letter, when the AI cannot write it. */
-export const LETTER_WORDS: Record<'attack' | 'raid' | 'passage' | 'talks' | 'trade', Record<NationId, string>> = {
+export const LETTER_WORDS: Record<'attack' | 'raid' | 'passage' | 'spoils' | 'talks' | 'trade', Record<NationId, string>> = {
   attack: {
     varrow: 'Varrow asked. You refused. Now Varrow rides. Pay, or watch the horses drink from your wells.',
     kelm: 'Your account is in arrears, Warden. Kelm has sent collectors. They carry spears.',
@@ -99,6 +102,13 @@ export const LETTER_WORDS: Record<'attack' | 'raid' | 'passage' | 'talks' | 'tra
     sael: 'Open your little gates, darling. My soldiers promise to wipe their boots.',
     tarn: 'The clans must cross your valley. Will you be a bridge, or a dam? Hm.',
     ostrin: 'The pilgrims of the Lamp march to war. It is written they pass through the valley.',
+  },
+  spoils: {
+    varrow: 'You pointed, Varrow rode, Varrow won. Take your share, toll-keeper. Varrow pays its debts.',
+    kelm: 'Your investment has matured, Warden. Kelm pays dividends in land or coin. Choose.',
+    sael: 'We won, darling! I would share a province with you. Or gold, if you are feeling vulgar.',
+    tarn: 'The fen keeps its word. You asked, the clans fought. Take what is fair.',
+    ostrin: 'It is written that the faithful shall share the harvest. Here is yours, child.',
   },
   talks: {
     varrow: 'Varrow does not beg for peace. Varrow will sit at your table, if the wine is strong.',

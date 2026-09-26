@@ -3,7 +3,8 @@
  * and two or three answers, each with the small effects it will have. One click answers it.
  */
 import { motion } from 'motion/react';
-import { effectsOf, fallbackAnswer, letterAnswers, letterSummary } from '../../engine/letters';
+import { fallbackAnswer, letterAnswers, letterSummary } from '../../engine/letters';
+import { effectsOf } from '../../engine/outcome';
 import { nameOf, PROFILES } from '../../engine/nations';
 import type { Letter, WorldState } from '../../engine/types';
 import { closeOverlay, decideLetter } from '../../store/flow';
@@ -36,7 +37,7 @@ export function LetterView({ world, letter }: { world: WorldState; letter: Lette
 
         <ul className="mt-[1em] space-y-[0.55em] border-t border-ink/20 pt-[0.8em]">
           {answers.map((a) => {
-            const effects = effectsOf(a.outcome);
+            const effects = effectsOf(world, a.outcome);
             return (
               <li key={a.id}>
                 <motion.button

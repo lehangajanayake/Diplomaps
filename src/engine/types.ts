@@ -239,7 +239,7 @@ export interface LedgerEntry {
   broken: boolean;
 }
 
-export const LETTER_KINDS = ['attack', 'raid', 'passage', 'talks', 'trade', 'last', 'angry'] as const;
+export const LETTER_KINDS = ['attack', 'raid', 'passage', 'spoils', 'talks', 'trade', 'last', 'angry'] as const;
 export type LetterKind = (typeof LETTER_KINDS)[number];
 
 /** A letter on the Warden's table. What it says and what each answer does live in letters.ts. */
@@ -273,7 +273,21 @@ export interface PlayerState {
   ledger: LedgerEntry[];
   /** Regions the Crossing has won, in order. */
   regionsGained: RegionId[];
+  /** Ruins claimed so far: each claim costs more than the last. */
+  claims: number;
+  /** Land rulers offered in audiences, handed over when the season ends. */
+  offers: LandOffer[];
 }
+
+/** A ruler's offer of land, made in an audience. `region` is the one named, if any. */
+export interface LandOffer {
+  nation: NationId;
+  region: RegionId | null;
+  season: number;
+}
+
+/** How the Crossing came by a region. */
+export type GainHow = 'payment' | 'offer' | 'claim' | 'spoils';
 
 export interface War {
   a: NationId;
@@ -306,6 +320,7 @@ export type GameEvent =
   /** A nation's army marched through the Crossing: let through, or forcing its way past a refusal. */
   | { kind: 'march'; season: number; nation: NationId; target: NationId; forced: boolean }
   | { kind: 'burn'; season: number; nation: NationId; region: RegionId }
+  | { kind: 'gain'; season: number; region: RegionId; from: Holder; how: GainHow }
   | {
       kind: 'battle';
       season: number;

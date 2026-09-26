@@ -130,7 +130,7 @@ export function assessAudience(req: AudienceRequest): Promise<AudienceAssessment
 }
 
 export function extractPromises(req: ExtractRequest): Promise<ExtractResult> {
-  return postJson<ExtractResult>('/api/extract', req, 50_000, () => ({ entries: [], fallback: true }));
+  return postJson<ExtractResult>('/api/extract', req, 50_000, () => ({ entries: [], landOffer: null, fallback: true }));
 }
 
 /** The chronicle of the season just ended, and the words on the letters that open the next. */

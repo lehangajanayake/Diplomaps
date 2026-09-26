@@ -7,7 +7,7 @@ import type { Mood } from '../engine/schema';
 import { WORLD_VERSION, type Holder, type LedgerEntry, type NationId, type Owner, type RegionId, type SeasonSummary, type WorldState } from '../engine/types';
 
 export type Phase = 'title' | 'table' | 'ending';
-export type Overlay = null | { kind: 'ledger' } | { kind: 'letter'; id: string } | { kind: 'crossing' };
+export type Overlay = null | { kind: 'ledger' } | { kind: 'letter'; id: string } | { kind: 'crossing' } | { kind: 'claim'; region: RegionId };
 
 export interface AudienceTurnUI {
   role: 'player' | 'ruler';
@@ -87,6 +87,8 @@ export interface StoreState {
   crisisOpen: boolean;
   /** The "What changed" card after a season resolves. */
   summary: SeasonSummary | null;
+  /** Regions that just joined the Crossing, inking themselves in on the map. */
+  gains: { key: number; regions: RegionId[] } | null;
   muted: boolean;
   notes: Note[];
   setHoverRegion: (id: RegionId | null) => void;
@@ -108,6 +110,7 @@ export const useStore = create<StoreState>()((set) => ({
   ending: null,
   crisisOpen: false,
   summary: null,
+  gains: null,
   muted: false,
   notes: [],
   setHoverRegion: (id) => set({ hoverRegion: id }),

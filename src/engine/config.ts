@@ -209,6 +209,19 @@ export const CONFIG = {
     talksTension: -5,
   },
 
+  /** Land for the Crossing (land.ts): what it costs to grow, and what growing costs you. */
+  land: {
+    /** Militia that hold a region when it joins the Crossing. */
+    militia: 2,
+    /** Each region beyond the three you start with costs this much neutrality... */
+    growthNeutrality: -5,
+    /** ...and makes every nation it borders this much warier. */
+    growthTrust: -4,
+    claimCost: 30,
+    claimStep: 15,
+    spoilsGold: 40,
+  },
+
   ambitions: {
     merchantGold: 300,
     kingdomRegions: 7,

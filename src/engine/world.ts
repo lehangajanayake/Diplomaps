@@ -82,6 +82,8 @@ export function createWorld(seed: number): WorldState {
       passes: Object.fromEntries(NATION_IDS.map((id) => [id, 'open'])) as Record<NationId, 'open'>,
       ledger: [],
       regionsGained: [],
+      claims: 0,
+      offers: [],
     },
     wars: [],
     alliances: startingAlliances(),

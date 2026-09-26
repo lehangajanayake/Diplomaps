@@ -6,11 +6,13 @@ import { assessAudience, extractPromises, fetchHealth, streamAudience, writeEndi
 import { CONFIG, seasonName, seasonTitle, seasonYear } from '../engine/config';
 import { greetingFor } from '../engine/courtesy';
 import { addLedgerEntries, recordAudience } from '../engine/ledger';
+import { claimRuin } from '../engine/actions';
+import { cedableRegions, recordOffer } from '../engine/land';
 import { answerLetter } from '../engine/letters';
 import { PROFILES } from '../engine/nations';
 import type { AudienceRequest } from '../engine/schema';
 import { openFirstSeason, playSeason } from '../engine/resolve';
-import type { AmbitionId, GameEvent, NationId, WorldState } from '../engine/types';
+import type { AmbitionId, GameEvent, NationId, RegionId, WorldState } from '../engine/types';
 import { summariseSeason } from '../engine/summary';
 import { buildAudienceContext, buildEndingRequest, buildFlavourRequest } from '../engine/views';
 import { createWorld } from '../engine/world';
@@ -30,7 +32,20 @@ export function note(text: string, tone: Note['tone'] = 'info', ms = 6500): void
 function commit(world: WorldState, events: GameEvent[] = []): void {
   if (events.length) world = { ...world, seasonLog: [...world.seasonLog, ...events] };
   set({ world });
+  showGains(events);
   announce(events);
+}
+
+/** Regions that join the Crossing ink themselves in on the map. */
+function showGains(events: readonly GameEvent[]): void {
+  const regions = events.flatMap((e) => (e.kind === 'gain' ? [e.region] : []));
+  if (regions.length === 0) return;
+  const key = Date.now();
+  set({ gains: { key, regions } });
+  sound.play('quill');
+  window.setTimeout(() => {
+    if (get().gains?.key === key) set({ gains: null });
+  }, 3600);
 }
 
 /** Surface the important consequences of the player's own actions as small notes on the table. */
@@ -147,6 +162,21 @@ export function closeOverlay(): void {
   set({ overlay: null });
 }
 
+/** Ruins clicked on the map: the card that offers to claim them. */
+export function openClaim(region: RegionId): void {
+  if (get().audience || get().resolving) return;
+  set({ overlay: { kind: 'claim', region }, selectedNation: null });
+  sound.play('paper');
+}
+
+export function claimRegion(region: RegionId): void {
+  const w = get().world;
+  if (!w) return;
+  const { world, events } = claimRuin(w, region);
+  set({ overlay: null });
+  if (world !== w) commit(world, events);
+}
+
 export function decideLetter(id: string, answer: string): void {
   const w = get().world;
   if (!w) return;
@@ -250,9 +280,10 @@ async function closeAudience(endedByRuler: boolean, calledAway: boolean): Promis
     .filter((e) => e.to !== a.nation)
     .slice(-40)
     .map((e) => ({ id: e.id, to: e.to, type: e.type, what: e.what, promiseKind: e.promiseKind, topic: e.topic, about: e.about }));
+  const offerable = cedableRegions(w0, a.nation).map((id) => w0.map.regions[id]!.name);
   const [assessment, extraction] = await Promise.all([
     assessAudience({ mode: 'assess', nation: a.nation, turns, context, endedByRuler }),
-    extractPromises({ nation: a.nation, season: w0.season, turns, prior }),
+    extractPromises({ nation: a.nation, season: w0.season, turns, prior, offerable }),
   ]);
   // A ruler called away by a failed connection does not cost the player an audience.
   const held = !(calledAway && playerMessages(turns) <= 1);
@@ -260,6 +291,12 @@ async function closeAudience(endedByRuler: boolean, calledAway: boolean): Promis
   let { world } = recordAudience(get().world!, a.nation, assessment.trustDelta, assessment.learned, held);
   const added = addLedgerEntries(world, a.nation, extraction.entries);
   world = added.world;
+  if (extraction.landOffer) {
+    world = recordOffer(world, a.nation, extraction.landOffer.region);
+    const offer = world.player.offers.at(-1);
+    const where = offer?.region ? world.map.regions[offer.region]!.name : 'a region';
+    note(`${PROFILES[a.nation].name} offered you ${where}. It is yours when the season ends, if they still trust you.`, 'good', 9000);
+  }
   commit(world, added.events);
   const caught = added.events.flatMap((e) => (e.kind === 'lie_caught' ? [e.how] : []));
   const cur = get().audience;
@@ -318,9 +355,12 @@ function buildFx(before: WorldState, events: GameEvent[]): MapFx {
       fx.battles.push({ region: e.region, from: e.from, attacker: e.attacker, captured: e.captured });
       if (e.captured) fx.conquests.push({ region: e.region, from: e.from, owner: e.attacker });
     } else if (e.kind === 'cede') fx.conquests.push({ region: e.region, from: null, owner: e.target });
+    else if (e.kind === 'gain') fx.conquests.push({ region: e.region, from: null, owner: 'crossing' });
     else if (e.kind === 'mobilise') fx.mobilised.push({ region: e.region, amount: e.amount });
     else if (e.kind === 'gossip') fx.trails.push({ from: e.from, to: e.to, entry: e.entry });
   }
+  // A region taken twice in one season inks in once, in its final colour.
+  fx.conquests = fx.conquests.filter((c, i) => !fx.conquests.slice(i + 1).some((later) => later.region === c.region));
   fx.trails = fx.trails.slice(0, 8);
   return fx;
 }

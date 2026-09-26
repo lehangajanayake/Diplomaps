@@ -12,6 +12,7 @@ import { Legend } from './Legend';
 import { RegionHitAreas, RegionHover } from './Region';
 import { StaticMap } from './StaticMap';
 import { Tokens } from './Tokens';
+import { GainFx } from './GainFx';
 import { WarMarks } from './WarMarks';
 
 interface Props {
@@ -35,6 +36,7 @@ export function MapView({ world, fx = null, onSelect, children, interactive = tr
   const { map } = world;
   // Hover lives here, not in the table, so moving the mouse re-renders only the map's light layer.
   const hoverRegion = useStore((s) => s.hoverRegion);
+  const gains = useStore((s) => s.gains);
   const onHover = useStore((s) => s.setHoverRegion);
   // While the season's effects play, the map shows the world as it was; then it settles into the new one.
   const shown: Record<RegionId, RegionState> = fx && !fx.settled ? fx.before : world.regions;
@@ -166,6 +168,7 @@ export function MapView({ world, fx = null, onSelect, children, interactive = tr
           {interactive && <RegionHitAreas map={map} onEnter={handleEnter} onLeave={handleLeave} onClick={handleClick} />}
           {hover && hoverState && <RegionHover map={map} id={hover.id} owner={hoverState.owner} />}
           <WarMarks world={world} />
+          {gains && <GainFx map={map} gains={gains} />}
           <Tokens map={map} regions={shown} />
           {fx && !fx.settled && <SeasonFx map={map} fx={fx} />}
           {children}

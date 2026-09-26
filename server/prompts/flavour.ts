@@ -22,6 +22,7 @@ const LETTER_WORDS: Record<LetterBrief['kind'], (l: LetterBrief) => string> = {
   attack: (l) => `their army is marching on the Crossing's region of ${l.region ?? 'the valley'}; they demand ${l.amount} gold in tribute to turn back`,
   raid: (l) => `their foragers threaten to burn ${l.region ?? 'a region'} of the Crossing unless paid ${l.amount} gold`,
   passage: (l) => `they ask leave to march their army through the Crossing to attack ${other(l.about)}, offering ${l.amount} gold`,
+  spoils: (l) => `the Warden's favour sent them to war with ${other(l.about)} and they won; they offer the Warden ${l.region ?? 'a region'} or ${l.amount} gold as a share of the spoils`,
   talks: (l) => `they are at war with ${other(l.about)} and would talk peace in Wayhold if the Warden hosts`,
   trade: (l) => `their caravans are crossing the valley to ${other(l.about)}; they ask the Warden to waive the toll`,
   last: () => 'their nation has just fallen; this is the ruler\'s last letter, written as the capital burns',

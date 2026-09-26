@@ -5,7 +5,7 @@ import { CONFIG } from '../../engine/config';
 import { sealedLetters } from '../../engine/letters';
 import type { RegionId } from '../../engine/types';
 import { sound } from '../../audio/sound';
-import { audiencesLeft, closeOverlay, endSeason, openCrossing, openDossier, openLedger, openLetter } from '../../store/flow';
+import { audiencesLeft, closeOverlay, endSeason, openClaim, openCrossing, openDossier, openLedger, openLetter } from '../../store/flow';
 import { useStore } from '../../store/worldStore';
 import { AudienceScene } from '../audience/AudienceScene';
 import { EndSeasonBell } from '../hud/EndSeasonBell';
@@ -20,6 +20,7 @@ import { CrossingSheet } from '../panels/CrossingSheet';
 import { Dossier } from '../panels/Dossier';
 import { LedgerView } from '../panels/Ledger';
 import { LedgerBook } from '../panels/LedgerBook';
+import { ClaimCard } from '../panels/ClaimCard';
 import { LetterView } from '../panels/LetterView';
 import { LetterStack } from '../panels/LetterStack';
 import { InkPot } from '../table/Decor';
@@ -51,8 +52,9 @@ export function GameTable() {
 
   const onSelect = useCallback((id: RegionId) => {
     const owner = useStore.getState().world?.regions[id]?.owner;
-    if (!owner || owner === 'unclaimed') return;
-    if (owner === 'crossing') openCrossing();
+    if (!owner) return;
+    if (owner === 'unclaimed') openClaim(id);
+    else if (owner === 'crossing') openCrossing();
     else openDossier(owner);
   }, []);
 
@@ -116,6 +118,7 @@ export function GameTable() {
         <AnimatePresence>
           {overlay?.kind === 'ledger' && <LedgerView key="ledger" world={world} />}
           {letter && <LetterView key={letter.id} world={world} letter={letter} />}
+          {overlay?.kind === 'claim' && <ClaimCard key={overlay.region} world={world} region={overlay.region} />}
         </AnimatePresence>
         <Notes />
       </div>

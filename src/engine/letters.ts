@@ -9,22 +9,12 @@ import { isBurning } from './economy.js';
 import { ANGRY_WORDS, LAST_WORDS, LETTER_WORDS } from './fallbacks.js';
 import { nameOf, PROFILES } from './nations.js';
 import type { Rng } from './rng.js';
-import { addTension, adjustNeutrality, adjustSuspicion, adjustTrustPlayer, crossRedLine } from './tension.js';
+import { regionToCede, touchesCrossing } from './land.js';
+import { applyOutcome, type Outcome } from './outcome.js';
+import { crossRedLine } from './tension.js';
 import { CROSSING, NATION_IDS, type GameEvent, type Letter, type LetterKind, type NationId, type WorldState } from './types.js';
 import { makePeace } from './war.js';
 import { atWar, bordersOwner, cloneWorld, isStanding, regionName, warsOf } from './world.js';
-
-/** Everything an answer does. Numbers first; `act` does whatever numbers cannot say. */
-export interface Outcome {
-  gold?: number;
-  neutrality?: number;
-  trust?: Partial<Record<NationId, number>>;
-  suspicion?: Partial<Record<NationId, number>>;
-  tension?: number;
-  /** Consequences beyond the numbers, a few plain words each: "their army marches through". */
-  notes?: string[];
-  act?: (w: WorldState, events: GameEvent[]) => void;
-}
 
 export interface LetterAnswer {
   id: string;
@@ -32,16 +22,6 @@ export interface LetterAnswer {
   outcome: Outcome;
   /** Why this answer cannot be chosen right now, if it cannot. */
   blocked?: string;
-}
-
-export type EffectKind = 'gold' | 'trust' | 'suspicion' | 'neutrality' | 'tension' | 'note';
-
-/** One small effect shown beside an answer: "+25 gold", "− Kelm trust". */
-export interface Effect {
-  kind: EffectKind;
-  text: string;
-  tone: 'good' | 'bad' | 'neutral';
-  nation?: NationId;
 }
 
 interface LetterKindDef {
@@ -124,26 +104,25 @@ const KINDS: Record<LetterKind, LetterKindDef> = {
   },
   passage: {
     summary: (_w, l) => `${cap(l.from)} asks to march its army through your valley to attack ${nameOf(l.about!)}.`,
-    answers: (_w, l) => {
+    answers: (w, l) => {
       const enemy = l.about!;
       const angered = redLinesCrossedByPassage(l.from);
-      return [
-        {
-          id: 'grant',
-          label: 'Let them pass',
-          outcome: {
-            gold: l.amount,
-            trust: { [l.from]: L.passageTrust, [enemy]: L.passageEnemyTrust },
-            neutrality: L.passageNeutrality,
-            notes: ['their army marches through', ...angered.map((n) => `crosses ${nameOf(n)}'s red line`)],
-            act: (x, events) => {
-              for (const n of angered) {
-                const e = crossRedLine(x, n, CROSSING, `the Warden let ${nameOf(l.from)}'s army through`);
-                if (e) events.push(e);
-              }
-            },
-          },
+      const letThrough = (payment: Pick<Outcome, 'gold' | 'land'>): Outcome => ({
+        ...payment,
+        trust: { [l.from]: L.passageTrust, [enemy]: L.passageEnemyTrust },
+        neutrality: L.passageNeutrality,
+        notes: ['their army marches through', ...angered.map((n) => `crosses ${nameOf(n)}'s red line`)],
+        act: (x, events) => {
+          for (const n of angered) {
+            const e = crossRedLine(x, n, CROSSING, `the Warden let ${nameOf(l.from)}'s army through`);
+            if (e) events.push(e);
+          }
         },
+      });
+      const region = regionToCede(w, l.from);
+      return [
+        { id: 'grant', label: 'Let them pass', outcome: letThrough({ gold: l.amount }) },
+        ...(region ? [{ id: 'land', label: `Ask for ${regionName(w, region)} instead`, outcome: letThrough({ land: { region, how: 'payment' } }) }] : []),
         {
           id: 'refuse',
           label: 'Refuse',
@@ -159,6 +138,18 @@ const KINDS: Record<LetterKind, LetterKindDef> = {
     },
     fallback: 'refuse',
     quote: (l) => LETTER_WORDS.passage[l.from],
+  },
+  spoils: {
+    summary: (w, l) => `${cap(l.from)} won the war you started, and offers you ${l.region ? regionName(w, l.region) : 'a share'} or ${l.amount} gold.`,
+    answers: (w, l) => {
+      const region = l.region && w.regions[l.region]!.owner === l.from ? l.region : regionToCede(w, l.from);
+      return [
+        ...(region ? [{ id: 'land', label: `Take ${regionName(w, region)}`, outcome: { land: { region, how: 'spoils' as const } } }] : []),
+        { id: 'gold', label: `Take ${l.amount} gold`, outcome: { gold: l.amount } },
+      ];
+    },
+    fallback: 'gold',
+    quote: (l) => LETTER_WORDS.spoils[l.from],
   },
   talks: {
     summary: (_w, l) => `${cap(l.from)} and ${nameOf(l.about!)} would talk peace in Wayhold, if you host them.`,
@@ -235,39 +226,6 @@ export function fallbackAnswer(l: Letter): string {
   return KINDS[l.kind].fallback;
 }
 
-/** The effects of an outcome, as the small icons and words shown beside an answer. */
-export function effectsOf(o: Outcome): Effect[] {
-  const out: Effect[] = [];
-  if (o.gold) out.push({ kind: 'gold', text: `${o.gold > 0 ? '+' : '−'}${Math.abs(o.gold)} gold`, tone: o.gold > 0 ? 'good' : 'bad' });
-  for (const n of NATION_IDS) {
-    const t = o.trust?.[n];
-    if (t) out.push({ kind: 'trust', text: `${t > 0 ? '+' : '−'} ${cap(n)} trust`, tone: t > 0 ? 'good' : 'bad', nation: n });
-  }
-  for (const n of NATION_IDS) {
-    const s = o.suspicion?.[n];
-    if (s) out.push({ kind: 'suspicion', text: `${s > 0 ? '+' : '−'} ${cap(n)} suspicion`, tone: s > 0 ? 'bad' : 'good', nation: n });
-  }
-  if (o.neutrality) out.push({ kind: 'neutrality', text: `${o.neutrality > 0 ? '+' : '−'} neutrality`, tone: o.neutrality > 0 ? 'good' : 'bad' });
-  if (o.tension) out.push({ kind: 'tension', text: `${o.tension > 0 ? '+' : '−'} tension`, tone: o.tension > 0 ? 'bad' : 'good' });
-  for (const note of o.notes ?? []) out.push({ kind: 'note', text: note, tone: 'neutral' });
-  return out;
-}
-
-function applyOutcome(w: WorldState, o: Outcome, events: GameEvent[]): void {
-  if (o.gold) {
-    w.player.gold += o.gold;
-    if (o.gold > 0) w.player.goldEarned += o.gold;
-    else w.player.goldSpent -= o.gold;
-  }
-  if (o.neutrality) adjustNeutrality(w, o.neutrality);
-  for (const n of NATION_IDS) {
-    if (o.trust?.[n]) adjustTrustPlayer(w, n, o.trust[n]!);
-    if (o.suspicion?.[n]) adjustSuspicion(w, n, o.suspicion[n]!);
-  }
-  if (o.tension) addTension(w, o.tension);
-  o.act?.(w, events);
-}
-
 function settle(w: WorldState, letter: Letter, answer: LetterAnswer, events: GameEvent[]): void {
   applyOutcome(w, answer.outcome, events);
   letter.answer = answer.id;
@@ -324,6 +282,8 @@ export function sendLetter(w: WorldState, fields: Pick<Letter, 'kind' | 'from'> 
   return letter;
 }
 
+const isNationId = (o: string): o is NationId => (NATION_IDS as readonly string[]).includes(o);
+
 /** Nations at war beside a region of the valley that is not already burning: raiders. */
 function raidTargets(w: WorldState): { nation: NationId; region: string }[] {
   const out: { nation: NationId; region: string }[] = [];
@@ -366,6 +326,17 @@ export function deliverLetters(w: WorldState, events: readonly GameEvent[], rng:
     if (!from || angry.has(from) || !isStanding(w, from) || angry.size >= 2) continue;
     angry.add(from);
     sendLetter(w, { kind: 'angry', from, entry: e.entry });
+  }
+
+  // Spoils: a nation sent to war by the Warden's favour offers a share of what it took.
+  for (const e of events) {
+    if (e.kind !== 'battle' || !e.captured || e.defender === CROSSING || e.attacker === CROSSING || !isNationId(e.attacker)) continue;
+    const war = w.wars.find((x) => x.cause === 'favour' && x.aggressor === e.attacker && (x.a === e.defender || x.b === e.defender));
+    const owed = war && !w.letters.some((l) => l.kind === 'spoils' && l.from === e.attacker && l.about === e.defender);
+    if (owed && isStanding(w, e.attacker)) {
+      const taken = w.regions[e.region]!.owner === e.attacker && touchesCrossing(w, e.region) ? e.region : regionToCede(w, e.attacker);
+      sendLetter(w, { kind: 'spoils', from: e.attacker, about: e.defender as NationId, region: taken, amount: CONFIG.land.spoilsGold });
+    }
   }
 
   let decisions = 0;

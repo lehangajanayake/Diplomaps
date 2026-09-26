@@ -95,6 +95,7 @@ export const NewsSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('collapse'), nation: NationIdSchema, by: OwnerSchema }),
   z.object({ kind: z.literal('march'), nation: NationIdSchema, target: NationIdSchema, forced: z.boolean() }),
   z.object({ kind: z.literal('burn'), nation: NationIdSchema, region: PlaceNameSchema }),
+  z.object({ kind: z.literal('gain'), region: PlaceNameSchema, from: z.enum([...NATION_IDS, 'unclaimed']), how: z.enum(['payment', 'offer', 'claim', 'spoils']) }),
   z.object({ kind: z.literal('cede'), nation: OwnerSchema, target: OwnerSchema, region: PlaceNameSchema }),
   z.object({ kind: z.literal('lie_caught'), by: z.array(NationIdSchema).max(5), what: safeText(160) }),
   z.object({ kind: z.literal('letter'), nation: NationIdSchema, letterKind: z.enum(LETTER_KINDS), answer: z.string().regex(/^[a-z_]{1,16}$/) }),
@@ -145,6 +146,8 @@ export const AudienceContextSchema = SeasonInfoSchema.extend({
   trust: z.number().min(-100).max(100),
   suspicion: z.number().min(0).max(100),
   pass: z.enum(['open', 'closed']),
+  /** Regions this ruler could hand the Crossing. */
+  offerable: z.array(PlaceNameSchema).max(8),
   neutrality: z.number().min(0).max(100),
   regions: z.number().int().min(0).max(40),
   troops: z.number().int().min(0).max(999),
@@ -209,8 +212,10 @@ export const PriorEntrySchema = z.object({
 export const ExtractRequestSchema = z.object({
   nation: NationIdSchema,
   season: z.number().int().min(1).max(12),
-  turns: z.array(AudienceTurnSchema).min(1).max(10),
+  turns: z.array(AudienceTurnSchema).min(1).max(24),
   prior: z.array(PriorEntrySchema).max(40),
+  /** Regions the ruler could hand the Crossing, so an offer of land can be recognised. */
+  offerable: z.array(PlaceNameSchema).max(8).default([]),
 });
 export type ExtractRequest = z.input<typeof ExtractRequestSchema>;
 
@@ -228,6 +233,8 @@ export interface ExtractedEntry {
 
 export interface ExtractResult {
   entries: ExtractedEntry[];
+  /** The ruler offered the Crossing land; `region` is the one named, if it was one they can give. */
+  landOffer: { region: string | null } | null;
   fallback: boolean;
 }
 
@@ -361,6 +368,12 @@ export const ExtractAISchema = z.object({
       }),
     )
     .describe('Every promise and claim the Warden made. Empty if none.'),
+  land_offer: z
+    .object({
+      offered: z.boolean().describe('True only if the RULER firmly offered to give the Crossing one of their regions, or agreed to the Warden asking for one.'),
+      region: z.string().nullable().describe('The region the ruler named, exactly as written, or null if none was named.'),
+    })
+    .describe("The ruler's offer of land to the Crossing, if any."),
 });
 
 export const FlavourAISchema = z.object({
@@ -418,6 +431,13 @@ export function sanitizeExtraction(
     });
   }
   return out;
+}
+
+/** Keep a land offer only if it was made, and its region only if the ruler could actually give it. */
+export function sanitizeLandOffer(raw: z.infer<typeof ExtractAISchema>['land_offer'], offerable: readonly string[]): ExtractResult['landOffer'] {
+  if (!raw.offered || offerable.length === 0) return null;
+  const named = raw.region ? offerable.find((r) => r.toLowerCase() === cleanText(raw.region!, 40).toLowerCase()) : undefined;
+  return { region: named ?? null };
 }
 
 export function sanitizeLines(lines: string[], min: number, max: number, maxLen: number): string[] | null {

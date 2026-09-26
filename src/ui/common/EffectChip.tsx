@@ -1,8 +1,9 @@
 /** One small effect of a choice, with an ink icon: "+25 gold", "− Kelm trust", "− neutrality". */
-import type { Effect, EffectKind } from '../../engine/letters';
+import type { Effect, EffectKind } from '../../engine/outcome';
 
 const ICONS: Record<EffectKind, string> = {
   gold: 'M0 -6 A6 6 0 1 1 0 6 A6 6 0 1 1 0 -6 Z M0 -3.6 A3.6 3.6 0 1 0 0 3.6 A3.6 3.6 0 1 0 0 -3.6 Z',
+  land: 'M-6 6 V-1 L-3 -4 L0 -1 L3 -4 L6 -1 V6 Z M-1.2 6 V2.5 H1.2 V6 Z',
   trust: 'M-6 3 A6 6 0 0 1 6 3 M0 3 L3.6 -3.4',
   suspicion: 'M-6.5 0 Q0 -6 6.5 0 Q0 6 -6.5 0 Z M0 -2.2 A2.2 2.2 0 1 1 0 2.2 A2.2 2.2 0 1 1 0 -2.2 Z',
   neutrality: 'M0 -6 V5 M-6 -3.5 H6 M-6 -3.5 L-8 1.5 H-4 Z M6 -3.5 L4 1.5 H8 Z M-3 5.5 H3',
@@ -17,7 +18,7 @@ const TONE: Record<Effect['tone'], string> = {
 };
 
 export function EffectChip({ effect }: { effect: Effect }) {
-  const filled = effect.kind === 'gold' || effect.kind === 'suspicion' || effect.kind === 'tension';
+  const filled = effect.kind === 'gold' || effect.kind === 'land' || effect.kind === 'suspicion' || effect.kind === 'tension';
   return (
     <span className={`inline-flex items-center gap-[0.25em] whitespace-nowrap font-body text-[0.84rem] ${TONE[effect.tone]}`}>
       <svg viewBox="-8 -8 16 16" className="h-[0.95em] w-[0.95em] shrink-0" aria-hidden>

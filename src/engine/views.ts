@@ -5,6 +5,7 @@
 import { CONFIG, seasonName, seasonYear } from './config.js';
 import { isLie } from './ledger.js';
 import { PROFILES } from './nations.js';
+import { cedableRegions } from './land.js';
 import { sealedLetters } from './letters.js';
 import type { AudienceContext, EndingRequest, FlavourRequest, KnowledgeItem, News } from './schema.js';
 import { redLineCrossedRecently } from './tension.js';
@@ -15,7 +16,7 @@ const place = (w: WorldState, id: string) => w.map.regions[id]?.name ?? id;
 
 /** How much each kind of news matters, when there is too much to tell. */
 const NEWS_RANK: Record<News['kind'], number> = {
-  collapse: 0, war: 1, battle: 2, lie_caught: 3, march: 4, burn: 5, peace: 6, cede: 7, stand_down: 8, red_line: 9, alliance: 10, letter: 11, audience: 12, gossip: 13,
+  collapse: 0, war: 1, battle: 2, lie_caught: 3, gain: 4, march: 5, burn: 6, peace: 7, cede: 8, stand_down: 9, red_line: 10, alliance: 11, letter: 12, audience: 13, gossip: 14,
 };
 
 /** Turn engine events into structured news. `perspective` hides what that court would not know. */
@@ -46,6 +47,9 @@ export function eventsToNews(w: WorldState, events: readonly GameEvent[], perspe
         break;
       case 'burn':
         out.push({ kind: 'burn', nation: e.nation, region: place(w, e.region) });
+        break;
+      case 'gain':
+        if (e.from !== 'crossing') out.push({ kind: 'gain', region: place(w, e.region), from: e.from, how: e.how });
         break;
       case 'cede':
         out.push({ kind: 'cede', nation: e.nation, target: e.target, region: place(w, e.region) });
@@ -148,6 +152,7 @@ export function buildAudienceContext(w: WorldState, nation: NationId): AudienceC
     trust: n.trustPlayer,
     suspicion: n.suspicion,
     pass: w.player.passes[nation],
+    offerable: cedableRegions(w, nation).map((id) => place(w, id)),
     neutrality: Math.round(w.player.neutrality),
     regions: regionsOf(w, nation).length,
     troops: totalTroops(w, nation),

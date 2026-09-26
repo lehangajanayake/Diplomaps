@@ -4,7 +4,7 @@ import type { ExtractRequest } from '../../src/engine/schema.js';
 import { NATION_IDS, type NationId } from '../../src/engine/types.js';
 import { transcript } from './shared.js';
 
-export function extractInstructions(nation: NationId, prior: ExtractRequest['prior']): string {
+export function extractInstructions(nation: NationId, prior: ExtractRequest['prior'], offerable: readonly string[]): string {
   const ids = NATION_IDS.map((n) => `"${n}" = ${PROFILES[n].name}`).join(', ');
   const priorText = prior.length
     ? prior
@@ -26,6 +26,8 @@ For each entry:
 - claim_kind (claims only, else null): military_threat (massing troops, planning to attack), secret_alliance (plotting or allied with another nation), hostile_intent (hatred, insults, designs on land), weakness (poor, weak, divided), friendly_intent (wants peace or friendship), other.
 - with_nation: for secret_alliance claims, the other party's id; otherwise null.
 - conflicts_with: ids from the earlier ledger below that this entry directly contradicts: the same exclusive thing promised to someone else, support promised to both sides of a quarrel, or passage promised to a nation the Warden also promised to keep out. Usually empty.
+
+LAND OFFER: separately, record whether ${PROFILES[nation].ruler.name} (the ruler, not the Warden) firmly offered to give the Crossing one of their regions, or clearly agreed when the Warden asked for one. Vague hints, conditions still under discussion or refusals do not count. ${offerable.length ? `The regions ${PROFILES[nation].name} could give: ${offerable.join(', ')}.` : `${PROFILES[nation].name} has no region it could give; land_offer.offered must be false.`}
 
 Nation ids: ${ids}.
 

@@ -28,6 +28,7 @@ THE SITUATION
 It is ${ctx.seasonName}, Year ${ctx.year} (season ${ctx.season} of ${ctx.seasonsTotal}). The Warden of the Crossing, who rules the small neutral valley at the heart of the realm through which every road and mountain pass runs, has come to you for a private audience.
 - You hold ${ctx.regions} regions and ${ctx.troops} troops.${ctx.lost.length ? ` You have lost ${ctx.lost.join(', ')}.` : ''}${ctx.gained.length ? ` You have taken ${ctx.gained.join(', ')}.` : ''}
 - ${pass}
+- ${ctx.offerable.length ? `LAND: you could cede one of these regions beside the Crossing to the Warden: ${ctx.offerable.join(', ')}. Offer one only in return for something you truly want (a closed pass against your enemy, passage, gold, a war on your enemy), only if you are at least cordial toward the Warden, and name it plainly.` : 'You have no land you could spare the Warden.'}
 - Tension across the realm is ${tensionWord(ctx.tension)} (${ctx.tension}/100).
 - The other crowns:
 ${relationLines(ctx.relations)}
