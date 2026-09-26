@@ -3,6 +3,7 @@
  * Layers (bottom to top): sea wash, sea shimmer, static map SVG, paper grain, dynamic SVG (hover,
  * tokens, effects), then screen-space cloud shadows. Only the dynamic layer re-renders often.
  */
+import { AnimatePresence } from 'motion/react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { nameOf } from '../../engine/nations';
 import type { Holder, RegionId, RegionState, WorldState } from '../../engine/types';
@@ -10,6 +11,7 @@ import { useStore, type MapFx } from '../../store/worldStore';
 import { SeasonFx } from './SeasonFx';
 import { Legend } from './Legend';
 import { RegionHitAreas, RegionHover } from './Region';
+import { Relations } from './Relations';
 import { StaticMap } from './StaticMap';
 import { Tokens } from './Tokens';
 import { GainFx } from './GainFx';
@@ -31,15 +33,19 @@ interface View {
 
 const MIN_K = 1;
 const MAX_K = 2.6;
+/** Zoomed in this far, every province shows its name. */
+const ZOOM_NAMES = 1.4;
 
-export function MapView({ world, fx = null, onSelect, children, interactive = true }: Props) {
+export function MapView({ world: current, fx = null, onSelect, children, interactive = true }: Props) {
+  // While the season montage plays, the map shows the world as it was when the bell rang.
+  const world = fx && !fx.settled ? fx.before : current;
   const { map } = world;
   // Hover lives here, not in the table, so moving the mouse re-renders only the map's light layer.
   const hoverRegion = useStore((s) => s.hoverRegion);
   const gains = useStore((s) => s.gains);
+  const relations = useStore((s) => s.relations);
   const onHover = useStore((s) => s.setHoverRegion);
-  // While the season's effects play, the map shows the world as it was; then it settles into the new one.
-  const shown: Record<RegionId, RegionState> = fx && !fx.settled ? fx.before : world.regions;
+  const shown: Record<RegionId, RegionState> = world.regions;
   const viewportRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>({ x: 0, y: 0, k: 1 });
@@ -150,6 +156,7 @@ export function MapView({ world, fx = null, onSelect, children, interactive = tr
       onPointerUp={onPointerUp}
       onPointerLeave={() => onHover(null)}
       onDoubleClick={() => setView({ x: 0, y: 0, k: 1 })}
+      data-zoomed={view.k >= ZOOM_NAMES ? true : undefined}
     >
       <div
         className="absolute inset-0 origin-top-left"
@@ -170,6 +177,7 @@ export function MapView({ world, fx = null, onSelect, children, interactive = tr
           <WarMarks world={world} />
           {gains && <GainFx map={map} gains={gains} />}
           <Tokens map={map} regions={shown} />
+          <AnimatePresence>{relations !== 'off' && <Relations key="relations" world={current} map={map} />}</AnimatePresence>
           {fx && !fx.settled && <SeasonFx map={map} fx={fx} />}
           {children}
         </svg>

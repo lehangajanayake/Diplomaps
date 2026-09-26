@@ -361,9 +361,39 @@ export type GameEvent =
   | { kind: 'letter'; season: number; letter: string; nation: NationId; letterKind: LetterKind; answer: string }
   | { kind: 'tension'; season: number; from: number; to: number };
 
+/** What kind of moment a chronicle line (and a montage beat) is: it picks the icon and the map's effect. */
+export type BeatKind =
+  | 'war'
+  | 'battle'
+  | 'capture'
+  | 'assault'
+  | 'held'
+  | 'collapse'
+  | 'occupy'
+  | 'march'
+  | 'turned_back'
+  | 'burn'
+  | 'gain'
+  | 'lie'
+  | 'exposed'
+  | 'peace'
+  | 'alliance'
+  | 'stand_down';
+
+/** One line of the chronicle: what happened in about twelve words, under the seal of the nation it is about. */
+export interface ChronicleBeat {
+  kind: BeatKind;
+  text: string;
+  seal: Holder;
+  tone: 'good' | 'bad' | 'neutral';
+}
+
 export interface ChronicleEntry {
   season: number;
   title: string;
+  /** The season's events, one line each, decided by code. */
+  beats: ChronicleBeat[];
+  /** The full chronicle in prose, written by the AI (or a template) after the season. */
   lines: string[];
   fromAI: boolean;
 }
@@ -452,7 +482,7 @@ export interface WorldStats {
 }
 
 /** Bumped whenever the saved shape changes, so an old save is never loaded into a new game. */
-export const WORLD_VERSION = 3;
+export const WORLD_VERSION = 4;
 
 export interface WorldState {
   version: typeof WORLD_VERSION;

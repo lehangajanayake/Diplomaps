@@ -3,8 +3,9 @@
  * resolution, animations) lives in ./flow.ts, which reads and writes this store.
  */
 import { create } from 'zustand';
+import type { Beat } from '../engine/beats';
 import type { Mood } from '../engine/schema';
-import { WORLD_VERSION, type Holder, type LedgerEntry, type NationId, type Owner, type RegionId, type SeasonSummary, type WorldState } from '../engine/types';
+import { WORLD_VERSION, type LedgerEntry, type NationId, type RegionId, type SeasonSummary, type WorldState } from '../engine/types';
 
 export type Phase = 'title' | 'table' | 'ending';
 export type Overlay =
@@ -13,7 +14,8 @@ export type Overlay =
   | { kind: 'letter'; id: string }
   | { kind: 'crossing' }
   | { kind: 'claim'; region: RegionId }
-  | { kind: 'favour'; nation: NationId };
+  | { kind: 'favour'; nation: NationId }
+  | { kind: 'chronicle' };
 
 export interface AudienceTurnUI {
   role: 'player' | 'ruler';
@@ -44,19 +46,19 @@ export interface AudienceState {
   leaving: boolean;
 }
 
+/** The season montage: the bell's biggest moments, played one at a time on the map. */
 export interface MapFx {
   key: number;
-  /** Region owners and troops as they were before the season resolved, shown until the effects settle. */
-  before: Record<RegionId, { owner: Holder; troops: number }>;
+  /** The world as it was when the bell rang: the table shows it until the montage ends. */
+  before: WorldState;
+  beats: Beat[];
+  /** The beat on screen. */
+  index: number;
   settled: boolean;
-  moves: { from: RegionId; to: RegionId; owner: Owner; troops: number }[];
-  battles: { region: RegionId; from: RegionId; attacker: Owner; captured: boolean }[];
-  conquests: { region: RegionId; from: RegionId | null; owner: Owner }[];
-  trails: { from: NationId; to: NationId; entry: string }[];
-  mobilised: { region: RegionId; amount: number }[];
-  /** Armies marching through the valley under their banners, down one road and out along another. */
-  marches: { nation: NationId; target: NationId }[];
 }
+
+/** The pins and red string between the capitals: off, switched on, or on for a moment after relations change. */
+export type RelationsView = 'off' | 'on' | 'flash';
 
 export interface SeasonCardState {
   season: number;
@@ -88,7 +90,6 @@ export interface StoreState {
   seasonCard: SeasonCardState | null;
   resolving: boolean;
   fx: MapFx | null;
-  chronicleFresh: number | null;
   chroniclePending: string | null;
   ending: EndingState | null;
   /** The crisis card for the current season is open. */
@@ -97,6 +98,7 @@ export interface StoreState {
   summary: SeasonSummary | null;
   /** Regions that just joined the Crossing, inking themselves in on the map. */
   gains: { key: number; regions: RegionId[] } | null;
+  relations: RelationsView;
   muted: boolean;
   notes: Note[];
   setHoverRegion: (id: RegionId | null) => void;
@@ -113,12 +115,12 @@ export const useStore = create<StoreState>()((set) => ({
   seasonCard: null,
   resolving: false,
   fx: null,
-  chronicleFresh: null,
   chroniclePending: null,
   ending: null,
   crisisOpen: false,
   summary: null,
   gains: null,
+  relations: 'off',
   muted: false,
   notes: [],
   setHoverRegion: (id) => set({ hoverRegion: id }),

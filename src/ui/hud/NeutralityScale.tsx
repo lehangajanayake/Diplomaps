@@ -1,4 +1,5 @@
 /** Neutrality as a brass balance: level when impartial, tipping as the Crossing takes sides. */
+import { FloatingDelta } from '../common/FloatingDelta';
 import { neutralityWord } from './words';
 export function NeutralityScale({ neutrality }: { neutrality: number }) {
   const tilt = Math.min(22, (100 - neutrality) * 0.26);
@@ -26,7 +27,8 @@ export function NeutralityScale({ neutrality }: { neutrality: number }) {
           ))}
         </g>
       </svg>
-      <div className="text-center leading-tight">
+      <div className="relative text-center leading-tight">
+        <FloatingDelta value={Math.round(neutrality)} className="-top-[1.1em] left-1/2" />
         <div className="font-sc text-[0.72rem] tracking-[0.14em] text-parchment-300/80">Neutrality</div>
         <div className="font-display text-[1.02rem] font-semibold text-parchment-100 candle-text">
           {Math.round(neutrality)} <span className="font-body text-[0.8rem] font-normal italic opacity-80">{neutralityWord(neutrality)}</span>

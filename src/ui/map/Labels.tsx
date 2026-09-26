@@ -54,6 +54,7 @@ export const NationLabels = memo(function NationLabels({ map, fallen }: { map: M
   );
 });
 
+/** Province names. Capitals always show theirs; the rest appear on hover or when the map is zoomed in. */
 export const RegionLabels = memo(function RegionLabels({ map }: { map: MapData }) {
   return (
     <g style={{ pointerEvents: 'none' }} fill={INK}>
@@ -62,6 +63,7 @@ export const RegionLabels = memo(function RegionLabels({ map }: { map: MapData }
         return (
           <text
             key={id}
+            className={r.capital ? undefined : 'region-name'}
             x={r.label[0]}
             y={r.label[1]}
             textAnchor="middle"

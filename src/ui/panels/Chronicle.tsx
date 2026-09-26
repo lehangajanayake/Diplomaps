@@ -1,7 +1,14 @@
-/** "News of the Realm": a parchment scroll where each season's entry inks itself in, word by word. */
+/**
+ * "News of the Realm": a parchment scroll with one short line per event, each under the seal of the
+ * nation it is about. The chronicler's full prose waits behind "Read the full chronicle".
+ */
 import { motion, useReducedMotion } from 'motion/react';
 import { useEffect, useRef } from 'react';
-import type { ChronicleEntry } from '../../engine/types';
+import { CROSSING_PROFILE, PROFILES } from '../../engine/nations';
+import { CROSSING, type ChronicleBeat, type ChronicleEntry } from '../../engine/types';
+import { openChronicle } from '../../store/flow';
+import { BeatIcon } from '../common/BeatIcon';
+import { WaxSeal } from '../common/WaxSeal';
 
 function Roller() {
   return (
@@ -12,54 +19,62 @@ function Roller() {
   );
 }
 
-function InkedLine({ text, delay, animate }: { text: string; delay: number; animate: boolean }) {
-  const words = text.split(' ');
-  if (!animate) return <p className="mb-[0.5em]">{text}</p>;
+const TONE = { good: 'text-[#2f5a2c]', bad: 'text-ink-red', neutral: 'text-ink-soft' } as const;
+
+function Line({ beat, delay, animate }: { beat: ChronicleBeat; delay: number; animate: boolean }) {
+  const seal = beat.seal === CROSSING ? { colour: CROSSING_PROFILE.colour, emblem: 'crossroads' as const } : beat.seal === 'unclaimed' ? null : PROFILES[beat.seal];
   return (
-    <p className="mb-[0.5em]">
-      {words.map((w, i) => (
-        <motion.span
-          key={i}
-          initial={{ opacity: 0, filter: 'blur(2px)' }}
-          animate={{ opacity: 1, filter: 'blur(0px)' }}
-          transition={{ delay: delay + i * 0.07, duration: 0.5 }}
-        >
-          {w}{' '}
-        </motion.span>
-      ))}
-    </p>
+    <motion.li
+      className="flex items-start gap-[0.4em]"
+      initial={animate ? { opacity: 0, x: -6 } : false}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay, duration: 0.4 }}
+    >
+      {seal && <WaxSeal colour={seal.colour} emblem={seal.emblem} size="1.2em" seed={beat.text.length} />}
+      <BeatIcon kind={beat.kind} className={`mt-[0.15em] h-[0.95em] w-[0.95em] shrink-0 ${TONE[beat.tone]}`} />
+      <span className="leading-snug">{beat.text}</span>
+    </motion.li>
   );
 }
 
-export function Chronicle({ entries, freshSeason, pending }: { entries: ChronicleEntry[]; freshSeason: number | null; pending?: string | null }) {
+export function Chronicle({ entries, pending }: { entries: ChronicleEntry[]; pending?: string | null }) {
   const reduce = useReducedMotion();
   const bodyRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, [entries.length]);
   const ordered = [...entries].reverse();
+  const latest = ordered[0]?.season;
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col" data-tutorial="chronicle">
       <Roller />
-      <div ref={bodyRef} className="parchment relative -my-[0.4vh] flex-1 overflow-y-auto px-[0.95em] pb-[0.8em] pt-[0.9em] text-ink">
+      <div ref={bodyRef} className="parchment relative -my-[0.4vh] flex-1 overflow-y-auto px-[0.85em] pb-[0.7em] pt-[0.8em] text-ink">
         <h2 className="text-center font-display text-[0.92rem] font-semibold tracking-[0.12em]">News of the Realm</h2>
-        <div className="mx-auto mb-[0.7em] mt-[0.2em] h-px w-2/3 bg-ink/40" />
-        {pending && (
-          <p className="mb-2 animate-pulse text-center font-hand text-[0.85rem] italic text-ink-faded">{pending}</p>
-        )}
-        {ordered.map((entry) => {
-          const fresh = !reduce && entry.season === freshSeason;
-          return (
-            <section key={entry.season} className="mb-[0.9em]">
-              <h3 className="mb-[0.25em] font-sc text-[0.86rem] tracking-[0.06em] text-wax">{entry.title}</h3>
-              <div className="font-body text-[0.84rem] leading-snug">
+        <div className="mx-auto mb-[0.6em] mt-[0.2em] h-px w-2/3 bg-ink/40" />
+        {ordered.map((entry) => (
+          <section key={entry.season} className="mb-[0.8em]">
+            <h3 className="mb-[0.25em] font-sc text-[0.84rem] tracking-[0.06em] text-wax">{entry.title}</h3>
+            {entry.beats.length > 0 ? (
+              <ul className="space-y-[0.3em] font-body text-[0.82rem]">
+                {entry.beats.map((b, i) => (
+                  <Line key={i} beat={b} delay={i * 0.15} animate={!reduce && entry.season === latest} />
+                ))}
+              </ul>
+            ) : (
+              <div className="font-body text-[0.82rem] leading-snug">
                 {entry.lines.map((line, i) => (
-                  <InkedLine key={i} text={line} animate={fresh} delay={i * line.split(' ').length * 0.07} />
+                  <p key={i} className="mb-[0.4em]">
+                    {line}
+                  </p>
                 ))}
               </div>
-            </section>
-          );
-        })}
+            )}
+          </section>
+        ))}
+        <button type="button" onClick={openChronicle} className="mt-[0.2em] block w-full text-center font-sc text-[0.82rem] text-wax hover:underline">
+          Read the full chronicle →
+        </button>
+        {pending && <p className="mt-[0.3em] animate-pulse text-center font-hand text-[0.8rem] italic text-ink-faded">{pending}</p>}
       </div>
       <Roller />
     </div>

@@ -1,6 +1,7 @@
 /** Map inks. Muted, warm, hand-mixed: nothing bright or saturated. */
 import { CROSSING_PROFILE, PROFILES } from '../../engine/nations';
 import { CROSSING, UNCLAIMED, type Holder } from '../../engine/types';
+import type { Relation } from '../../engine/world';
 
 export const INK = '#2a1d12';
 export const INK_SOFT = '#4b3624';
@@ -30,3 +31,11 @@ export function ownerInk(owner: Holder): string {
   if (owner === UNCLAIMED) return RUIN_INK;
   return owner === CROSSING ? GOLD_DEEP : PROFILES[owner].colourDark;
 }
+
+/** The relations view's string: green for allies, grey for neutral, red for hostile, heavier red at war. */
+export const STRING: Record<Relation, { colour: string; width: number; label: string }> = {
+  war: { colour: '#b3261e', width: 2.6, label: 'at war' },
+  hostile: { colour: '#9c3a2c', width: 1.6, label: 'hostile' },
+  ally: { colour: '#3f7a3a', width: 2.2, label: 'allies' },
+  neutral: { colour: '#8a8272', width: 1.2, label: 'neutral' },
+};

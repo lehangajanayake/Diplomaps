@@ -227,6 +227,11 @@ export const CONFIG = {
     exposedTrust: -15,
   },
 
+  /** The relations view: two nations whose mutual trust is at or below this are drawn as hostile. */
+  relations: {
+    hostileBelow: -25,
+  },
+
   /** Passes (passes.ts): a closed pass stops a nation's armies, caravans and tolls. */
   passes: {
     /** Trust the nation loses in the Warden each season its pass stays closed. */

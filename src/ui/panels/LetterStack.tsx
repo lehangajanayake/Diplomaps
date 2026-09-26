@@ -16,9 +16,12 @@ const KIND_LABEL: Record<LetterKind, string> = {
   angry: 'An angry letter',
 };
 
+/** The more letters on the table, the tighter they overlap, so the chronicle above keeps its room. */
+const STACKING = ['', 'gap-[1vh]', 'gap-[1vh]', '[&>*+*]:-mt-[1.3vh]', '[&>*+*]:-mt-[2.6vh]'];
+
 export function LetterStack({ letters, onOpen }: { letters: Letter[]; onOpen: (id: string) => void }) {
   return (
-    <div className={`relative flex flex-col ${letters.length > 2 ? '[&>*+*]:-mt-[1.3vh]' : 'gap-[1vh]'}`} data-tutorial="letters">
+    <div className={`relative flex flex-col ${STACKING[Math.min(letters.length, 4)]}`} data-tutorial="letters">
       {letters.map((letter, i) => {
         const nation = PROFILES[letter.from];
         return (

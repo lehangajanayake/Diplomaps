@@ -3,11 +3,13 @@ import { AnimatePresence } from 'motion/react';
 import { useCallback, useEffect } from 'react';
 import { CONFIG } from '../../engine/config';
 import { sealedLetters } from '../../engine/letters';
-import type { RegionId } from '../../engine/types';
+import { CROSSING, type RegionId } from '../../engine/types';
+import { regionsOf } from '../../engine/world';
 import { sound } from '../../audio/sound';
-import { audiencesLeft, closeOverlay, endSeason, openClaim, openCrossing, openDossier, openLedger, openLetter } from '../../store/flow';
+import { closeOverlay, endSeason, openClaim, openCrossing, openDossier, openLedger, openLetter } from '../../store/flow';
 import { useStore } from '../../store/worldStore';
 import { AudienceScene } from '../audience/AudienceScene';
+import { Courts } from '../hud/Courts';
 import { EndSeasonBell } from '../hud/EndSeasonBell';
 import { NeutralityScale } from '../hud/NeutralityScale';
 import { Purse } from '../hud/Purse';
@@ -16,6 +18,7 @@ import { TensionCandle } from '../hud/TensionCandle';
 import { MapSheet } from '../map/MapSheet';
 import { MapView } from '../map/MapView';
 import { Chronicle } from '../panels/Chronicle';
+import { ChronicleBook } from '../panels/ChronicleBook';
 import { CrossingSheet } from '../panels/CrossingSheet';
 import { Dossier } from '../panels/Dossier';
 import { LedgerView } from '../panels/Ledger';
@@ -31,6 +34,7 @@ import { Table } from '../table/Table';
 import { AmbitionCard } from '../hud/AmbitionCard';
 import { AmbitionChoice } from './AmbitionChoice';
 import { CrisisCard } from './CrisisCard';
+import { MontageCaption } from './MontageCaption';
 import { SeasonCard } from './SeasonCard';
 import { WhatChanged } from './WhatChanged';
 
@@ -39,7 +43,6 @@ export function GameTable() {
   const selectedNation = useStore((s) => s.selectedNation);
   const overlay = useStore((s) => s.overlay);
   const audience = useStore((s) => s.audience);
-  const chronicleFresh = useStore((s) => s.chronicleFresh);
   const chroniclePending = useStore((s) => s.chroniclePending);
   const resolving = useStore((s) => s.resolving);
   const fx = useStore((s) => s.fx);
@@ -71,9 +74,12 @@ export function GameTable() {
   }, []);
 
   if (!world) return null;
-  const ledger = world.player.ledger;
+  // While the season montage plays, the table shows the world as it was when the bell rang; then the
+  // numbers float, the needles swing and the new letters land.
+  const shown = fx && !fx.settled ? fx.before : world;
+  const ledger = shown.player.ledger;
   const letter = overlay?.kind === 'letter' ? world.letters.find((l) => l.id === overlay.id) : undefined;
-  const sealed = sealedLetters(world);
+  const sealed = resolving ? [] : sealedLetters(world);
 
   return (
     <Table danger={world.tension > CONFIG.tension.drumsAbove}>
@@ -82,12 +88,13 @@ export function GameTable() {
         <div className="absolute left-[calc(0.8vw+7.5vh)] top-[1.6vh] z-20">
           <Snuffer />
         </div>
-        <SeasonStrip season={world.season} audiencesLeft={audiencesLeft(world)} />
+        <SeasonStrip world={shown} />
 
         <aside className="absolute bottom-[var(--bottom)] left-[1.1vw] top-[calc(var(--top)+1vh)] z-20 flex w-[var(--left-col)] flex-col gap-[2vh]">
-          <AmbitionCard world={world} />
+          <AmbitionCard world={shown} />
+          <Courts world={shown} />
           <div className="min-h-0 flex-[1_1_64%]">
-            <Chronicle entries={world.chronicle} freshSeason={chronicleFresh} pending={chroniclePending} />
+            <Chronicle entries={shown.chronicle} pending={chroniclePending} />
           </div>
           <div className="flex-[0_1_auto]">
             <LetterStack letters={sealed} onOpen={openLetter} />
@@ -98,12 +105,13 @@ export function GameTable() {
           <MapSheet>
             <MapView world={world} fx={fx} onSelect={onSelect} interactive={!resolving} />
           </MapSheet>
+          <MontageCaption />
         </div>
 
         <aside className="absolute bottom-[var(--bottom)] right-[0.9vw] top-[1.4vh] z-20 flex w-[var(--right-col)] flex-col items-center justify-between">
-          <TensionCandle tension={world.tension} />
-          <Purse gold={world.player.gold} onClick={openCrossing} />
-          <NeutralityScale neutrality={world.player.neutrality} />
+          <TensionCandle tension={shown.tension} />
+          <Purse gold={shown.player.gold} land={regionsOf(shown, CROSSING).length} onClick={openCrossing} />
+          <NeutralityScale neutrality={shown.player.neutrality} />
           <LedgerBook entries={ledger.length} caught={ledger.filter((e) => e.caught).length} onOpen={openLedger} />
           <EndSeasonBell
             onRing={() => void endSeason()}
@@ -121,6 +129,7 @@ export function GameTable() {
           {letter && <LetterView key={letter.id} world={world} letter={letter} />}
           {overlay?.kind === 'claim' && <ClaimCard key={overlay.region} world={world} region={overlay.region} />}
           {overlay?.kind === 'favour' && <FavourCard key={`favour-${overlay.nation}`} world={world} nation={overlay.nation} />}
+          {overlay?.kind === 'chronicle' && <ChronicleBook key="chronicle" entries={world.chronicle} />}
         </AnimatePresence>
         <Notes />
       </div>

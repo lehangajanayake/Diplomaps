@@ -2,7 +2,8 @@
  * The bell: everything that happens between one season and the next, decided by code in a fixed
  * order. Pure and seeded: the same world always resolves the same way.
  */
-import { CONFIG } from './config.js';
+import { chronicleBeats, seasonBeats, type Beat } from './beats.js';
+import { CONFIG, seasonTitle } from './config.js';
 import { composeCrisis } from './crisis.js';
 import { attackTheCrossing, recoverBurning, resolveMarches } from './crossing.js';
 import { computeIncome } from './economy.js';
@@ -114,16 +115,22 @@ export function openFirstSeason(world: WorldState): WorldState {
 export interface SeasonOutcome {
   state: WorldState;
   events: GameEvent[];
+  /** What the bell set in motion, worth telling, in order: the montage plays the biggest. */
+  beats: Beat[];
   ending: Ending | null;
   record: SeasonRecord;
 }
 
-/** Resolve, gossip, check for an ending, record history and turn the page. */
+/** Resolve, gossip, check for an ending, record history and the chronicle, and turn the page. */
 export function playSeason(world: WorldState): SeasonOutcome {
   const resolved = resolveSeason(world);
   const gossip = runGossip(resolved.state, new Rng(resolved.state.rng));
   const w = gossip.state;
   const events = [...world.seasonLog, ...resolved.events, ...gossip.events];
+  const beats = seasonBeats(world, w, [...resolved.events, ...gossip.events]);
+  // The chronicle's lines (the whole season, the Warden's own deeds too) are decided now; its prose
+  // is written later, when the AI returns.
+  w.chronicle.push({ season: w.season, title: seasonTitle(w.season), beats: chronicleBeats(seasonBeats(world, w, events)), lines: [], fromAI: false });
   const ending = checkEnding(w, w.season >= CONFIG.seasons);
   const record: SeasonRecord = {
     season: w.season,
@@ -137,5 +144,5 @@ export function playSeason(world: WorldState): SeasonOutcome {
   w.seasonLog = [];
   if (ending) w.ending = ending;
   else openSeason(w, events);
-  return { state: w, events, ending, record };
+  return { state: w, events, beats, ending, record };
 }

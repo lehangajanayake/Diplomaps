@@ -3,10 +3,11 @@
  * Components call these functions; they read and write the Zustand store.
  */
 import { assessAudience, extractPromises, fetchHealth, streamAudience, writeEnding, writeFlavour } from '../ai/client';
-import { CONFIG, seasonName, seasonTitle, seasonYear } from '../engine/config';
+import { CONFIG, seasonName } from '../engine/config';
 import { greetingFor, greetingToneFor } from '../engine/courtesy';
 import { addLedgerEntries, recordAudience } from '../engine/ledger';
 import { claimRuin } from '../engine/actions';
+import { biggest, MONTAGE_MAX, type Beat } from '../engine/beats';
 import { callFavour } from '../engine/favours';
 import { cedableRegions, recordOffer } from '../engine/land';
 import { answerLetter } from '../engine/letters';
@@ -19,7 +20,7 @@ import { summariseSeason } from '../engine/summary';
 import { buildAudienceContext, buildEndingRequest, buildFlavourRequest } from '../engine/views';
 import { createWorld } from '../engine/world';
 import { sound } from '../audio/sound';
-import { clearSave, loadSave, randomSeed, useStore, type AudienceTurnUI, type MapFx, type Note } from './worldStore';
+import { clearSave, loadSave, randomSeed, useStore, type AudienceTurnUI, type Note } from './worldStore';
 
 const get = () => useStore.getState();
 const set = useStore.setState;
@@ -90,7 +91,6 @@ export function beginGame(seed?: number): void {
     audience: null,
     seasonCard: null,
     fx: null,
-    chronicleFresh: null,
     chroniclePending: null,
     ending: null,
     notes: [],
@@ -139,6 +139,12 @@ export function openCrossing(): void {
 
 export function openLedger(): void {
   set({ overlay: { kind: 'ledger' }, selectedNation: null });
+  sound.play('paper');
+}
+
+/** The chronicler's full prose for every season. */
+export function openChronicle(): void {
+  set({ overlay: { kind: 'chronicle' }, selectedNation: null });
   sound.play('paper');
 }
 
@@ -376,73 +382,103 @@ export function exitAudience(then?: () => void): void {
 
 const sleep = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
 
-function buildFx(before: WorldState, events: GameEvent[]): MapFx {
-  const fx: MapFx = {
-    key: Date.now(),
-    before: Object.fromEntries(before.map.regionIds.map((id) => [id, { ...before.regions[id]! }])),
-    settled: false,
-    moves: [],
-    battles: [],
-    conquests: [],
-    trails: [],
-    mobilised: [],
-    marches: [],
-  };
-  for (const e of events) {
-    if (e.kind === 'move') fx.moves.push({ from: e.from, to: e.to, owner: e.nation, troops: e.troops });
-    else if (e.kind === 'battle') {
-      fx.battles.push({ region: e.region, from: e.from, attacker: e.attacker, captured: e.captured });
-      if (e.captured) fx.conquests.push({ region: e.region, from: e.from, owner: e.attacker });
-    } else if (e.kind === 'cede') fx.conquests.push({ region: e.region, from: null, owner: e.target });
-    else if (e.kind === 'gain') fx.conquests.push({ region: e.region, from: null, owner: 'crossing' });
-    else if (e.kind === 'mobilise') fx.mobilised.push({ region: e.region, amount: e.amount });
-    else if (e.kind === 'gossip') fx.trails.push({ from: e.from, to: e.to, entry: e.entry });
-    else if (e.kind === 'exposed') fx.trails.push({ from: e.nation, to: e.target, entry: 'favour' });
-    else if (e.kind === 'march') fx.marches.push({ nation: e.nation, target: e.target });
+/** How long each beat of the montage holds the map. A caught lie or a betrayal gets a moment to land. */
+function beatMs(beat: Beat): number {
+  if (beat.kind === 'lie' || beat.kind === 'exposed') return 2600;
+  if (beat.kind === 'collapse') return 2000;
+  return 1350;
+}
+
+let skipBeat: (() => void) | null = null;
+let skipping = false;
+
+/** Wait, unless the player skips the montage. */
+function beatPause(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(done, ms);
+    function done() {
+      window.clearTimeout(timer);
+      skipBeat = null;
+      resolve();
+    }
+    skipBeat = done;
+  });
+}
+
+/** Skip the rest of the season montage. */
+export function skipMontage(): void {
+  skipping = true;
+  skipBeat?.();
+}
+
+/** Play the bell's biggest moments one at a time on the map. */
+async function playMontage(beats: readonly Beat[]): Promise<void> {
+  skipping = false;
+  for (let i = 0; i < beats.length && !skipping; i++) {
+    set((s) => ({ fx: s.fx ? { ...s.fx, index: i } : null }));
+    const beat = beats[i]!;
+    if (beat.kind === 'lie' || beat.kind === 'exposed') sound.play('drums');
+    else if (beat.kind === 'war' || beat.kind === 'collapse' || beat.kind === 'assault') sound.play('bell');
+    await beatPause(beatMs(beat));
   }
-  // A region taken twice in one season inks in once, in its final colour.
-  fx.conquests = fx.conquests.filter((c, i) => !fx.conquests.slice(i + 1).some((later) => later.region === c.region));
-  fx.trails = fx.trails.slice(0, 8);
-  return fx;
+}
+
+/** Did any war, peace or alliance begin or end? */
+function relationsChanged(before: WorldState, after: WorldState): boolean {
+  const key = (w: WorldState) => [...w.wars.map((x) => `w${x.a}${x.b}`), ...w.alliances.map((x) => `a${x.a}${x.b}`)].sort().join();
+  return key(before) !== key(after);
+}
+
+export function toggleRelations(): void {
+  set({ relations: get().relations === 'on' ? 'off' : 'on' });
+  sound.play('paper');
 }
 
 export async function endSeason(): Promise<void> {
   const s = get();
   const w = s.world;
   if (!w || s.resolving || s.audience || w.ending) return;
-  const finalSeason = w.season >= CONFIG.seasons;
-  const next = w.season + 1;
-  const title = finalSeason ? `The End of ${seasonName(w.season)}, ${seasonYear(w.season)}` : `${seasonName(next)}, Year ${seasonYear(next)}`;
   sound.play('bell');
-  set({ resolving: true, selectedNation: null, overlay: null, fx: null, seasonCard: { season: next, title, message: 'The five courts make their moves…', closing: false } });
+  set({
+    resolving: true,
+    selectedNation: null,
+    overlay: null,
+    fx: null,
+    seasonCard: { season: w.season, title: `The End of ${seasonName(w.season)}`, message: 'The five courts make their moves…', closing: false },
+  });
 
   // Code decides everything at once; the pause is only for the bell to ring.
   const audiences = [...w.audiencesThisSeason];
   const outcome = playSeason(w);
-  await sleep(1600);
-  const fx = buildFx(w, outcome.events);
-  set({ world: outcome.state, fx, seasonCard: { ...get().seasonCard!, message: finalSeason ? 'The last season is done.' : 'The courts have moved.', closing: true } });
+  await sleep(1400);
+  set({ world: outcome.state, fx: { key: Date.now(), before: w, beats: biggest(outcome.beats, MONTAGE_MAX), index: -1, settled: false }, seasonCard: { ...get().seasonCard!, closing: true } });
   if (outcome.state.tension > CONFIG.tension.drumsAbove) sound.play('drums');
 
-  // The chronicler and the courts' scribes write while the map plays out.
+  // The chronicler and the courts' scribes write while the montage plays.
   set({ chroniclePending: 'The chronicler dips his quill…' });
   const flavour = writeFlavour(buildFlavourRequest(outcome.state, outcome.events, w.season, audiences));
-  await sleep(1100);
+  await sleep(700);
   set({ seasonCard: null });
-  await sleep(4600);
-  set((st) => ({ fx: st.fx ? { ...st.fx, settled: true } : null }));
-  await sleep(200);
+  await sleep(300);
+  await playMontage(get().fx?.beats ?? []);
+  // When friends and foes have changed, the pins and string come out for a moment to show the new order.
+  if (!skipping && relationsChanged(w, outcome.state) && get().relations === 'off') {
+    set({ relations: 'flash' });
+    await beatPause(2400);
+    if (get().relations === 'flash') set({ relations: 'off' });
+  }
+
+  // The table catches up: numbers float, needles swing, letters land, and the "What changed" card opens.
   set({ fx: null, resolving: false, summary: summariseSeason(w, outcome.state, outcome.events) });
 
-  // The words ink themselves in whenever they return; the table is already yours again.
+  // The prose inks itself in whenever it returns; the table is already yours again.
   void flavour.then((f) => {
     const cur = get().world;
     if (!cur) return;
-    const entry = { season: w.season, title: seasonTitle(w.season), lines: f.chronicle, fromAI: !f.fallback };
-    const chronicle = [...cur.chronicle.filter((c) => c.season !== w.season), entry].sort((x, y) => x.season - y.season);
+    const chronicle = cur.chronicle.map((c) => (c.season === w.season ? { ...c, lines: f.chronicle, fromAI: !f.fallback } : c));
     const letters = cur.letters.map((l) => (f.quotes[l.id] ? { ...l, quote: f.quotes[l.id]! } : l));
     const latest = cur.history.at(-1)?.season;
-    set({ world: { ...cur, chronicle, letters }, chronicleFresh: w.season, chroniclePending: latest === w.season ? null : get().chroniclePending });
+    set({ world: { ...cur, chronicle, letters }, chroniclePending: latest === w.season ? null : get().chroniclePending });
     sound.play('quill');
   });
 }
@@ -462,6 +498,6 @@ export async function finishGame(): Promise<void> {
 
 export function playAgain(): void {
   clearSave();
-  set({ phase: 'table', ending: null, chronicleFresh: null });
+  set({ phase: 'table', ending: null });
   beginGame(randomSeed());
 }

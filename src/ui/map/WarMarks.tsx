@@ -71,7 +71,7 @@ const PLUMES = [
   [5, 0, -3.1],
 ] as const;
 
-function Smoke({ map, region }: { map: MapData; region: RegionId }) {
+export function Smoke({ map, region }: { map: MapData; region: RegionId }) {
   const [x, y] = map.regions[region]!.centroid;
   return (
     <g style={{ pointerEvents: 'none' }} data-burning={region}>

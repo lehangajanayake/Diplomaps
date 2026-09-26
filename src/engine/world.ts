@@ -97,6 +97,7 @@ export function createWorld(seed: number): WorldState {
       {
         season: 0,
         title: 'The Eve of Spring, 614',
+        beats: [],
         lines: [
           'Five crowns watch one another across the valley, and every road between them runs through the Crossing.',
           "In Wayhold the Warden breaks the seal on a new year. The tolls are good. The quiet will not last.",
@@ -188,6 +189,16 @@ export function warsOf(world: WorldState, nation: NationId): number {
 
 export function allied(world: WorldState, a: Owner, b: Owner): boolean {
   return world.alliances.some((al) => (al.a === a && al.b === b) || (al.a === b && al.b === a));
+}
+
+/** How two nations stand, as the relations view draws it. */
+export type Relation = 'war' | 'ally' | 'hostile' | 'neutral';
+
+export function relationBetween(world: WorldState, a: NationId, b: NationId): Relation {
+  if (atWar(world, a, b)) return 'war';
+  if (allied(world, a, b)) return 'ally';
+  const mutual = (world.nations[a].trust[b] + world.nations[b].trust[a]) / 2;
+  return mutual <= CONFIG.relations.hostileBelow ? 'hostile' : 'neutral';
 }
 
 export function alliesOf(world: WorldState, nation: NationId): NationId[] {

@@ -1,5 +1,7 @@
-/** The treasury: a leather coin purse with coins spilling out as it fills. */
-export function Purse({ gold, onClick }: { gold: number; onClick?: () => void }) {
+/** The treasury and the land: a leather coin purse with coins spilling out as it fills, and the valley's regions. */
+import { FloatingDelta } from '../common/FloatingDelta';
+
+export function Purse({ gold, land, onClick }: { gold: number; land: number; onClick?: () => void }) {
   const coins = Math.max(1, Math.min(6, Math.round(gold / 60)));
   const spill: [number, number, number][] = [
     [92, 84, -12],
@@ -10,7 +12,7 @@ export function Purse({ gold, onClick }: { gold: number; onClick?: () => void })
     [70, 90, -8],
   ];
   return (
-    <button type="button" onClick={onClick} className="group flex flex-col items-center" title="Your treasury. Tolls from every road through the Crossing fill it each season.">
+    <button type="button" onClick={onClick} className="group flex flex-col items-center" title="Your treasury and your land. Tolls from every road, and a tax from every region, fill it each season." data-tutorial="purse">
       <svg viewBox="0 0 130 104" className="h-[10.5vh] min-h-[62px] w-auto overflow-visible transition-transform duration-300 group-hover:-translate-y-0.5" aria-hidden>
         <defs>
           <radialGradient id="purse-leather" cx="40%" cy="40%" r="70%">
@@ -39,8 +41,13 @@ export function Purse({ gold, onClick }: { gold: number; onClick?: () => void })
           </g>
         ))}
       </svg>
-      <div className="font-display text-[1.02rem] font-semibold text-gold-bright candle-text">
+      <div className="relative font-display text-[1.02rem] font-semibold leading-tight text-gold-bright candle-text">
+        <FloatingDelta value={gold} className="-top-[1.1em] left-1/2" />
         {gold} <span className="font-body text-[0.8rem] font-normal italic text-parchment-200/80">gold</span>
+      </div>
+      <div className="relative font-display text-[0.92rem] font-semibold leading-tight text-parchment-100 candle-text">
+        <FloatingDelta value={land} className="-top-[0.2em] left-[108%]" />
+        {land} <span className="font-body text-[0.78rem] font-normal italic text-parchment-200/80">{land === 1 ? 'region' : 'regions'}</span>
       </div>
     </button>
   );
