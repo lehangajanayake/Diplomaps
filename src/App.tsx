@@ -1,17 +1,18 @@
 import { useEffect } from 'react';
+import { beginGame, checkHealth } from './store/flow';
 import { useStore } from './store/worldStore';
 import { GameTable } from './ui/screens/GameTable';
+import { TitleScreen } from './ui/screens/TitleScreen';
 
 export function App() {
-  const world = useStore((s) => s.world);
-  const newGame = useStore((s) => s.newGame);
+  const phase = useStore((s) => s.phase);
 
   useEffect(() => {
-    if (!world) {
-      const seedParam = new URLSearchParams(location.search).get('seed');
-      newGame(seedParam ? Number(seedParam) : undefined);
-    }
-  }, [world, newGame]);
+    void checkHealth();
+    const params = new URLSearchParams(location.search);
+    if (params.has('seed') && params.has('skipTitle')) beginGame();
+  }, []);
 
-  return <GameTable />;
+  if (phase === 'title') return <TitleScreen />;
+  return <GameTable onRing={() => {}} />;
 }

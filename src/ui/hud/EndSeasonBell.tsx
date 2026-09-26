@@ -1,7 +1,7 @@
 /** A brass hand bell. Ring it to end the season. */
 import { motion } from 'motion/react';
 
-export function EndSeasonBell({ onRing, disabled, label }: { onRing: () => void; disabled?: boolean; label?: string }) {
+export function EndSeasonBell({ onRing, disabled, note }: { onRing: () => void; disabled?: boolean; note?: string }) {
   return (
     <motion.button
       type="button"
@@ -36,9 +36,8 @@ export function EndSeasonBell({ onRing, disabled, label }: { onRing: () => void;
         <path d="M48 50 C46 70 42 88 32 100" fill="none" stroke="#fff4c8" strokeWidth="2.5" opacity="0.35" strokeLinecap="round" />
         <circle cx="55" cy="112" r="5" fill="#4a3210" stroke="#2a1a06" strokeWidth="0.8" />
       </svg>
-      <span className="mt-0.5 font-sc text-[0.8rem] tracking-[0.1em] text-parchment-100 candle-text group-hover:text-gold-bright">
-        {label ?? 'End the season'}
-      </span>
+      <span className="mt-0.5 font-sc text-[0.8rem] tracking-[0.1em] text-parchment-100 candle-text group-hover:text-gold-bright">End the season</span>
+      {note && <span className="font-body text-[0.72rem] italic leading-tight text-[#f0b48a]">{note}</span>}
     </motion.button>
   );
 }
