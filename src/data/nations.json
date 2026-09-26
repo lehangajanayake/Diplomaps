@@ -1,0 +1,179 @@
+{
+  "nations": [
+    {
+      "id": "varrow",
+      "name": "Varrow",
+      "adjective": "Varrish",
+      "epithet": "the horse-lords of the iron steppe",
+      "colour": "#8c3b2e",
+      "colourDark": "#4a1c15",
+      "emblem": "horse",
+      "capitalName": "Harrowgate",
+      "ruler": {
+        "name": "Hadrik the Unbowed",
+        "title": "King of Varrow, Lord of the Iron Steppe",
+        "pronoun": "he"
+      },
+      "personality": "Proud, blunt and quick to anger. Respects strength and plain speech; despises flattery, haggling and anyone who hides behind clever words.",
+      "speechStyle": "Speaks of himself only as 'Varrow', in the third person. Short, hard sentences full of horses, iron and winter.",
+      "secretGoal": "Avenge the Burning of Harrowmere: break Kelm in open war and take at least one Kelmish province.",
+      "redLine": {
+        "kind": "threat",
+        "about": null,
+        "text": "Threaten Varrow once and Varrow remembers. Threaten Varrow twice and Varrow rides."
+      },
+      "grudges": [
+        { "against": "kelm", "reason": "Kelmish fire-ships burned Harrowmere thirty winters ago, and Kelm has never paid the blood-price." },
+        { "against": "sael", "reason": "The Duchess of Sael laughed at Varrow's envoys and bought its horses at half their worth." }
+      ],
+      "friends": [
+        { "with": "ostrin", "reason": "Ostrin's priests blessed Hadrik's crowning, and Varrish riders guard the pilgrim roads." }
+      ],
+      "discretion": 0.4,
+      "aggression": 0.8,
+      "trustToPlayer": 0,
+      "regionWords": ["Iron", "Horse", "Frost", "Wolf", "Spear", "Barrow", "Steppe", "Hoof", "Winter", "Grim"]
+    },
+    {
+      "id": "kelm",
+      "name": "Kelm",
+      "adjective": "Kelmish",
+      "epithet": "the counting-house league of the river cities",
+      "colour": "#3e5a76",
+      "colourDark": "#1f3043",
+      "emblem": "scales",
+      "capitalName": "Silverhithe",
+      "ruler": {
+        "name": "Ysolde Marrow",
+        "title": "First Chancellor of the Kelmish League",
+        "pronoun": "she"
+      },
+      "personality": "Cold, courteous and calculating. Believes every loyalty has a price and every debt must be paid. Patient as compound interest.",
+      "speechStyle": "Talks in ledgers, debts and percentages, quoting exact figures. Says 'Noted.' whenever she is displeased.",
+      "secretGoal": "Own the Crossing: drain the Warden's treasury until the passes and their tolls can be bought outright for Kelm.",
+      "redLine": {
+        "kind": "deceit",
+        "about": null,
+        "text": "Kelm forgives a debt before it forgives a lie. Deal falsely once, and the account is closed."
+      },
+      "grudges": [
+        { "against": "varrow", "reason": "Varrish riders raid Kelm's grain barges and call it old justice." },
+        { "against": "tarn", "reason": "Tarnish reed-pirates prey on Kelm's river trade, and the clans refuse all compensation." }
+      ],
+      "friends": [
+        { "with": "sael", "reason": "Kelmish banks finance Saelish fleets; the two courts share a table at every fair." }
+      ],
+      "discretion": 0.7,
+      "aggression": 0.35,
+      "trustToPlayer": 15,
+      "regionWords": ["Coin", "Mill", "Wharf", "Toll", "Weir", "Silver", "Barge", "Market", "Lock", "Tally"]
+    },
+    {
+      "id": "sael",
+      "name": "Sael",
+      "adjective": "Saelish",
+      "epithet": "the silk-and-salt duchy of the harbours",
+      "colour": "#3d6f60",
+      "colourDark": "#1d3a32",
+      "emblem": "ship",
+      "capitalName": "Brightwater",
+      "ruler": {
+        "name": "Lisette Aumery",
+        "title": "Duchess of Sael, Mistress of the Salt Roads",
+        "pronoun": "she"
+      },
+      "personality": "Charming, witty and vain, with spies in every court. Loves gifts and flattery and bores quickly; far more dangerous than she lets anyone see.",
+      "speechStyle": "Honeyed and teasing, full of sea and silk metaphors. Calls the player 'darling' and ends many sentences with a question.",
+      "secretGoal": "Let Varrow and Kelm bleed each other white, then buy their ruined provinces for a song.",
+      "redLine": {
+        "kind": "passage_to_enemy",
+        "about": "varrow",
+        "text": "Open your roads to Varrow's horsemen, darling, and you will have chosen a side. It will not be mine."
+      },
+      "grudges": [
+        { "against": "varrow", "reason": "Varrow covets Sael's harbours and says so, loudly, at every feast." },
+        { "against": "ostrin", "reason": "Ostrin's priests preach against Sael's 'harbour of sins' and burn its silks." }
+      ],
+      "friends": [
+        { "with": "kelm", "reason": "Kelmish gold and Saelish ships have made each other rich for a generation." }
+      ],
+      "discretion": 0.85,
+      "aggression": 0.3,
+      "trustToPlayer": 20,
+      "regionWords": ["Pearl", "Salt", "Silk", "Gull", "Coral", "Amber", "Tide", "Lantern", "Rose", "Mist"]
+    },
+    {
+      "id": "tarn",
+      "name": "The Tarn",
+      "adjective": "Tarnish",
+      "epithet": "the reed clans of the drowned fens",
+      "colour": "#664a66",
+      "colourDark": "#352435",
+      "emblem": "heron",
+      "capitalName": "Reedholm",
+      "ruler": {
+        "name": "Mother Gethin",
+        "title": "Speaker of the Tarn, Eldest of the Reed Clans",
+        "pronoun": "she"
+      },
+      "personality": "Taciturn, shrewd and patient as the fens. Distrusts kings, coin and fine words. Remembers every slight for a hundred years.",
+      "speechStyle": "Terse. Answers in fen proverbs about water, reeds and weather, often answers a question with a question, and says 'Hm.' when unimpressed.",
+      "secretGoal": "Take back the burial hills: seize an Ostrine province where the clans' ancestors lie, and humble the Hierarch.",
+      "redLine": {
+        "kind": "border_troops",
+        "about": null,
+        "text": "Soldiers at the edge of the fen are soldiers in the fen. The Tarn does not wait to drown."
+      },
+      "grudges": [
+        { "against": "ostrin", "reason": "Ostrin's priests drove the clans from the burial hills and burned the reed-shrines." },
+        { "against": "kelm", "reason": "Kelmish usurers bought the clans' debts and sent bailiffs into the fens." }
+      ],
+      "friends": [],
+      "discretion": 0.2,
+      "aggression": 0.55,
+      "trustToPlayer": -10,
+      "regionWords": ["Reed", "Heron", "Mire", "Fen", "Sedge", "Eel", "Bog", "Willow", "Drowned", "Peat"]
+    },
+    {
+      "id": "ostrin",
+      "name": "Ostrin",
+      "adjective": "Ostrine",
+      "epithet": "the lamplit theocracy of the high passes",
+      "colour": "#9a7630",
+      "colourDark": "#553f13",
+      "emblem": "lamp",
+      "capitalName": "Hallowspire",
+      "ruler": {
+        "name": "Anselm Vey",
+        "title": "Hierarch of Ostrin, Keeper of the Seven Lamps",
+        "pronoun": "he"
+      },
+      "personality": "Devout, soft-spoken and suspicious of outsiders. Sees omens in everything. Slow to anger, and never forgets once angered.",
+      "speechStyle": "Speaks in scripture and omens, often beginning 'It is written...', and calls the player 'child'.",
+      "secretGoal": "Reclaim the valley shrine: Ostrin holds that the heart of the Crossing is holy ground stolen from the Lamp, and means to take it back.",
+      "redLine": {
+        "kind": "rival_alliance",
+        "about": "tarn",
+        "text": "Whoever takes the hand of the heretic Tarn takes up the Lamp's curse."
+      },
+      "grudges": [
+        { "against": "tarn", "reason": "The fen clans burned the Lamp-house at Saint Orrin's and still worship the drowned gods." },
+        { "against": "sael", "reason": "Sael shelters Ostrin's heretics and prints their pamphlets for profit." }
+      ],
+      "friends": [
+        { "with": "varrow", "reason": "The Hierarch crowned Hadrik; Varrish lances keep the pilgrim roads safe." }
+      ],
+      "discretion": 0.45,
+      "aggression": 0.5,
+      "trustToPlayer": -5,
+      "regionWords": ["Lamp", "Saint", "Chapel", "Vigil", "Crag", "Spire", "Hallow", "Bell", "Pilgrim", "Ember"]
+    }
+  ],
+  "crossing": {
+    "name": "The Crossing",
+    "capitalName": "Wayhold",
+    "title": "Warden of the Crossing",
+    "colour": "#c9a24a",
+    "regionWords": ["Toll", "King's", "Lantern", "Hearth", "Way", "Bridge", "Market", "Crown"]
+  }
+}
