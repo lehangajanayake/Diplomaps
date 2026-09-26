@@ -15,7 +15,8 @@ export type Overlay =
   | { kind: 'crossing' }
   | { kind: 'claim'; region: RegionId }
   | { kind: 'favour'; nation: NationId }
-  | { kind: 'chronicle' };
+  | { kind: 'chronicle' }
+  | { kind: 'handbook' };
 
 export interface AudienceTurnUI {
   role: 'player' | 'ruler';
@@ -106,6 +107,10 @@ export interface StoreState {
   /** Regions that just joined the Crossing, inking themselves in on the map. */
   gains: { key: number; regions: RegionId[] } | null;
   relations: RelationsView;
+  /** The opening plays: the map unrolls, the seals drop, the valley glows. */
+  opening: boolean;
+  /** The step of the tutorial on screen, or null. */
+  tutorialStep: number | null;
   muted: boolean;
   notes: Note[];
   setHoverRegion: (id: RegionId | null) => void;
@@ -128,6 +133,8 @@ export const useStore = create<StoreState>()((set) => ({
   summary: null,
   gains: null,
   relations: 'off',
+  opening: false,
+  tutorialStep: null,
   muted: false,
   notes: [],
   setHoverRegion: (id) => set({ hoverRegion: id }),

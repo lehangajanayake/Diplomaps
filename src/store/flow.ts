@@ -19,8 +19,10 @@ import { openFirstSeason, playSeason } from '../engine/resolve';
 import type { AmbitionId, GameEvent, NationId, RegionId, WorldState } from '../engine/types';
 import { summariseSeason } from '../engine/summary';
 import { buildAudienceContext, buildEndingRequest, buildFlavourRequest } from '../engine/views';
-import { createWorld } from '../engine/world';
+import { NATION_IDS } from '../engine/types';
+import { createWorld, isStanding } from '../engine/world';
 import { sound } from '../audio/sound';
+import { TUTORIAL } from './intro';
 import { clearSave, loadSave, randomSeed, useStore, type AudienceTurnUI, type Note } from './worldStore';
 
 const get = () => useStore.getState();
@@ -80,6 +82,19 @@ export function hasSave(): boolean {
   return loadSave() !== null;
 }
 
+/** `?skipIntro` skips the opening and the tutorial (for replays and automated playtests). */
+const skipIntro = () => new URLSearchParams(location.search).has('skipIntro');
+
+const TUTORIAL_KEY = 'diplomaps.tutorial.done';
+
+function tutorialDone(): boolean {
+  try {
+    return localStorage.getItem(TUTORIAL_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export function beginGame(seed?: number): void {
   const param = new URLSearchParams(location.search).get('seed');
   const chosen = seed ?? (param && /^\d+$/.test(param) ? Number(param) : randomSeed());
@@ -97,18 +112,66 @@ export function beginGame(seed?: number): void {
     notes: [],
     resolving: false,
     summary: null,
-    crisisOpen: true,
+    crisisOpen: false,
+    relations: 'off',
+    opening: !skipIntro(),
+    tutorialStep: null,
   });
   sound.startAmbient();
 }
 
-/** The player picks the ambition they will win or lose on; the first season's crisis follows. */
+/** The opening is over (or skipped): on to the choice of ambition. */
+export function endOpening(): void {
+  if (get().opening) set({ opening: false });
+}
+
+/** The player picks the ambition they will win or lose on; the tutorial (first game only) or the first crisis follows. */
 export function chooseAmbition(ambition: AmbitionId): void {
   const w = get().world;
   if (!w || w.player.ambition) return;
   const world = openFirstSeason({ ...w, player: { ...w.player, ambition } });
-  set({ world, crisisOpen: true });
+  set({ world });
   sound.play('quill');
+  if (!skipIntro() && !tutorialDone()) showTutorialStep(0);
+  else set({ crisisOpen: true });
+}
+
+/* ------------------------------------------------------------------ */
+/* The tutorial and the handbook                                        */
+/* ------------------------------------------------------------------ */
+
+/** Show one tutorial step, opening the friendliest court's dossier when the step is about what lies inside it. */
+function showTutorialStep(step: number): void {
+  const w = get().world;
+  const friend = w ? [...NATION_IDS].filter((n) => isStanding(w, n)).sort((a, b) => w.nations[b].trustPlayer - w.nations[a].trustPlayer)[0] : undefined;
+  set({ tutorialStep: step, overlay: null, crisisOpen: false, selectedNation: TUTORIAL[step]?.dossier && friend ? friend : null });
+}
+
+export function nextTutorialStep(): void {
+  const step = get().tutorialStep;
+  if (step === null) return;
+  if (step + 1 < TUTORIAL.length) showTutorialStep(step + 1);
+  else endTutorial();
+}
+
+/** Finished or skipped: the tutorial will not show again on its own, and the season's crisis opens. */
+export function endTutorial(): void {
+  try {
+    localStorage.setItem(TUTORIAL_KEY, '1');
+  } catch {
+    // storage blocked: the tutorial will show again next game, which does no harm
+  }
+  set({ tutorialStep: null, selectedNation: null, crisisOpen: true });
+}
+
+export function openHandbook(): void {
+  if (get().audience || get().resolving) return;
+  set({ overlay: { kind: 'handbook' }, selectedNation: null });
+  sound.play('paper');
+}
+
+export function replayTutorial(): void {
+  showTutorialStep(0);
 }
 
 export function resumeGame(): boolean {

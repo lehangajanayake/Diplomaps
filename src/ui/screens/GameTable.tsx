@@ -1,5 +1,5 @@
 /** The main screen: the map sheet in the middle of the table, surrounded by the objects you play with. */
-import { AnimatePresence } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useCallback, useEffect } from 'react';
 import { CONFIG } from '../../engine/config';
 import { sealedLetters } from '../../engine/letters';
@@ -10,6 +10,7 @@ import { closeOverlay, endSeason, openClaim, openCrossing, openDossier, openLedg
 import { useStore } from '../../store/worldStore';
 import { AudienceScene } from '../audience/AudienceScene';
 import { Courts } from '../hud/Courts';
+import { HandbookBook } from '../hud/HandbookBook';
 import { EndSeasonBell } from '../hud/EndSeasonBell';
 import { NeutralityScale } from '../hud/NeutralityScale';
 import { Purse } from '../hud/Purse';
@@ -19,6 +20,8 @@ import { MapSheet } from '../map/MapSheet';
 import { MapView } from '../map/MapView';
 import { Chronicle } from '../panels/Chronicle';
 import { ChronicleBook } from '../panels/ChronicleBook';
+import { Handbook } from '../panels/Handbook';
+import { OpeningFx } from '../map/OpeningFx';
 import { CrossingSheet } from '../panels/CrossingSheet';
 import { Dossier } from '../panels/Dossier';
 import { LedgerView } from '../panels/Ledger';
@@ -35,6 +38,8 @@ import { AmbitionCard } from '../hud/AmbitionCard';
 import { AmbitionChoice } from './AmbitionChoice';
 import { CrisisCard } from './CrisisCard';
 import { MontageCaption } from './MontageCaption';
+import { Opening } from './Opening';
+import { Tutorial } from './Tutorial';
 import { SeasonCard } from './SeasonCard';
 import { WhatChanged } from './WhatChanged';
 
@@ -48,6 +53,7 @@ export function GameTable() {
   const fx = useStore((s) => s.fx);
   const muted = useStore((s) => s.muted);
   const tension = useStore((s) => s.world?.tension ?? 0);
+  const opening = useStore((s) => s.opening);
 
   useEffect(() => {
     sound.setDrums(!muted && tension > CONFIG.tension.drumsAbove);
@@ -84,9 +90,12 @@ export function GameTable() {
   return (
     <Table danger={world.tension > CONFIG.tension.drumsAbove}>
       <div className="game-layout relative h-full w-full">
+        {/* During the opening only the map is on the table; everything else is set down after it. */}
+        <div className={`transition-opacity duration-1000 ${opening ? 'pointer-events-none opacity-0' : 'opacity-100'}`}>
         <InkPot className="pointer-events-none absolute left-[0.8vw] top-[0.6vh] h-[7.5vh] w-auto opacity-90" />
-        <div className="absolute left-[calc(0.8vw+7.5vh)] top-[1.6vh] z-20">
+        <div className="absolute left-[calc(0.8vw+7.5vh)] top-[1.6vh] z-20 flex items-center gap-[1.2vw]">
           <Snuffer />
+          <HandbookBook />
         </div>
         <SeasonStrip world={shown} />
 
@@ -101,14 +110,23 @@ export function GameTable() {
           </div>
         </aside>
 
-        <div className="map-stage">
-          <MapSheet>
-            <MapView world={world} fx={fx} onSelect={onSelect} interactive={!resolving} />
-          </MapSheet>
-          <MontageCaption />
         </div>
 
-        <aside className="absolute bottom-[var(--bottom)] right-[0.9vw] top-[1.4vh] z-20 flex w-[var(--right-col)] flex-col items-center justify-between">
+        <motion.div
+          className="map-stage"
+          initial={opening ? { clipPath: 'inset(0% 50% 0% 50%)' } : false}
+          animate={{ clipPath: 'inset(0% 0% 0% 0%)' }}
+          transition={{ duration: 1.6, ease: [0.7, 0, 0.3, 1] }}
+        >
+          <MapSheet>
+            <MapView world={world} fx={fx} onSelect={onSelect} interactive={!resolving && !opening}>
+              {opening && <OpeningFx world={world} />}
+            </MapView>
+          </MapSheet>
+          <MontageCaption />
+        </motion.div>
+
+        <aside className={`absolute bottom-[var(--bottom)] right-[0.9vw] top-[1.4vh] z-20 flex w-[var(--right-col)] flex-col items-center justify-between transition-opacity duration-1000 ${opening ? 'pointer-events-none opacity-0' : 'opacity-100'}`}>
           <TensionCandle tension={shown.tension} />
           <Purse gold={shown.player.gold} land={regionsOf(shown, CROSSING).length} onClick={openCrossing} />
           <NeutralityScale neutrality={shown.player.neutrality} />
@@ -130,8 +148,11 @@ export function GameTable() {
           {overlay?.kind === 'claim' && <ClaimCard key={overlay.region} world={world} region={overlay.region} />}
           {overlay?.kind === 'favour' && <FavourCard key={`favour-${overlay.nation}`} world={world} nation={overlay.nation} />}
           {overlay?.kind === 'chronicle' && <ChronicleBook key="chronicle" entries={world.chronicle} />}
+          {overlay?.kind === 'handbook' && <Handbook key="handbook" />}
         </AnimatePresence>
         <Notes />
+        {opening && <Opening />}
+        <Tutorial />
       </div>
       <AnimatePresence>{audience && <AudienceScene key="audience" />}</AnimatePresence>
       <SeasonCard />

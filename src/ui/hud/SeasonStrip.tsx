@@ -15,6 +15,7 @@ export function SeasonStrip({ world }: { world: WorldState }) {
         type="button"
         onClick={openCrisis}
         title="Reread this season's crisis"
+        data-tutorial="crisis"
         className="parchment flex items-center gap-[0.9em] whitespace-nowrap px-[2.6em] py-[0.42em] text-ink transition-transform hover:-translate-y-px"
         style={{
           clipPath: 'polygon(0 0, 100% 0, 97.4% 50%, 100% 100%, 0 100%, 2.6% 50%)',

@@ -12,6 +12,7 @@ export function EndSeasonBell({ onRing, disabled, note }: { onRing: () => void; 
       className="group flex flex-col items-center disabled:opacity-50"
       style={{ transformOrigin: '50% 10%' }}
       title="End the season: the rulers act, rumours spread, and the chronicle is written."
+      data-tutorial="bell"
     >
       <svg viewBox="0 0 110 130" className="h-[13vh] min-h-[80px] w-auto overflow-visible" aria-hidden>
         <defs>

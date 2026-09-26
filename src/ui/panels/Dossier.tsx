@@ -142,23 +142,25 @@ export function Dossier({ world, nation }: { world: WorldState; nation: NationId
       </div>
 
       <div className="space-y-[0.55em] border-t border-ink/20 bg-[rgb(120_80_30/0.08)] px-[1.3em] py-[0.7em]">
-        {blocked ? (
-          <p className="font-hand text-[0.9rem] italic text-ink-faded">{blocked}</p>
-        ) : (
-          <SealButton
-            label="Request an audience"
-            onClick={() => startAudience(nation)}
-            colour={p.colour}
-            emblem={p.emblem}
-            seed={nation.length * 3}
-            hint="A private audience: the ruler listens while their patience lasts. Everything you promise is written in your ledger."
-          />
-        )}
+        <div data-tutorial="audience">
+          {blocked ? (
+            <p className="font-hand text-[0.9rem] italic text-ink-faded">{blocked}</p>
+          ) : (
+            <SealButton
+              label="Request an audience"
+              onClick={() => startAudience(nation)}
+              colour={p.colour}
+              emblem={p.emblem}
+              seed={nation.length * 3}
+              hint="A private audience: the ruler listens while their patience lasts. Everything you promise is written in your ledger."
+            />
+          )}
+        </div>
         {standing && (
-          <>
+          <div className="space-y-[0.55em]" data-tutorial="dossier-actions">
             <FavourAction world={world} nation={nation} />
             <PassControl world={world} nation={nation} detailed />
-          </>
+          </div>
         )}
       </div>
     </motion.aside>

@@ -6,7 +6,8 @@
 import { AnimatePresence } from 'motion/react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { nameOf } from '../../engine/nations';
-import type { Holder, RegionId, RegionState, WorldState } from '../../engine/types';
+import { CROSSING, type Holder, type RegionId, type RegionState, type WorldState } from '../../engine/types';
+import { regionsOf } from '../../engine/world';
 import { useStore, type MapFx } from '../../store/worldStore';
 import { SeasonFx } from './SeasonFx';
 import { Legend } from './Legend';
@@ -16,6 +17,17 @@ import { StaticMap } from './StaticMap';
 import { Tokens } from './Tokens';
 import { GainFx } from './GainFx';
 import { WarMarks } from './WarMarks';
+
+/** An invisible outline of the Crossing, for the tutorial to point at. */
+function ValleyOutline({ world }: { world: WorldState }) {
+  return (
+    <g opacity={0} style={{ pointerEvents: 'none' }} data-tutorial="valley" aria-hidden>
+      {regionsOf(world, CROSSING).map((id) => (
+        <path key={id} d={world.map.regions[id]!.d} />
+      ))}
+    </g>
+  );
+}
 
 interface Props {
   world: WorldState;
@@ -173,6 +185,7 @@ export function MapView({ world: current, fx = null, onSelect, children, interac
         <div className="map-grain pointer-events-none absolute inset-0" />
         <svg viewBox={`0 0 ${map.width} ${map.height}`} className="absolute inset-0 h-full w-full">
           {interactive && <RegionHitAreas map={map} onEnter={handleEnter} onLeave={handleLeave} onClick={handleClick} />}
+          <ValleyOutline world={world} />
           {hover && hoverState && <RegionHover map={map} id={hover.id} owner={hoverState.owner} />}
           <WarMarks world={world} />
           {gains && <GainFx map={map} gains={gains} />}

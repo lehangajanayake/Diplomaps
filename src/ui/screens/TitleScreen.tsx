@@ -150,9 +150,8 @@ export function TitleScreen() {
             >
               <p className="font-hand text-[0.95rem] italic">To the new Warden of the Crossing,</p>
               <p className="mt-[0.4em] font-body text-[0.9rem] leading-snug">
-                Every road between the five crowns runs through your little valley. You have no army; you have words, gold, and the keys to the
-                passes. Keep war from Wayhold for {CONFIG.seasons} seasons, or quietly set your neighbours at each other&rsquo;s throats. Every
-                promise is written down. The courts gossip.
+                Every road between the five crowns runs through your little valley. You have no army; you have words, gold, letters and the keys
+                to the passes. Choose an ambition and achieve it in {CONFIG.seasons} seasons. Every promise is written down. The courts gossip.
               </p>
               <p className="mt-[0.4em] text-right font-hand text-[0.9rem] italic">— the Keeper of the Tolls</p>
             </motion.aside>
