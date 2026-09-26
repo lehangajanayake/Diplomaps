@@ -1,8 +1,8 @@
 /** Place names: realms in spaced capitals, provinces in small type, seas in italic. */
 import { memo } from 'react';
 import { PROFILES } from '../../engine/nations';
-import { NATION_IDS, type MapData } from '../../engine/types';
-import { HALO, INK } from './palette';
+import { NATION_IDS, type MapData, type NationId } from '../../engine/types';
+import { HALO, INK, INK_RED } from './palette';
 
 const halo = {
   paintOrder: 'stroke' as const,
@@ -12,28 +12,42 @@ const halo = {
   strokeLinejoin: 'round' as const,
 };
 
-export const NationLabels = memo(function NationLabels({ map }: { map: MapData }) {
+/** Realm names in spaced capitals. A fallen realm's name is struck through in red ink. */
+export const NationLabels = memo(function NationLabels({ map, fallen }: { map: MapData; fallen: readonly NationId[] }) {
   return (
     <g style={{ pointerEvents: 'none' }}>
       {NATION_IDS.map((id) => {
         const l = map.nationLabels[id];
         const spacing = l.size * 0.42;
+        const name = PROFILES[id].name.toUpperCase();
+        const half = (name.length * (l.size * 0.74 + spacing)) / 2;
+        const down = fallen.includes(id);
         return (
-          <text
-            key={id}
-            x={l.x + spacing / 2}
-            y={l.y + l.size * 0.34}
-            transform={`rotate(${l.angle} ${l.x} ${l.y})`}
-            textAnchor="middle"
-            fontFamily="Cinzel, serif"
-            fontWeight={600}
-            fontSize={l.size}
-            letterSpacing={spacing}
-            fill={PROFILES[id].colourDark}
-            opacity={0.58}
-          >
-            {PROFILES[id].name.toUpperCase()}
-          </text>
+          <g key={id} transform={`rotate(${l.angle} ${l.x} ${l.y})`}>
+            <text
+              x={l.x + spacing / 2}
+              y={l.y + l.size * 0.34}
+              textAnchor="middle"
+              fontFamily="Cinzel, serif"
+              fontWeight={600}
+              fontSize={l.size}
+              letterSpacing={spacing}
+              fill={PROFILES[id].colourDark}
+              opacity={down ? 0.4 : 0.58}
+            >
+              {name}
+            </text>
+            {down && (
+              <path
+                d={`M${l.x - half} ${l.y + 1} C${l.x - half / 3} ${l.y - 3} ${l.x + half / 3} ${l.y + 4} ${l.x + half} ${l.y - 1}`}
+                fill="none"
+                stroke={INK_RED}
+                strokeWidth={Math.max(2.4, l.size * 0.12)}
+                strokeLinecap="round"
+                opacity={0.8}
+              />
+            )}
+          </g>
         );
       })}
     </g>

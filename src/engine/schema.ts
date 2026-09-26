@@ -9,11 +9,10 @@
  * the `sanitize*` helpers and the request schemas.
  */
 import { z } from 'zod';
-import { ACTIONS, CLAIM_KINDS, NATION_IDS, PROMISE_KINDS } from './types.js';
+import { AMBITIONS, CLAIM_KINDS, LETTER_KINDS, NATION_IDS, PROMISE_KINDS } from './types.js';
 
 export const NationIdSchema = z.enum(NATION_IDS);
 export const OwnerSchema = z.enum([...NATION_IDS, 'crossing']);
-export const ActionKindSchema = z.enum(ACTIONS);
 
 /** Strip anything that could smuggle markup or control characters into a prompt. */
 export function cleanText(text: string, max: number): string {
@@ -52,8 +51,11 @@ export const NationProfileSchema = z.object({
     pronoun: z.enum(['he', 'she', 'they']),
   }),
   personality: z.string().min(10),
+  oneLiner: z.string().min(10).max(70),
   speechStyle: z.string().min(10),
   secretGoal: z.string().min(10),
+  aim: z.string().min(10).max(70),
+  hint: z.string().min(5).max(60),
   redLine: RedLineSchema,
   grudges: z.array(z.object({ against: NationIdSchema, reason: z.string().min(5) })),
   friends: z.array(z.object({ with: NationIdSchema, reason: z.string().min(5) })),
@@ -80,34 +82,26 @@ export const NationsFileSchema = z.object({
 
 export const NewsSchema = z.discriminatedUnion('kind', [
   z.object({
-    kind: z.literal('action'),
-    nation: NationIdSchema,
-    action: ActionKindSchema,
-    target: OwnerSchema.nullable(),
-    region: PlaceNameSchema.nullable(),
-    reason: safeText(160).nullable(),
-  }),
-  z.object({
     kind: z.literal('battle'),
     attacker: OwnerSchema,
     defender: OwnerSchema,
     region: PlaceNameSchema,
     captured: z.boolean(),
   }),
-  z.object({ kind: z.literal('war'), nation: OwnerSchema, target: OwnerSchema }),
-  z.object({ kind: z.literal('peace'), a: OwnerSchema, b: OwnerSchema }),
-  z.object({ kind: z.literal('alliance'), a: NationIdSchema, b: NationIdSchema, accepted: z.boolean() }),
+  z.object({ kind: z.literal('war'), nation: NationIdSchema, target: NationIdSchema, cause: z.enum(['grudge', 'ally', 'favour', 'words']) }),
+  z.object({ kind: z.literal('stand_down'), nation: NationIdSchema, target: NationIdSchema }),
+  z.object({ kind: z.literal('peace'), a: NationIdSchema, b: NationIdSchema, how: z.enum(['truce', 'fallen', 'talks']) }),
+  z.object({ kind: z.literal('alliance'), a: NationIdSchema, b: NationIdSchema }),
+  z.object({ kind: z.literal('collapse'), nation: NationIdSchema, by: OwnerSchema }),
+  z.object({ kind: z.literal('march'), nation: NationIdSchema, target: NationIdSchema, forced: z.boolean() }),
+  z.object({ kind: z.literal('burn'), nation: NationIdSchema, region: PlaceNameSchema }),
+  z.object({ kind: z.literal('gain'), region: PlaceNameSchema, from: z.enum([...NATION_IDS, 'unclaimed']), how: z.enum(['payment', 'offer', 'claim', 'spoils']) }),
   z.object({ kind: z.literal('cede'), nation: OwnerSchema, target: OwnerSchema, region: PlaceNameSchema }),
   z.object({ kind: z.literal('lie_caught'), by: z.array(NationIdSchema).max(5), what: safeText(160) }),
-  z.object({ kind: z.literal('passage'), nation: NationIdSchema, granted: z.boolean() }),
-  z.object({ kind: z.literal('tribute'), nation: NationIdSchema, paid: z.boolean(), amount: z.number().int().min(0).max(1000) }),
-  z.object({ kind: z.literal('land'), nation: NationIdSchema, region: PlaceNameSchema, ceded: z.boolean() }),
+  z.object({ kind: z.literal('letter'), nation: NationIdSchema, letterKind: z.enum(LETTER_KINDS), answer: z.string().regex(/^[a-z_]{1,16}$/) }),
   z.object({ kind: z.literal('red_line'), nation: NationIdSchema, by: OwnerSchema }),
-  z.object({ kind: z.literal('rumour'), nation: NationIdSchema, target: OwnerSchema, exposed: z.boolean() }),
   z.object({ kind: z.literal('gossip'), from: NationIdSchema, to: NationIdSchema }),
   z.object({ kind: z.literal('audience'), nation: NationIdSchema }),
-  z.object({ kind: z.literal('gift'), nation: NationIdSchema, gold: z.number().int().min(0).max(1000) }),
-  z.object({ kind: z.literal('sellswords'), region: PlaceNameSchema }),
 ]);
 export type News = z.infer<typeof NewsSchema>;
 
@@ -150,9 +144,10 @@ const SeasonInfoSchema = z.object({
 
 export const AudienceContextSchema = SeasonInfoSchema.extend({
   trust: z.number().min(-100).max(100),
-  blame: z.number().min(0).max(100),
-  passage: z.enum(['granted', 'denied', 'none']),
-  atWarWithCrossing: z.boolean(),
+  suspicion: z.number().min(0).max(100),
+  pass: z.enum(['open', 'closed']),
+  /** Regions this ruler could hand the Crossing. */
+  offerable: z.array(PlaceNameSchema).max(8),
   neutrality: z.number().min(0).max(100),
   regions: z.number().int().min(0).max(40),
   troops: z.number().int().min(0).max(999),
@@ -165,7 +160,6 @@ export const AudienceContextSchema = SeasonInfoSchema.extend({
   redLineCrossedBy: z.array(OwnerSchema).max(6),
   news: z.array(NewsSchema).max(24),
   learned: z.array(safeText(160)).max(8),
-  giftGold: z.number().int().min(0).max(1000),
 });
 export type AudienceContext = z.infer<typeof AudienceContextSchema>;
 
@@ -218,8 +212,10 @@ export const PriorEntrySchema = z.object({
 export const ExtractRequestSchema = z.object({
   nation: NationIdSchema,
   season: z.number().int().min(1).max(12),
-  turns: z.array(AudienceTurnSchema).min(1).max(10),
+  turns: z.array(AudienceTurnSchema).min(1).max(24),
   prior: z.array(PriorEntrySchema).max(40),
+  /** Regions the ruler could hand the Crossing, so an offer of land can be recognised. */
+  offerable: z.array(PlaceNameSchema).max(8).default([]),
 });
 export type ExtractRequest = z.input<typeof ExtractRequestSchema>;
 
@@ -237,82 +233,38 @@ export interface ExtractedEntry {
 
 export interface ExtractResult {
   entries: ExtractedEntry[];
+  /** The ruler offered the Crossing land; `region` is the one named, if it was one they can give. */
+  landOffer: { region: string | null } | null;
   fallback: boolean;
 }
 
 /* ------------------------------------------------------------------ */
-/* /api/action                                                          */
+/* /api/flavour: the chronicle of a season, and the words on new letters */
 /* ------------------------------------------------------------------ */
 
-export const ActionContextSchema = SeasonInfoSchema.extend({
-  regions: z
-    .array(
-      z.object({
-        id: z.string().regex(/^r\d{1,3}$/),
-        name: PlaceNameSchema,
-        troops: z.number().int().min(0).max(999),
-        capital: z.boolean(),
-        borders: z.array(OwnerSchema).max(6),
-      }),
-    )
-    .max(30),
-  targets: z
-    .array(
-      z.object({
-        id: z.string().regex(/^r\d{1,3}$/),
-        name: PlaceNameSchema,
-        owner: OwnerSchema,
-        troops: z.number().int().min(0).max(999),
-        viaCrossing: z.boolean(),
-      }),
-    )
-    .max(40),
-  relations: z.array(RelationSchema).max(5),
-  crossing: z.object({
-    trust: z.number().min(-100).max(100),
-    blame: z.number().min(0).max(100),
-    passage: z.enum(['granted', 'denied', 'none']),
-    militia: z.number().int().min(0).max(999),
-    neutrality: z.number().min(0).max(100),
-    atWar: z.boolean(),
-  }),
-  told: z.array(KnowledgeItemSchema).max(24),
-  heard: z.array(KnowledgeItemSchema).max(24),
-  caughtLies: z.array(KnowledgeItemSchema).max(12),
-  redLineCrossedBy: z.array(OwnerSchema).max(6),
-  warAllowed: z.array(OwnerSchema).max(6),
-  news: z.array(NewsSchema).max(30),
-  lastAction: ActionKindSchema.nullable(),
-  passageLetterPending: z.boolean(),
+export const LetterBriefSchema = z.object({
+  id: z.string().regex(/^L\d{1,2}-[a-z]+-[a-z]+(-\d)?$/),
+  kind: z.enum(LETTER_KINDS),
+  from: NationIdSchema,
+  about: NationIdSchema.nullable(),
+  region: PlaceNameSchema.nullable(),
+  amount: z.number().int().min(0).max(9999),
+  /** For an angry letter: the lie that was caught. */
+  lie: safeText(160).nullable(),
 });
-export type ActionContext = z.infer<typeof ActionContextSchema>;
+export type LetterBrief = z.infer<typeof LetterBriefSchema>;
 
-export const ActionRequestSchema = z.object({
-  nation: NationIdSchema,
-  context: ActionContextSchema,
-});
-export type ActionRequest = z.input<typeof ActionRequestSchema>;
-
-export interface ActionResult {
-  action: (typeof ACTIONS)[number];
-  target: (typeof NATION_IDS)[number] | 'crossing' | null;
-  region: string | null;
-  reason: string;
-  fallback: boolean;
-}
-
-/* ------------------------------------------------------------------ */
-/* /api/chronicle                                                       */
-/* ------------------------------------------------------------------ */
-
-export const ChronicleRequestSchema = SeasonInfoSchema.extend({
+export const FlavourRequestSchema = SeasonInfoSchema.extend({
   news: z.array(NewsSchema).max(40),
   audiences: z.array(NationIdSchema).max(3),
+  letters: z.array(LetterBriefSchema).max(8),
 });
-export type ChronicleRequest = z.input<typeof ChronicleRequestSchema>;
+export type FlavourRequest = z.input<typeof FlavourRequestSchema>;
 
-export interface ChronicleResult {
-  lines: string[];
+export interface FlavourResult {
+  chronicle: string[];
+  /** A line in the sender's voice for each new letter, by letter id. */
+  quotes: Record<string, string>;
   fallback: boolean;
 }
 
@@ -321,9 +273,11 @@ export interface ChronicleResult {
 /* ------------------------------------------------------------------ */
 
 export const EndingRequestSchema = z.object({
-  ending: z.object({
-    id: z.enum(['spider', 'peacemaker', 'kingmaker', 'merchant', 'puppet', 'survivor', 'ashes', 'unmasked', 'grand_peace']),
-    title: safeText(60),
+  outcome: z.object({
+    result: z.enum(['victory', 'defeat']),
+    reason: z.enum(['ambition', 'ashes', 'unmasked']),
+    ambition: z.enum(AMBITIONS),
+    progress: z.object({ value: z.number().int().min(-99999).max(99999), target: z.number().int().min(0).max(99999) }),
     season: z.number().int().min(1).max(12),
   }),
   nations: z
@@ -331,35 +285,47 @@ export const EndingRequestSchema = z.object({
       z.object({
         nation: NationIdSchema,
         trust: z.number().min(-100).max(100),
-        blame: z.number().min(0).max(100),
+        suspicion: z.number().min(0).max(100),
         regionsStart: z.number().int().min(0).max(40),
         regionsEnd: z.number().int().min(0).max(40),
+        fallen: z.boolean(),
         atWarWithCrossing: z.boolean(),
         liesTold: z.number().int().min(0).max(99),
         liesCaught: z.number().int().min(0).max(99),
         promises: z.number().int().min(0).max(99),
-        gifts: z.number().int().min(0).max(5000),
         audiences: z.number().int().min(0).max(30),
       }),
     )
     .length(5),
-  stats: z.object({
+  /** What the Warden did, as plain facts. */
+  deeds: z.object({
     gold: z.number().int().min(-9999).max(99999),
     goldEarned: z.number().int().min(0).max(99999),
-    warsStarted: z.number().int().min(0).max(99),
-    battles: z.number().int().min(0).max(999),
-    liesTold: z.number().int().min(0).max(99),
-    liesCaught: z.number().int().min(0).max(99),
-    regionsLost: z.number().int().min(0).max(10),
+    regionsStart: z.number().int().min(0).max(40),
+    regionsEnd: z.number().int().min(0).max(40),
+    warsInstigated: z.number().int().min(0).max(20),
+    peacesBrokered: z.number().int().min(0).max(20),
     tension: z.number().min(0).max(100),
   }),
+  /** The Warden's most telling promises and claims, from the ledger. */
+  words: z
+    .array(
+      z.object({
+        to: NationIdSchema,
+        type: z.enum(['promise', 'claim']),
+        what: safeText(140),
+        lie: z.boolean(),
+        caught: z.boolean(),
+      }),
+    )
+    .max(12),
   highlights: z.array(NewsSchema).max(30),
 });
 export type EndingRequest = z.input<typeof EndingRequestSchema>;
 
 export interface EndingAIResult {
+  /** One roast per ruler, keyed by nation. */
   verdicts: Partial<Record<(typeof NATION_IDS)[number], string>>;
-  epilogue: string;
   fallback: boolean;
 }
 
@@ -402,24 +368,25 @@ export const ExtractAISchema = z.object({
       }),
     )
     .describe('Every promise and claim the Warden made. Empty if none.'),
+  land_offer: z
+    .object({
+      offered: z.boolean().describe('True only if the RULER firmly offered to give the Crossing one of their regions, or agreed to the Warden asking for one.'),
+      region: z.string().nullable().describe('The region the ruler named, exactly as written, or null if none was named.'),
+    })
+    .describe("The ruler's offer of land to the Crossing, if any."),
 });
 
-export const ActionAISchema = z.object({
-  action: ActionKindSchema,
-  target: OwnerSchema.nullable().describe('Target nation id, "crossing" for the Warden, or null.'),
-  region: z.string().nullable().describe('Region id such as "r7" when the action needs one, else null.'),
-  reason: z.string().describe("One line in the ruler's voice, at most 18 words."),
-});
-
-export const ChronicleAISchema = z.object({
-  lines: z.array(z.string()).describe('Two to four lines of news, each at most 30 words.'),
+export const FlavourAISchema = z.object({
+  chronicle: z.array(z.string()).describe('Two to four lines of news, each at most 30 words.'),
+  letters: z
+    .array(z.object({ id: z.string(), quote: z.string() }))
+    .describe("One line for each letter, in the sender's own voice, at most 25 words."),
 });
 
 export const EndingAIOutputSchema = z.object({
   verdicts: z
     .array(z.object({ nation: NationIdSchema, line: z.string() }))
-    .describe("One verdict per ruler, in that ruler's own voice, at most 30 words."),
-  epilogue: z.string().describe('The historian\'s epilogue, 3 to 5 sentences.'),
+    .describe("One verdict per ruler: a witty, specific light roast of the Warden in that ruler's own voice, at most 25 words."),
 });
 
 /* ------------------------------------------------------------------ */
@@ -464,6 +431,13 @@ export function sanitizeExtraction(
     });
   }
   return out;
+}
+
+/** Keep a land offer only if it was made, and its region only if the ruler could actually give it. */
+export function sanitizeLandOffer(raw: z.infer<typeof ExtractAISchema>['land_offer'], offerable: readonly string[]): ExtractResult['landOffer'] {
+  if (!raw.offered || offerable.length === 0) return null;
+  const named = raw.region ? offerable.find((r) => r.toLowerCase() === cleanText(raw.region!, 40).toLowerCase()) : undefined;
+  return { region: named ?? null };
 }
 
 export function sanitizeLines(lines: string[], min: number, max: number, maxLen: number): string[] | null {

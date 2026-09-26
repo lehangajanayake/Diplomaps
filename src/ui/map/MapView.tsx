@@ -4,14 +4,16 @@
  * tokens, effects), then screen-space cloud shadows. Only the dynamic layer re-renders often.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ownerName } from '../../engine/nations';
-import type { Owner, RegionId, RegionState, WorldState } from '../../engine/types';
+import { nameOf } from '../../engine/nations';
+import type { Holder, RegionId, RegionState, WorldState } from '../../engine/types';
 import { useStore, type MapFx } from '../../store/worldStore';
 import { SeasonFx } from './SeasonFx';
 import { Legend } from './Legend';
 import { RegionHitAreas, RegionHover } from './Region';
 import { StaticMap } from './StaticMap';
 import { Tokens } from './Tokens';
+import { GainFx } from './GainFx';
+import { WarMarks } from './WarMarks';
 
 interface Props {
   world: WorldState;
@@ -34,6 +36,7 @@ export function MapView({ world, fx = null, onSelect, children, interactive = tr
   const { map } = world;
   // Hover lives here, not in the table, so moving the mouse re-renders only the map's light layer.
   const hoverRegion = useStore((s) => s.hoverRegion);
+  const gains = useStore((s) => s.gains);
   const onHover = useStore((s) => s.setHoverRegion);
   // While the season's effects play, the map shows the world as it was; then it settles into the new one.
   const shown: Record<RegionId, RegionState> = fx && !fx.settled ? fx.before : world.regions;
@@ -47,8 +50,8 @@ export function MapView({ world, fx = null, onSelect, children, interactive = tr
 
   const ownersKey = map.regionIds.map((id) => shown[id]!.owner).join(',');
   const owners = useMemo(() => {
-    const out: Record<RegionId, Owner> = {};
-    ownersKey.split(',').forEach((o, i) => (out[map.regionIds[i]!] = o as Owner));
+    const out: Record<RegionId, Holder> = {};
+    ownersKey.split(',').forEach((o, i) => (out[map.regionIds[i]!] = o as Holder));
     return out;
   }, [ownersKey, map.regionIds]);
 
@@ -164,6 +167,8 @@ export function MapView({ world, fx = null, onSelect, children, interactive = tr
         <svg viewBox={`0 0 ${map.width} ${map.height}`} className="absolute inset-0 h-full w-full">
           {interactive && <RegionHitAreas map={map} onEnter={handleEnter} onLeave={handleLeave} onClick={handleClick} />}
           {hover && hoverState && <RegionHover map={map} id={hover.id} owner={hoverState.owner} />}
+          <WarMarks world={world} />
+          {gains && <GainFx map={map} gains={gains} />}
           <Tokens map={map} regions={shown} />
           {fx && !fx.settled && <SeasonFx map={map} fx={fx} />}
           {children}
@@ -189,7 +194,7 @@ export function MapView({ world, fx = null, onSelect, children, interactive = tr
             <span className="font-sc text-[0.95rem]">{hover.name}</span>
             <span className="text-ink-faded">
               {' '}
-              · {ownerName(hoverState.owner)}
+              · {hoverState.owner === 'unclaimed' ? 'unclaimed ruins' : nameOf(hoverState.owner, 'start')}
               {hoverState.troops > 0 ? ` · ${hoverState.troops} ${hoverState.owner === 'crossing' ? 'militia' : 'troops'}` : ''}
               {hover.pass ? ' · a pass' : ''}
             </span>

@@ -17,12 +17,12 @@ export function trustWord(t: number): string {
   return 'implacable';
 }
 
-export function blameWord(b: number): string {
-  if (b < 15) return 'blames the Warden for nothing yet';
-  if (b < 40) return 'suspects the Warden of meddling';
-  if (b < 70) return 'resents the Warden';
-  if (b < 90) return 'openly accuses the Warden';
-  return 'is certain the Warden is behind the realm\'s troubles';
+export function suspicionWord(s: number): string {
+  if (s < 15) return 'does not suspect the Warden of anything';
+  if (s < 40) return 'is a little suspicious of the Warden';
+  if (s < 70) return 'suspects the Warden of meddling';
+  if (s < 90) return 'openly accuses the Warden of meddling';
+  return "is certain the Warden is behind the realm's troubles";
 }
 
 export function tensionWord(t: number): string {
@@ -33,17 +33,28 @@ export function tensionWord(t: number): string {
   return 'on the brink of general war';
 }
 
-const ACTION_WORDS: Record<string, string> = {
-  mobilise: 'mobilised troops',
-  threaten: 'threatened',
-  trade: 'sought trade with',
-  ally: 'proposed an alliance to',
-  demand: 'made demands of',
-  request_passage: 'asked the Crossing for passage for its armies',
-  spread_rumour: 'spread rumours about',
-  cede: 'ceded land to',
-  declare_war: 'declared war on',
-  wait: 'waited',
+const WAR_CAUSE: Record<string, string> = {
+  grudge: '',
+  ally: ' to defend its ally',
+  favour: ' (it is whispered the Warden asked it to)',
+  words: ' after hearing alarming words from the Warden',
+};
+
+const LETTER_NEWS: Record<string, (nation: string, answer: string) => string> = {
+  attack: (nation, answer) =>
+    answer === 'tribute'
+      ? `The Warden paid ${nation} tribute to turn its army back.`
+      : answer === 'sellswords'
+        ? `The Warden hired sellswords against ${nation}'s army.`
+        : `The Warden stood to fight ${nation}'s army.`,
+  raid: (nation, answer) => (answer === 'pay' ? `The Warden paid off ${nation}'s foragers.` : `The Warden let ${nation}'s foragers burn a region rather than pay.`),
+  passage: (nation, answer) => (answer === 'refuse' ? `The Warden refused ${nation}'s army passage.` : `The Warden granted ${nation}'s army passage through the Crossing.`),
+  spoils: (nation, answer) => (answer === 'land' ? `The Warden took a region from ${nation} as spoils of war.` : `The Warden took ${nation}'s gold as spoils of war.`),
+  talks: (nation, answer) => (answer === 'host' ? `The Warden hosted peace talks for ${nation}.` : `The Warden declined to host ${nation}'s peace talks.`),
+  trade: (nation, answer) => (answer === 'waive' ? `The Warden waived the toll on ${nation}'s caravans.` : `The Warden charged ${nation}'s caravans the full toll.`),
+  last: (nation) => `The Warden received the last letter of the fallen ruler of ${nation}.`,
+  angry: (nation, answer) =>
+    answer === 'apologise' ? `The Warden sent apologies and gold to ${nation} after a lie was exposed.` : `The Warden ignored ${nation}'s angry letter about a lie.`,
 };
 
 export function renderNews(news: readonly News[]): string {
@@ -51,47 +62,45 @@ export function renderNews(news: readonly News[]): string {
   return news
     .map((n) => {
       switch (n.kind) {
-        case 'action': {
-          const target = n.target ? ` ${who(n.target)}` : '';
-          const region = n.region ? ` (at ${n.region})` : '';
-          const reason = n.reason ? ` Their word: "${n.reason}"` : '';
-          return `- ${who(n.nation)} ${ACTION_WORDS[n.action] ?? n.action}${n.action === 'mobilise' || n.action === 'request_passage' ? '' : target}${region}.${reason}`;
-        }
         case 'battle':
           return `- Battle at ${n.region}: ${who(n.attacker)} attacked ${who(n.defender)} and ${n.captured ? 'took it' : 'was repulsed'}.`;
         case 'war':
-          return `- ${who(n.nation)} declared war on ${who(n.target)}.`;
+          return `- ${who(n.nation)} declared war on ${who(n.target)}${WAR_CAUSE[n.cause] ?? ''}.`;
+        case 'stand_down':
+          return `- ${who(n.nation)} called off a planned war on ${who(n.target)}.`;
         case 'peace':
-          return `- ${who(n.a)} and ${who(n.b)} made peace.`;
+          return n.how === 'fallen' ? '' : `- ${who(n.a)} and ${who(n.b)} made peace${n.how === 'talks' ? ' at talks hosted by the Warden' : ''}.`;
         case 'alliance':
-          return n.accepted ? `- ${who(n.a)} and ${who(n.b)} formed an alliance.` : `- ${who(n.b)} rebuffed an alliance offered by ${who(n.a)}.`;
+          return `- ${who(n.a)} and ${who(n.b)} formed an alliance.`;
+        case 'collapse':
+          return `- ${who(n.nation)} COLLAPSED: its capital fell to ${who(n.by)} and its remaining lands lie in ruins.`;
+        case 'march':
+          return n.forced
+            ? `- ${who(n.nation)}'s army forced its way through the Crossing to attack ${who(n.target)}, trampling the Warden's fields.`
+            : `- The Warden let ${who(n.nation)}'s army march through the Crossing to attack ${who(n.target)}.`;
+        case 'burn':
+          return `- Foragers from ${who(n.nation)} burned ${n.region}, in the Crossing.`;
+        case 'gain':
+          return n.how === 'claim' || n.from === 'unclaimed'
+            ? `- The Warden claimed the ruins of ${n.region} for the Crossing.`
+            : `- ${who(n.from)} ${n.how === 'spoils' ? 'gave the Warden' : 'ceded to the Warden'} ${n.region}${n.how === 'payment' ? ' as payment' : n.how === 'spoils' ? ' as spoils of war' : ''}.`;
         case 'cede':
           return `- ${who(n.nation)} ceded ${n.region} to ${who(n.target)}.`;
         case 'lie_caught':
           return `- Scandal: ${n.by.map((b) => PROFILES[b].name).join(' and ')} caught the Warden in a lie ("${n.what}").`;
-        case 'passage':
-          return n.granted ? `- The Warden granted ${who(n.nation)} passage through the Crossing.` : `- The Warden denied ${who(n.nation)} passage.`;
-        case 'tribute':
-          return n.paid ? `- The Warden paid ${n.amount} gold in tribute to ${who(n.nation)}.` : `- The Warden refused ${who(n.nation)}'s demand for tribute.`;
-        case 'land':
-          return n.ceded ? `- The Warden ceded ${n.region} to ${who(n.nation)}.` : `- The Warden refused to cede ${n.region} to ${who(n.nation)}.`;
+        case 'letter':
+          return `- ${(LETTER_NEWS[n.letterKind] ?? (() => ''))(PROFILES[n.nation].name, n.answer)}`;
         case 'red_line':
           return `- ${who(n.by)} crossed ${who(n.nation)}'s red line.`;
-        case 'rumour':
-          return `- ${who(n.nation)} spread rumours about ${who(n.target)}${n.exposed ? ' and was found out' : ''}.`;
         case 'gossip':
           return `- ${who(n.from)} passed word of the Warden's promises to ${who(n.to)}.`;
         case 'audience':
           return `- The Warden held an audience with ${ruler(n.nation)} of ${who(n.nation)}.`;
-        case 'gift':
-          return `- The Warden sent ${n.gold} gold to ${who(n.nation)} as a gift.`;
-        case 'sellswords':
-          return `- The Warden hired sellswords to guard ${n.region}.`;
         default:
           return '';
       }
     })
-    .filter(Boolean)
+    .filter((line) => line && line !== '- ')
     .join('\n');
 }
 

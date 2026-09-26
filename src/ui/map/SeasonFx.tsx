@@ -41,13 +41,13 @@ export function SeasonFx({ map, fx }: { map: MapData; fx: MapFx }) {
       ))}
 
       {/* Fresh troops mustering. */}
-      {fx.mobilised.map((id, i) => {
-        const [x, y] = map.regions[id]!.token;
+      {fx.mobilised.map(({ region, amount }, i) => {
+        const [x, y] = map.regions[region]!.token;
         return (
-          <g key={`m-${id}-${i}`}>
+          <g key={`m-${region}-${i}`}>
             <motion.circle cx={x} cy={y} r={14} fill="none" stroke="#f3d892" strokeWidth={2} initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: [0.5, 2], opacity: [0.9, 0] }} transition={{ delay: 0.2 + i * 0.25, duration: 1.4 }} style={{ transformOrigin: `${x}px ${y}px` }} />
             <motion.text x={x + 14} y={y - 10} fontFamily="Cinzel, serif" fontWeight={700} fontSize={13} fill="#3d2a0e" initial={{ opacity: 0, y: y - 4 }} animate={{ opacity: [0, 1, 0], y: y - 26 }} transition={{ delay: 0.2 + i * 0.25, duration: 2 }}>
-              +3
+              +{amount}
             </motion.text>
           </g>
         );

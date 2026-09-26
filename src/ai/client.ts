@@ -3,20 +3,18 @@
  * sends prompt text: only structured game data. Every call has its own safety timeout and falls back
  * to the same in-world defaults as the server, so the game can never hang on the network.
  */
-import { fallbackAudienceReply, fallbackChronicle, fallbackEpilogue, fallbackVerdict } from '../engine/fallbacks';
+import { fallbackAudienceReply, fallbackChronicle, fallbackVerdict } from '../engine/fallbacks';
 import { seasonTitle } from '../engine/config';
 import type {
-  ActionRequest,
-  ActionResult,
   AudienceAssessment,
   AudienceRequest,
   AudienceStreamEvent,
-  ChronicleRequest,
-  ChronicleResult,
   EndingAIResult,
   EndingRequest,
   ExtractRequest,
   ExtractResult,
+  FlavourRequest,
+  FlavourResult,
   Mood,
 } from '../engine/schema';
 import type { NationId } from '../engine/types';
@@ -132,30 +130,21 @@ export function assessAudience(req: AudienceRequest): Promise<AudienceAssessment
 }
 
 export function extractPromises(req: ExtractRequest): Promise<ExtractResult> {
-  return postJson<ExtractResult>('/api/extract', req, 50_000, () => ({ entries: [], fallback: true }));
+  return postJson<ExtractResult>('/api/extract', req, 50_000, () => ({ entries: [], landOffer: null, fallback: true }));
 }
 
-export function chooseAction(req: ActionRequest): Promise<ActionResult> {
-  return postJson<ActionResult>('/api/action', req, 50_000, () => ({
-    action: 'wait',
-    target: null,
-    region: null,
-    reason: 'watches and waits',
-    fallback: true,
-  }));
-}
-
-export function writeChronicle(req: ChronicleRequest): Promise<ChronicleResult> {
-  return postJson<ChronicleResult>('/api/chronicle', req, 50_000, () => ({
-    lines: fallbackChronicle(req.news, seasonTitle(req.season)),
+/** The chronicle of the season just ended, and the words on the letters that open the next. */
+export function writeFlavour(req: FlavourRequest): Promise<FlavourResult> {
+  return postJson<FlavourResult>('/api/flavour', req, 50_000, () => ({
+    chronicle: fallbackChronicle(req.news, seasonTitle(req.season)),
+    quotes: {},
     fallback: true,
   }));
 }
 
 export function writeEnding(req: EndingRequest): Promise<EndingAIResult> {
   return postJson<EndingAIResult>('/api/ending', req, 50_000, () => ({
-    verdicts: Object.fromEntries(req.nations.map((n) => [n.nation, fallbackVerdict(n.nation, n.trust, n.blame)])),
-    epilogue: fallbackEpilogue(req.ending.id),
+    verdicts: Object.fromEntries(req.nations.map((n) => [n.nation, fallbackVerdict(n.nation, n.trust, n.suspicion, req.outcome.result === 'victory')])),
     fallback: true,
   }));
 }

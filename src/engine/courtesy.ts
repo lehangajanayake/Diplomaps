@@ -36,7 +36,7 @@ export function greetingFor(w: WorldState, nation: NationId): string {
   const g = GREETINGS[nation];
   if (atWar(w, nation, CROSSING)) return `${g.cold} And know that our soldiers stand at your gates.`;
   if (t >= 25) return g.warm;
-  if (t <= -20 || w.nations[nation].blame >= 50) return g.cold;
+  if (t <= -20 || w.nations[nation].suspicion >= 50) return g.cold;
   return g.neutral;
 }
 
@@ -50,11 +50,7 @@ export function suggestionsFor(w: WorldState, nation: NationId): Suggestion[] {
   const p = PROFILES[nation];
   const me = w.nations[nation];
   const out: Suggestion[] = [{ label: `Ask what ${p.name} wants`, text: 'What troubles your court this season, and what would you ask of the Crossing?' }];
-  if (w.player.passage[nation] === 'none') {
-    out.push({ label: 'Offer passage', text: 'The roads of the Crossing could be opened to your armies, for the right price.' });
-  } else {
-    out.push({ label: 'Offer better tolls', text: 'I could lower the tolls on your wagons, if we come to an understanding.' });
-  }
+  out.push({ label: 'Offer better tolls', text: 'I could lower the tolls on your wagons, if we come to an understanding.' });
   const rival = [...NATION_IDS].filter((n) => n !== nation).sort((a, b) => me.trust[a] - me.trust[b])[0]!;
   const rivalName = PROFILES[rival].name;
   if (me.trust[rival] < 0) {

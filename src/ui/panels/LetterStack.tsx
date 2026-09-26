@@ -1,20 +1,24 @@
-/** Sealed letters lying on the table: passage requests and demands, waiting to be opened. */
+/** Sealed letters lying on the table, waiting to be opened. */
 import { motion } from 'motion/react';
-import { PROFILES } from '../../engine/nations';
-import type { Letter } from '../../engine/types';
+import { nameOf, PROFILES } from '../../engine/nations';
+import type { Letter, LetterKind } from '../../engine/types';
 import { WaxSeal } from '../common/WaxSeal';
 
-const KIND_LABEL: Record<Letter['kind'], string> = {
-  passage: 'Request for passage',
-  tribute: 'A demand for tribute',
-  land: 'A demand for land',
+const KIND_LABEL: Record<LetterKind, string> = {
+  attack: 'An army marches on you',
+  raid: 'Raiders at the border',
+  passage: 'Asks to march through',
+  spoils: 'Offers you the spoils',
+  talks: 'Would talk peace',
+  trade: 'Caravans on the road',
+  last: 'A last letter',
+  angry: 'An angry letter',
 };
 
-export function PassageLetters({ letters, onOpen }: { letters: Letter[]; onOpen: (id: string) => void }) {
-  const sealed = letters.filter((l) => l.status === 'sealed');
+export function LetterStack({ letters, onOpen }: { letters: Letter[]; onOpen: (id: string) => void }) {
   return (
-    <div className={`relative flex flex-col ${sealed.length > 2 ? '[&>*+*]:-mt-[1.3vh]' : 'gap-[1vh]'}`}>
-      {sealed.map((letter, i) => {
+    <div className={`relative flex flex-col ${letters.length > 2 ? '[&>*+*]:-mt-[1.3vh]' : 'gap-[1vh]'}`} data-tutorial="letters">
+      {letters.map((letter, i) => {
         const nation = PROFILES[letter.from];
         return (
           <motion.button
@@ -32,9 +36,9 @@ export function PassageLetters({ letters, onOpen }: { letters: Letter[]; onOpen:
             }}
           >
             <span className="pointer-events-none absolute inset-0" style={{ background: 'linear-gradient(135deg, transparent 49.4%, rgb(90 60 25 / 0.25) 50%, transparent 50.6%), linear-gradient(45deg, transparent 49.4%, rgb(90 60 25 / 0.18) 50%, transparent 50.6%)' }} />
-            <WaxSeal colour={nation.colour} emblem={nation.emblem} size="2.4em" seed={letter.id.length + i} />
+            <WaxSeal colour={nation.colour} emblem={nation.emblem} size="2.4em" seed={letter.id.length + i} cracked={letter.kind === 'last'} />
             <span className="relative leading-tight">
-              <span className="block font-sc text-[0.82rem]">From {nation.name}</span>
+              <span className="block font-sc text-[0.82rem]">From {nameOf(letter.from)}</span>
               <span className="block font-hand text-[0.74rem] italic text-ink-faded">{KIND_LABEL[letter.kind]}</span>
             </span>
           </motion.button>

@@ -2,10 +2,9 @@
  * In-world text used whenever the AI is unavailable, slow or returns nonsense. The game must never
  * freeze or show an error: the rulers are "called away" and the chronicler writes from a template.
  */
-import { ENDING_TEXT } from './endings.js';
 import { CROSSING_PROFILE, PROFILES } from './nations.js';
 import type { News } from './schema.js';
-import { CROSSING, type EndingId, type NationId, type Owner } from './types.js';
+import { CROSSING, type NationId, type Owner } from './types.js';
 
 const who = (o: Owner) => (o === CROSSING ? 'the Crossing' : PROFILES[o].name);
 /** Names mid-sentence: "the Tarn", not "The Tarn". */
@@ -27,8 +26,15 @@ export function fallbackChronicle(news: readonly News[], seasonTitle: string): s
   };
   for (const n of news) {
     switch (n.kind) {
+      case 'collapse':
+        add(`${who(n.nation)} is no more. Its capital fell to ${mid(n.by)}, and its banners were burned in the square.`);
+        break;
       case 'war':
-        add(`${who(n.nation)} declared war upon ${mid(n.target)}, and the beacons were lit along the border.`);
+        add(
+          n.cause === 'ally'
+            ? `${who(n.nation)} honoured its alliance and marched against ${mid(n.target)}.`
+            : `${who(n.nation)} declared war upon ${mid(n.target)}, and the beacons were lit along the border.`,
+        );
         break;
       case 'battle':
         add(
@@ -41,89 +47,134 @@ export function fallbackChronicle(news: readonly News[], seasonTitle: string): s
         add(`In the courts of ${list(n.by.map(mid))}, it is said the Warden spoke falsely: "${n.what}".`);
         break;
       case 'peace':
-        add(`${who(n.a)} and ${mid(n.b)} laid down their arms, for now.`);
+        if (n.how !== 'fallen') add(`${who(n.a)} and ${mid(n.b)} laid down their arms, for now.`);
+        break;
+      case 'stand_down':
+        add(`${who(n.nation)} sent its soldiers home, and ${mid(n.target)} slept a little easier.`);
         break;
       case 'alliance':
-        if (n.accepted) add(`${who(n.a)} and ${mid(n.b)} sealed an alliance with wine and hostages.`);
+        add(`${who(n.a)} and ${mid(n.b)} sealed an alliance with wine and hostages.`);
         break;
       case 'cede':
         add(`${n.region} passed from ${mid(n.nation)} to ${mid(n.target)} without a sword being drawn.`);
         break;
-      case 'passage':
-        add(n.granted ? `The Warden opened the roads of the Crossing to the soldiers of ${mid(n.nation)}.` : `The Warden shut the passes against ${mid(n.nation)}.`);
+      case 'march':
+        add(
+          n.forced
+            ? `The soldiers of ${mid(n.nation)} forced the passes of the Crossing, and the Warden's fields were trampled flat.`
+            : `The Warden opened the valley roads, and the soldiers of ${mid(n.nation)} marched through toward ${mid(n.target)}.`,
+        );
+        break;
+      case 'burn':
+        add(`Smoke rose over ${n.region}, where foragers from ${mid(n.nation)} put the barns to the torch.`);
+        break;
+      case 'gain':
+        add(`${n.region} now flies the Warden's colours, and the valley grows a little larger, and a little more envied.`);
         break;
       default:
         break;
     }
   }
-  const mobilised = news.flatMap((n) => (n.kind === 'action' && n.action === 'mobilise' ? [n.nation] : []));
-  if (mobilised.length) {
-    const names = mobilised.map((n, i) => (i === 0 ? who(n) : mid(n)));
-    add(`${list(names)} called more men to the banners.`);
-  }
-  const traders = news.flatMap((n) => (n.kind === 'action' && n.action === 'trade' ? [n.nation] : []));
-  if (traders.length) add(`Wagons from ${list(traders.map(mid))} rolled through ${CROSSING_PROFILE.capitalName}, and the toll-chests grew heavy.`);
   if (lines.length === 0) add(`${seasonTitle} passed quietly. The roads were busy, the courts were watchful, and no one trusted the silence.`);
-  if (lines.length < 2) add('In the taverns of the Crossing, travellers spoke in low voices of what the next season might bring.');
+  if (lines.length < 2) add(`In the taverns of ${CROSSING_PROFILE.capitalName}, travellers spoke in low voices of what the next season might bring.`);
   return lines;
 }
 
-const VERDICTS: Record<NationId, { warm: string; cool: string; cold: string }> = {
+/** What each ruler writes on each kind of letter, when the AI cannot write it. */
+export const LETTER_WORDS: Record<'attack' | 'raid' | 'passage' | 'spoils' | 'talks' | 'trade', Record<NationId, string>> = {
+  attack: {
+    varrow: 'Varrow asked. You refused. Now Varrow rides. Pay, or watch the horses drink from your wells.',
+    kelm: 'Your account is in arrears, Warden. Kelm has sent collectors. They carry spears.',
+    sael: 'Darling, you have been so tiresome. My soldiers are coming to discuss it with you.',
+    tarn: 'The water rises slowly, Warden, and then all at once. Hm.',
+    ostrin: 'It is written: the proud valley shall be humbled. We have come to see it written.',
+  },
+  raid: {
+    varrow: 'Varrow\u2019s riders are hungry and your barns are full. Pay, and they eat elsewhere.',
+    kelm: 'A small fee secures your fields. Consider it insurance. Noted, either way.',
+    sael: 'My foragers adore your orchards, darling. Shall I call them off, or shall they picnic?',
+    tarn: 'Fen folk take what the war leaves lying about. Leave less lying about.',
+    ostrin: 'The hungry soldier sees an omen in every full granary. Buy a better omen, child.',
+  },
+  passage: {
+    varrow: 'Varrow\u2019s riders need your road. Varrow pays in gold today. Varrow remembers refusals forever.',
+    kelm: 'Kelm requests transit for one army, fees paid in advance. A straightforward transaction.',
+    sael: 'Open your little gates, darling. My soldiers promise to wipe their boots.',
+    tarn: 'The clans must cross your valley. Will you be a bridge, or a dam? Hm.',
+    ostrin: 'The pilgrims of the Lamp march to war. It is written they pass through the valley.',
+  },
+  spoils: {
+    varrow: 'You pointed, Varrow rode, Varrow won. Take your share, toll-keeper. Varrow pays its debts.',
+    kelm: 'Your investment has matured, Warden. Kelm pays dividends in land or coin. Choose.',
+    sael: 'We won, darling! I would share a province with you. Or gold, if you are feeling vulgar.',
+    tarn: 'The fen keeps its word. You asked, the clans fought. Take what is fair.',
+    ostrin: 'It is written that the faithful shall share the harvest. Here is yours, child.',
+  },
+  talks: {
+    varrow: 'Varrow does not beg for peace. Varrow will sit at your table, if the wine is strong.',
+    kelm: 'This war is running at a loss. Kelm is prepared to discuss terms. Discreetly.',
+    sael: 'War is so dreadfully unfashionable this season, darling. Host us, won\u2019t you?',
+    tarn: 'Even the heron tires of standing in cold water. The clans will talk.',
+    ostrin: 'It is written that the peacemaker shall be blessed. Also, we are tired, child.',
+  },
+  trade: {
+    varrow: 'Varrow\u2019s horse-traders ride through. Varrow thinks tolls are theft. Prove Varrow wrong.',
+    kelm: 'Kelm proposes a small concession on the toll. Goodwill compounds, Warden.',
+    sael: 'My caravans carry silk and salt, darling. Surely a friend would not charge a friend?',
+    tarn: 'Reed-boats and eel-barrels, passing through. The fen does not pay twice for the same road.',
+    ostrin: 'The pilgrims carry candles for the shrine. Charity is its own toll, child.',
+  },
+};
+
+/** A fallen ruler's last letter, when the AI cannot write it. */
+export const LAST_WORDS: Record<NationId, string> = {
+  varrow: 'Varrow falls as it lived: in the saddle, facing the enemy. Remember the horses, toll-keeper.',
+  kelm: 'The League is dissolved. Every debt owed to Kelm is now owed to no one. Enjoy it. Noted.',
+  sael: 'Darling, the harbour is burning and the silks with it. Wear something beautiful for me, won\u2019t you?',
+  tarn: 'The water rises over the reed-shrines. Hm. The fen was here before us. It will be here after.',
+  ostrin: 'The seventh lamp is out, child. It is written that darkness is only waiting. Wait well.',
+};
+
+/** A court that caught the Warden lying, when the AI cannot write its letter. */
+export const ANGRY_WORDS: Record<NationId, string> = {
+  varrow: 'Varrow heard what you said, and Varrow heard the truth. Varrow does not forget which came first.',
+  kelm: 'Your words have been audited, Warden. They did not balance. Noted.',
+  sael: 'Darling, you lied to me. How very rude. Only I am allowed to do that.',
+  tarn: 'The heron sees the frog lie still to hide. Hm. The fen saw you.',
+  ostrin: 'It is written: the liar builds on water. Your house is sinking, child.',
+};
+
+/** Verdicts for when the AI cannot be reached: each ruler's parting shot, by how the game went. */
+const VERDICTS: Record<NationId, { won: string; lost: string; cold: string }> = {
   varrow: {
-    warm: 'Varrow names the Warden a friend. Varrow does not say that twice.',
-    cool: 'Varrow watched the Warden sell roads. Varrow was not impressed, and not insulted.',
-    cold: 'Varrow remembers every word the Warden spoke. Varrow will come for the rest.',
+    won: 'Varrow does not praise toll-keepers. Varrow will make an exception, once.',
+    lost: 'Varrow has seen stronger men fail at simpler things. Not many.',
+    cold: 'Varrow remembers every word you said. Varrow is still counting the lies.',
   },
   kelm: {
-    warm: 'The Warden\'s account with Kelm closes in credit. A rare thing. Noted, with approval.',
-    cool: 'The Warden\'s account stands at nil: no profit, no loss. Kelm expected more.',
-    cold: 'Noted. The Warden\'s debts to Kelm will be collected, with interest.',
+    won: 'Your account closes in profit. I have audited it twice and found only charm.',
+    lost: 'Your books do not balance, Warden. I have filed them under fiction.',
+    cold: 'Noted. Every broken promise, with interest, in my own hand.',
   },
   sael: {
-    warm: 'Oh, darling, you were wonderful. Wicked, but wonderful. Shall we do it again?',
-    cool: 'You were pleasant enough, darling. Pleasant is so forgettable, isn\'t it?',
-    cold: 'You played me for a fool, darling. How brave. How very short-lived, don\'t you think?',
+    won: 'Darling, you were wicked and it worked. Do come and scheme at my court.',
+    lost: 'You tried so hard, darling. It was almost touching, wasn’t it?',
+    cold: 'You lied to me, darling. Only I am allowed to do that.',
   },
   tarn: {
-    warm: 'The Warden came to the fen with open hands. The fen remembers.',
-    cool: 'Hm. The river runs on. So does the Warden.',
-    cold: 'Still water hides the pike. The Warden should watch the water.',
+    won: 'Hm. The frog outlived the heron. The fen is almost impressed.',
+    lost: 'The river does not care how clever the stone was.',
+    cold: 'Still water hides the pike. You were not still enough.',
   },
   ostrin: {
-    warm: 'It is written, child: the keeper of the road shall be blessed. You were.',
-    cool: 'The Lamp saw you, child. It neither warmed nor burned you.',
-    cold: 'It is written: the liar\'s lamp gutters first. Yours is already smoking, child.',
+    won: 'It is written that the meek shall inherit the road. You were not meek, child.',
+    lost: 'The Lamp saw everything, child. It sighed.',
+    cold: 'It is written: the liar’s lamp gutters first. Yours is smoking.',
   },
 };
 
-export function fallbackVerdict(nation: NationId, trust: number, blame: number): string {
+export function fallbackVerdict(nation: NationId, trust: number, suspicion: number, won: boolean): string {
   const v = VERDICTS[nation];
-  if (blame >= 60 || trust <= -25) return v.cold;
-  if (trust >= 30 && blame < 40) return v.warm;
-  return v.cool;
-}
-
-const EPILOGUES: Record<EndingId, string> = {
-  spider:
-    'Historians still argue whether the Warden of the Crossing started the wars of 614 or merely profited from them. The ledgers of Wayhold show only tolls, and very large ones. No letter survives that proves a lie, which is, perhaps, the most damning evidence of all.',
-  peacemaker:
-    'For six seasons the five crowns circled one another and never struck. Later chroniclers credit the patient diplomacy of the Warden of the Crossing, who met every ruler and broke faith with none. It was, they note, the last such peace for a generation.',
-  kingmaker:
-    'The rise of a single great crown over its neighbours is usually told as a tale of generals. In this case the chroniclers point instead to a valley toll-keeper who chose a side early and held the gates open at the right moment.',
-  merchant:
-    'The Warden of the Crossing is remembered less for statecraft than for arithmetic. Every road ran through the valley, and every wagon paid. Wayhold grew fat on the fears of its neighbours, and never quite had to take a side.',
-  puppet:
-    'The peace the Warden bought was real, but so was its price. Province by province, the Crossing\'s independence was signed away to keep the armies from its gates, and within a generation the valley was a governorship.',
-  survivor:
-    'The Warden\'s reign is a footnote in most histories: a small kingdom that neither conquered nor was conquered. In a realm that burned so often, historians have come to see that as no small achievement.',
-  ashes:
-    'Wayhold fell in the reign of the Warden of the Crossing, and with it the old freedom of the valley roads. The chroniclers are unkind: the Warden, they say, tried to play every side and was caught between them.',
-  unmasked:
-    'By the end, every court in the realm had caught the Warden of the Crossing in a lie. The valley that had lived on trust found it had spent it all, and the five crowns remembered the name only as a warning.',
-  grand_peace:
-    'The Grand Peace of Wayhold is still taught to young diplomats as a miracle of the craft: five hostile crowns, one small valley, and a Warden who somehow persuaded them all to sign. Few believe it could be done again.',
-};
-
-export function fallbackEpilogue(ending: EndingId): string {
-  return EPILOGUES[ending] ?? ENDING_TEXT[ending].subtitle;
+  if (suspicion >= 60 || trust <= -25) return v.cold;
+  return won ? v.won : v.lost;
 }

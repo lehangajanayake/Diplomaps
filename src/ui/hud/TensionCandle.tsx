@@ -6,9 +6,8 @@ export function TensionCandle({ tension, bare = false }: { tension: number; bare
   const t = Math.max(0, Math.min(100, tension));
   const waxTop = 58 + (t / 100) * 118;
   const danger = t >= CONFIG.tension.drumsAbove;
-  const war = t >= CONFIG.tension.warGate;
   return (
-    <div className="flex flex-col items-center" title="Tension across the realm. At 60, rulers may declare war.">
+    <div className="flex flex-col items-center" title="Tension across the realm. The higher it burns, the likelier war.">
       <svg viewBox="0 0 100 250" className="h-[21vh] min-h-[130px] w-auto overflow-visible" aria-hidden>
         <defs>
           <radialGradient id="cg-glow" cx="50%" cy="50%" r="50%">
@@ -64,7 +63,7 @@ export function TensionCandle({ tension, bare = false }: { tension: number; bare
       {!bare && (
       <div className="mt-1 text-center leading-tight">
         <div className="font-sc text-[0.72rem] tracking-[0.14em] text-parchment-300/80">Tension</div>
-        <div className={`font-display text-[1.05rem] font-semibold ${war ? 'text-[#f08a5d]' : 'text-parchment-100'} candle-text`}>
+        <div className={`font-display text-[1.05rem] font-semibold ${danger ? 'text-[#f08a5d]' : 'text-parchment-100'} candle-text`}>
           {Math.round(t)} <span className="font-body text-[0.8rem] font-normal italic opacity-80">{tensionWord(t)}</span>
         </div>
       </div>

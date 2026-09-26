@@ -2,15 +2,19 @@
  * Game orchestration: everything that mixes the pure engine, the AI endpoints and the UI state.
  * Components call these functions; they read and write the Zustand store.
  */
-import { assessAudience, chooseAction, extractPromises, fetchHealth, streamAudience, writeChronicle, writeEnding } from '../ai/client';
+import { assessAudience, extractPromises, fetchHealth, streamAudience, writeEnding, writeFlavour } from '../ai/client';
 import { CONFIG, seasonName, seasonTitle, seasonYear } from '../engine/config';
 import { greetingFor } from '../engine/courtesy';
-import { addLedgerEntries, answerLetter, changePassage, giveGift, hireSellswords, recordAudience } from '../engine/ledger';
+import { addLedgerEntries, recordAudience } from '../engine/ledger';
+import { claimRuin } from '../engine/actions';
+import { cedableRegions, recordOffer } from '../engine/land';
+import { answerLetter } from '../engine/letters';
 import { PROFILES } from '../engine/nations';
 import type { AudienceRequest } from '../engine/schema';
-import { playSeason } from '../engine/resolve';
-import { NATION_IDS, type GameEvent, type NationAction, type NationId, type RegionId, type WorldState } from '../engine/types';
-import { buildActionContext, buildAudienceContext, buildChronicleRequest, buildEndingRequest } from '../engine/views';
+import { openFirstSeason, playSeason } from '../engine/resolve';
+import type { AmbitionId, GameEvent, NationId, RegionId, WorldState } from '../engine/types';
+import { summariseSeason } from '../engine/summary';
+import { buildAudienceContext, buildEndingRequest, buildFlavourRequest } from '../engine/views';
 import { createWorld } from '../engine/world';
 import { sound } from '../audio/sound';
 import { clearSave, loadSave, randomSeed, useStore, type AudienceTurnUI, type MapFx, type Note } from './worldStore';
@@ -28,7 +32,20 @@ export function note(text: string, tone: Note['tone'] = 'info', ms = 6500): void
 function commit(world: WorldState, events: GameEvent[] = []): void {
   if (events.length) world = { ...world, seasonLog: [...world.seasonLog, ...events] };
   set({ world });
+  showGains(events);
   announce(events);
+}
+
+/** Regions that join the Crossing ink themselves in on the map. */
+function showGains(events: readonly GameEvent[]): void {
+  const regions = events.flatMap((e) => (e.kind === 'gain' ? [e.region] : []));
+  if (regions.length === 0) return;
+  const key = Date.now();
+  set({ gains: { key, regions } });
+  sound.play('quill');
+  window.setTimeout(() => {
+    if (get().gains?.key === key) set({ gains: null });
+  }, 3600);
 }
 
 /** Surface the important consequences of the player's own actions as small notes on the table. */
@@ -76,15 +93,25 @@ export function beginGame(seed?: number): void {
     ending: null,
     notes: [],
     resolving: false,
-    tutorialStep: 0,
+    summary: null,
+    crisisOpen: true,
   });
   sound.startAmbient();
+}
+
+/** The player picks the ambition they will win or lose on; the first season's crisis follows. */
+export function chooseAmbition(ambition: AmbitionId): void {
+  const w = get().world;
+  if (!w || w.player.ambition) return;
+  const world = openFirstSeason({ ...w, player: { ...w.player, ambition } });
+  set({ world, crisisOpen: true });
+  sound.play('quill');
 }
 
 export function resumeGame(): boolean {
   const world = loadSave();
   if (!world) return false;
-  set({ world, phase: 'table', selectedNation: null, overlay: null, audience: null, ending: null, notes: [] });
+  set({ world, phase: 'table', selectedNation: null, overlay: null, audience: null, ending: null, notes: [], summary: null, crisisOpen: true });
   sound.startAmbient();
   return true;
 }
@@ -96,10 +123,7 @@ export function resumeGame(): boolean {
 export function openDossier(nation: NationId | null): void {
   if (get().audience || get().resolving) return;
   set({ selectedNation: nation, overlay: null });
-  if (nation) {
-    sound.play('paper');
-    advanceTutorial(1);
-  }
+  if (nation) sound.play('paper');
 }
 
 export function openCrossing(): void {
@@ -117,37 +141,49 @@ export function openLetter(id: string): void {
   sound.play('paper');
 }
 
+export function openCrisis(): void {
+  if (get().audience || get().resolving || get().summary) return;
+  set({ crisisOpen: true, selectedNation: null, overlay: null });
+  sound.play('paper');
+}
+
+export function closeCrisis(): void {
+  set({ crisisOpen: false });
+}
+
+/** Leave the "What changed" card: on to the ending, or to the next season's crisis. */
+export function continueAfterSummary(): void {
+  set({ summary: null });
+  if (get().world?.ending) void finishGame();
+  else set({ crisisOpen: true });
+}
+
 export function closeOverlay(): void {
   set({ overlay: null });
 }
 
-export function decideLetter(id: string, grant: boolean): void {
+/** Ruins clicked on the map: the card that offers to claim them. */
+export function openClaim(region: RegionId): void {
+  if (get().audience || get().resolving) return;
+  set({ overlay: { kind: 'claim', region }, selectedNation: null });
+  sound.play('paper');
+}
+
+export function claimRegion(region: RegionId): void {
   const w = get().world;
   if (!w) return;
-  const { world, events } = answerLetter(w, id, grant);
+  const { world, events } = claimRuin(w, region);
+  set({ overlay: null });
+  if (world !== w) commit(world, events);
+}
+
+export function decideLetter(id: string, answer: string): void {
+  const w = get().world;
+  if (!w) return;
+  const { world, events } = answerLetter(w, id, answer);
   commit(world, events);
   set({ overlay: null });
-  sound.play(grant ? 'quill' : 'paper');
-}
-
-export function setPassage(nation: NationId, grant: boolean): void {
-  const w = get().world;
-  if (!w) return;
-  const { world, events } = changePassage(w, nation, grant);
-  commit(world, events);
   sound.play('quill');
-}
-
-export function buySellswords(): void {
-  const w = get().world;
-  if (!w) return;
-  const { world, events } = hireSellswords(w);
-  if (world === w) {
-    note('The treasury cannot pay for sellswords.', 'info');
-    return;
-  }
-  commit(world, events);
-  note(`Sellswords take up their posts. (-${CONFIG.economy.sellswordCost} gold)`, 'good');
 }
 
 /* ------------------------------------------------------------------ */
@@ -160,6 +196,7 @@ export function audiencesLeft(w: WorldState): number {
 
 export function canHoldAudience(w: WorldState, nation: NationId): string | null {
   if (w.ending) return 'The game is over.';
+  if (w.nations[nation].fallen !== null) return `${PROFILES[nation].name} has fallen. No one is left to receive you.`;
   if (w.audiencesThisSeason.includes(nation)) return `You have already met ${PROFILES[nation].ruler.name} this season.`;
   if (audiencesLeft(w) <= 0) return 'No audiences remain this season. Ring the bell to end it.';
   return null;
@@ -180,13 +217,11 @@ export function startAudience(nation: NationId): void {
       moodTick: 0,
       endedByRuler: false,
       calledAway: false,
-      giftGold: 0,
       result: null,
       leaving: false,
     },
   });
   sound.play('doors');
-  advanceTutorial(2);
 }
 
 function playerMessages(turns: AudienceTurnUI[]): number {
@@ -245,9 +280,10 @@ async function closeAudience(endedByRuler: boolean, calledAway: boolean): Promis
     .filter((e) => e.to !== a.nation)
     .slice(-40)
     .map((e) => ({ id: e.id, to: e.to, type: e.type, what: e.what, promiseKind: e.promiseKind, topic: e.topic, about: e.about }));
+  const offerable = cedableRegions(w0, a.nation).map((id) => w0.map.regions[id]!.name);
   const [assessment, extraction] = await Promise.all([
     assessAudience({ mode: 'assess', nation: a.nation, turns, context, endedByRuler }),
-    extractPromises({ nation: a.nation, season: w0.season, turns, prior }),
+    extractPromises({ nation: a.nation, season: w0.season, turns, prior, offerable }),
   ]);
   // A ruler called away by a failed connection does not cost the player an audience.
   const held = !(calledAway && playerMessages(turns) <= 1);
@@ -255,6 +291,12 @@ async function closeAudience(endedByRuler: boolean, calledAway: boolean): Promis
   let { world } = recordAudience(get().world!, a.nation, assessment.trustDelta, assessment.learned, held);
   const added = addLedgerEntries(world, a.nation, extraction.entries);
   world = added.world;
+  if (extraction.landOffer) {
+    world = recordOffer(world, a.nation, extraction.landOffer.region);
+    const offer = world.player.offers.at(-1);
+    const where = offer?.region ? world.map.regions[offer.region]!.name : 'a region';
+    note(`${PROFILES[a.nation].name} offered you ${where}. It is yours when the season ends, if they still trust you.`, 'good', 9000);
+  }
   commit(world, added.events);
   const caught = added.events.flatMap((e) => (e.kind === 'lie_caught' ? [e.how] : []));
   const cur = get().audience;
@@ -278,20 +320,6 @@ async function closeAudience(endedByRuler: boolean, calledAway: boolean): Promis
   if (assessment.manipulation) note(`${PROFILES[a.nation].ruler.name} took your strange words as an insult.`, 'danger');
 }
 
-export function offerGift(gold: number): void {
-  const a = get().audience;
-  const w = get().world;
-  if (!a || !w || a.status === 'closed') return;
-  const { world, events } = giveGift(w, a.nation, gold);
-  if (world === w) {
-    note('Your purse is too light for that gift.');
-    return;
-  }
-  commit(world, events);
-  set({ audience: { ...get().audience!, giftGold: a.giftGold + gold } });
-  sound.play('coins');
-}
-
 /** Close the doors on the audience hall. */
 export function exitAudience(): void {
   const a = get().audience;
@@ -300,37 +328,7 @@ export function exitAudience(): void {
   sound.play('doors');
   window.setTimeout(() => {
     set({ audience: null });
-    advanceTutorial(3);
   }, 900);
-}
-
-/* ------------------------------------------------------------------ */
-/* Tutorial notes (first season only, once per browser session)         */
-/* ------------------------------------------------------------------ */
-
-const TUTORIAL_KEY = 'diplomaps.tutorial.done';
-
-export function tutorialSeen(): boolean {
-  try {
-    return sessionStorage.getItem(TUTORIAL_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-export function advanceTutorial(step: number): void {
-  const s = get();
-  if (s.tutorialDismissed || s.tutorialStep >= step) return;
-  set({ tutorialStep: step });
-}
-
-export function dismissTutorial(): void {
-  set({ tutorialDismissed: true });
-  try {
-    sessionStorage.setItem(TUTORIAL_KEY, '1');
-  } catch {
-    // ignore
-  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -339,19 +337,6 @@ export function dismissTutorial(): void {
 
 
 const sleep = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
-
-function waitingLines(w: WorldState): string[] {
-  const caps = NATION_IDS.map((n) => ({ nation: PROFILES[n].name, capital: w.map.capitals[n].name, ruler: PROFILES[n].ruler.name }));
-  return [
-    `A rider sets out for ${caps[0]!.capital}…`,
-    `In ${caps[1]!.capital}, clerks tally the season's tolls…`,
-    `Wax is pressed on letters in ${caps[4]!.capital}…`,
-    `${caps[2]!.ruler} reads your words by candlelight…`,
-    `Reed-boats slip out of ${caps[3]!.capital} in the mist…`,
-    `${caps[0]!.ruler} counts the spears on the border…`,
-    'The five courts take counsel…',
-  ];
-}
 
 function buildFx(before: WorldState, events: GameEvent[]): MapFx {
   const fx: MapFx = {
@@ -370,28 +355,14 @@ function buildFx(before: WorldState, events: GameEvent[]): MapFx {
       fx.battles.push({ region: e.region, from: e.from, attacker: e.attacker, captured: e.captured });
       if (e.captured) fx.conquests.push({ region: e.region, from: e.from, owner: e.attacker });
     } else if (e.kind === 'cede') fx.conquests.push({ region: e.region, from: null, owner: e.target });
-    else if (e.kind === 'mobilise') fx.mobilised.push(e.region as RegionId);
+    else if (e.kind === 'gain') fx.conquests.push({ region: e.region, from: null, owner: 'crossing' });
+    else if (e.kind === 'mobilise') fx.mobilised.push({ region: e.region, amount: e.amount });
     else if (e.kind === 'gossip') fx.trails.push({ from: e.from, to: e.to, entry: e.entry });
   }
+  // A region taken twice in one season inks in once, in its final colour.
+  fx.conquests = fx.conquests.filter((c, i) => !fx.conquests.slice(i + 1).some((later) => later.region === c.region));
   fx.trails = fx.trails.slice(0, 8);
   return fx;
-}
-
-function seasonNotes(w: WorldState, events: GameEvent[]): void {
-  const who = (o: string) => (o === 'crossing' ? 'the Crossing' : PROFILES[o as NationId].name);
-  for (const e of events) {
-    if (e.kind === 'war') note(`${who(e.nation)} declared war on ${who(e.target)}.`, 'danger', 9000);
-    else if (e.kind === 'battle' && e.captured) note(`${who(e.attacker)} took ${w.map.regions[e.region]?.name} from ${who(e.defender)}.`, e.defender === 'crossing' ? 'danger' : 'info', 8000);
-    else if (e.kind === 'lie_caught') {
-      const entry = w.player.ledger.find((x) => x.id === e.entry);
-      note(`${e.by.map((b) => PROFILES[b].name).join(' and ')} caught your lie${entry ? `: "${entry.what}"` : ''}.`, 'danger', 10000);
-    } else if (e.kind === 'peace') note(`${who(e.a)} and ${who(e.b)} made peace.`, 'good');
-    else if (e.kind === 'red_line' && e.by === 'crossing') note(`You crossed ${PROFILES[e.nation].name}'s red line.`, 'danger', 9000);
-  }
-  const income = events.find((e) => e.kind === 'income');
-  if (income && income.kind === 'income') note(`The tolls bring in ${income.gold} gold.`, 'good', 5000);
-  const letters = w.letters.filter((l) => l.status === 'sealed' && l.season === w.season);
-  if (letters.length) note(`${letters.length === 1 ? 'A sealed letter lies' : `${letters.length} sealed letters lie`} on the table.`, 'info', 7000);
 }
 
 export async function endSeason(): Promise<void> {
@@ -402,61 +373,37 @@ export async function endSeason(): Promise<void> {
   const next = w.season + 1;
   const title = finalSeason ? `The End of ${seasonName(w.season)}, ${seasonYear(w.season)}` : `${seasonName(next)}, Year ${seasonYear(next)}`;
   sound.play('bell');
-  const lines = waitingLines(w);
-  set({ resolving: true, selectedNation: null, overlay: null, fx: null, seasonCard: { season: next, title, message: lines[0]!, closing: false } });
-  advanceTutorial(4);
+  set({ resolving: true, selectedNation: null, overlay: null, fx: null, seasonCard: { season: next, title, message: 'The five courts make their moves…', closing: false } });
 
-  let tick = 0;
-  const ticker = window.setInterval(() => {
-    const card = get().seasonCard;
-    if (card && !card.closing) set({ seasonCard: { ...card, message: lines[++tick % lines.length]! } });
-  }, 1700);
-
-  const [results] = await Promise.all([
-    Promise.all(
-      NATION_IDS.map(async (nation) => {
-        const r = await chooseAction({ nation, context: buildActionContext(w, nation) });
-        return { nation, action: r.action, target: r.target, region: r.region, reason: r.reason } satisfies NationAction;
-      }),
-    ),
-    sleep(2600),
-  ]);
-  window.clearInterval(ticker);
-
+  // Code decides everything at once; the pause is only for the bell to ring.
   const audiences = [...w.audiencesThisSeason];
-  const outcome = playSeason(w, results);
+  const outcome = playSeason(w);
+  await sleep(1600);
   const fx = buildFx(w, outcome.events);
-  set({ world: outcome.state, fx, seasonCard: { ...get().seasonCard!, message: finalSeason ? 'The last season is done.' : 'The courts have chosen.', closing: true } });
-  seasonNotes(outcome.state, outcome.events);
+  set({ world: outcome.state, fx, seasonCard: { ...get().seasonCard!, message: finalSeason ? 'The last season is done.' : 'The courts have moved.', closing: true } });
   if (outcome.state.tension > CONFIG.tension.drumsAbove) sound.play('drums');
 
-  // The chronicler writes while the map plays out.
+  // The chronicler and the courts' scribes write while the map plays out.
   set({ chroniclePending: 'The chronicler dips his quill…' });
-  const chroniclePromise = writeChronicle(buildChronicleRequest(outcome.state, outcome.events, w.season, audiences));
+  const flavour = writeFlavour(buildFlavourRequest(outcome.state, outcome.events, w.season, audiences));
   await sleep(1100);
   set({ seasonCard: null });
   await sleep(4600);
   set((st) => ({ fx: st.fx ? { ...st.fx, settled: true } : null }));
   await sleep(200);
-  set({ fx: null, resolving: outcome.ending !== null });
+  set({ fx: null, resolving: false, summary: summariseSeason(w, outcome.state, outcome.events) });
 
-  // The chronicle inks itself in whenever the chronicler returns; the table is already yours again.
-  const inkChronicle = chroniclePromise.then((chron) => {
-    const entry = { season: w.season, title: seasonTitle(w.season), lines: chron.lines, fromAI: !chron.fallback };
+  // The words ink themselves in whenever they return; the table is already yours again.
+  void flavour.then((f) => {
     const cur = get().world;
     if (!cur) return;
+    const entry = { season: w.season, title: seasonTitle(w.season), lines: f.chronicle, fromAI: !f.fallback };
     const chronicle = [...cur.chronicle.filter((c) => c.season !== w.season), entry].sort((x, y) => x.season - y.season);
+    const letters = cur.letters.map((l) => (f.quotes[l.id] ? { ...l, quote: f.quotes[l.id]! } : l));
     const latest = cur.history.at(-1)?.season;
-    set({ world: { ...cur, chronicle }, chronicleFresh: w.season, chroniclePending: latest === w.season ? null : get().chroniclePending });
+    set({ world: { ...cur, chronicle, letters }, chronicleFresh: w.season, chroniclePending: latest === w.season ? null : get().chroniclePending });
     sound.play('quill');
   });
-
-  if (outcome.ending) {
-    await Promise.race([inkChronicle, sleep(8000)]);
-    await sleep(2400);
-    set({ resolving: false });
-    await finishGame();
-  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -466,14 +413,14 @@ export async function endSeason(): Promise<void> {
 export async function finishGame(): Promise<void> {
   const w = get().world;
   if (!w?.ending) return;
-  set({ phase: 'ending', ending: { verdicts: {}, epilogue: '', loading: true, fallback: false }, selectedNation: null, overlay: null });
+  set({ phase: 'ending', ending: { verdicts: {}, loading: true, fallback: false }, selectedNation: null, overlay: null });
   sound.setDrums(false);
   const result = await writeEnding(buildEndingRequest(w));
-  set({ ending: { verdicts: result.verdicts, epilogue: result.epilogue, loading: false, fallback: result.fallback } });
+  set({ ending: { verdicts: result.verdicts, loading: false, fallback: result.fallback } });
 }
 
 export function playAgain(): void {
   clearSave();
-  set({ phase: 'table', ending: null, chronicleFresh: null, tutorialStep: 0 });
+  set({ phase: 'table', ending: null, chronicleFresh: null });
   beginGame(randomSeed());
 }

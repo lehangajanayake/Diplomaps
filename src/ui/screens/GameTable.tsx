@@ -2,9 +2,10 @@
 import { AnimatePresence } from 'motion/react';
 import { useCallback, useEffect } from 'react';
 import { CONFIG } from '../../engine/config';
+import { sealedLetters } from '../../engine/letters';
 import type { RegionId } from '../../engine/types';
 import { sound } from '../../audio/sound';
-import { audiencesLeft, closeOverlay, endSeason, openCrossing, openDossier, openLedger, openLetter } from '../../store/flow';
+import { audiencesLeft, closeOverlay, endSeason, openClaim, openCrossing, openDossier, openLedger, openLetter } from '../../store/flow';
 import { useStore } from '../../store/worldStore';
 import { AudienceScene } from '../audience/AudienceScene';
 import { EndSeasonBell } from '../hud/EndSeasonBell';
@@ -19,14 +20,18 @@ import { CrossingSheet } from '../panels/CrossingSheet';
 import { Dossier } from '../panels/Dossier';
 import { LedgerView } from '../panels/Ledger';
 import { LedgerBook } from '../panels/LedgerBook';
+import { ClaimCard } from '../panels/ClaimCard';
 import { LetterView } from '../panels/LetterView';
-import { PassageLetters } from '../panels/PassageLetters';
+import { LetterStack } from '../panels/LetterStack';
 import { InkPot } from '../table/Decor';
 import { Notes } from '../table/Notes';
-import { Tutorial } from '../table/Tutorial';
 import { Snuffer } from '../hud/Snuffer';
 import { Table } from '../table/Table';
+import { AmbitionCard } from '../hud/AmbitionCard';
+import { AmbitionChoice } from './AmbitionChoice';
+import { CrisisCard } from './CrisisCard';
 import { SeasonCard } from './SeasonCard';
+import { WhatChanged } from './WhatChanged';
 
 export function GameTable() {
   const world = useStore((s) => s.world);
@@ -48,7 +53,8 @@ export function GameTable() {
   const onSelect = useCallback((id: RegionId) => {
     const owner = useStore.getState().world?.regions[id]?.owner;
     if (!owner) return;
-    if (owner === 'crossing') openCrossing();
+    if (owner === 'unclaimed') openClaim(id);
+    else if (owner === 'crossing') openCrossing();
     else openDossier(owner);
   }, []);
 
@@ -66,8 +72,7 @@ export function GameTable() {
   if (!world) return null;
   const ledger = world.player.ledger;
   const letter = overlay?.kind === 'letter' ? world.letters.find((l) => l.id === overlay.id) : undefined;
-  const visibleLetters = world.letters.filter((l) => l.season <= world.season);
-  const sealed = visibleLetters.filter((l) => l.status === 'sealed').length;
+  const sealed = sealedLetters(world);
 
   return (
     <Table danger={world.tension > CONFIG.tension.drumsAbove}>
@@ -79,11 +84,12 @@ export function GameTable() {
         <SeasonStrip season={world.season} audiencesLeft={audiencesLeft(world)} />
 
         <aside className="absolute bottom-[var(--bottom)] left-[1.1vw] top-[calc(var(--top)+1vh)] z-20 flex w-[var(--left-col)] flex-col gap-[2vh]">
+          <AmbitionCard world={world} />
           <div className="min-h-0 flex-[1_1_64%]">
             <Chronicle entries={world.chronicle} freshSeason={chronicleFresh} pending={chroniclePending} />
           </div>
           <div className="flex-[0_1_auto]">
-            <PassageLetters letters={visibleLetters} onOpen={openLetter} />
+            <LetterStack letters={sealed} onOpen={openLetter} />
           </div>
         </aside>
 
@@ -101,7 +107,7 @@ export function GameTable() {
           <EndSeasonBell
             onRing={() => void endSeason()}
             disabled={resolving || !!audience}
-            note={sealed ? `${sealed} ${sealed === 1 ? 'letter' : 'letters'} unanswered` : undefined}
+            note={sealed.length ? `${sealed.length} ${sealed.length === 1 ? 'letter' : 'letters'} unanswered` : undefined}
           />
         </aside>
 
@@ -112,12 +118,15 @@ export function GameTable() {
         <AnimatePresence>
           {overlay?.kind === 'ledger' && <LedgerView key="ledger" world={world} />}
           {letter && <LetterView key={letter.id} world={world} letter={letter} />}
+          {overlay?.kind === 'claim' && <ClaimCard key={overlay.region} world={world} region={overlay.region} />}
         </AnimatePresence>
         <Notes />
-        <Tutorial />
       </div>
       <AnimatePresence>{audience && <AudienceScene key="audience" />}</AnimatePresence>
       <SeasonCard />
+      <WhatChanged />
+      <CrisisCard />
+      <AmbitionChoice />
     </Table>
   );
 }
