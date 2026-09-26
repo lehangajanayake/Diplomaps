@@ -15,7 +15,7 @@ const place = (w: WorldState, id: string) => w.map.regions[id]?.name ?? id;
 
 /** How much each kind of news matters, when there is too much to tell. */
 const NEWS_RANK: Record<News['kind'], number> = {
-  collapse: 0, war: 1, battle: 2, lie_caught: 3, peace: 4, cede: 5, stand_down: 6, red_line: 7, alliance: 8, letter: 9, audience: 10, gossip: 11,
+  collapse: 0, war: 1, battle: 2, lie_caught: 3, march: 4, burn: 5, peace: 6, cede: 7, stand_down: 8, red_line: 9, alliance: 10, letter: 11, audience: 12, gossip: 13,
 };
 
 /** Turn engine events into structured news. `perspective` hides what that court would not know. */
@@ -40,6 +40,12 @@ export function eventsToNews(w: WorldState, events: readonly GameEvent[], perspe
         break;
       case 'collapse':
         out.push({ kind: 'collapse', nation: e.nation, by: e.by });
+        break;
+      case 'march':
+        out.push({ kind: 'march', nation: e.nation, target: e.target, forced: e.forced });
+        break;
+      case 'burn':
+        out.push({ kind: 'burn', nation: e.nation, region: place(w, e.region) });
         break;
       case 'cede':
         out.push({ kind: 'cede', nation: e.nation, target: e.target, region: place(w, e.region) });

@@ -457,3 +457,42 @@
     box-shadow: inset 0 0 60px rgb(0 0 0 / 0.7);
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* War on the map: smoke over burning fields, danger at the valley     */
+/* ------------------------------------------------------------------ */
+@keyframes smoke-rise {
+  0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  15% { opacity: 0.55; }
+  100% { transform: translate(6px, -34px) scale(2.2); opacity: 0; }
+}
+
+@keyframes ember-glow {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes danger-pulse {
+  0%, 100% { opacity: 0.9; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(1.25); }
+}
+
+@layer components {
+  .smoke {
+    opacity: 0.4;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: smoke-rise 3.3s ease-out infinite;
+    filter: blur(1.5px);
+  }
+
+  .ember {
+    animation: ember-glow 1.8s ease-in-out infinite;
+  }
+
+  .danger-ring {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: danger-pulse 1.6s ease-in-out infinite;
+  }
+}

@@ -127,9 +127,34 @@ export const CONFIG = {
   },
 
   economy: {
-    routeToll: 4,
-    warFactor: 0.7,
+    /** Each nation's road into the Crossing pays this every season, unless the nation is at war or its pass is closed. */
+    roadToll: 10,
+    /** Each region of the Crossing pays this every season, unless it is burning. */
+    landTax: 4,
+    /** Tolls fall as the Crossing looks partisan: at zero neutrality they pay this share. */
     neutralityFloor: 0.7,
+    /** A burning region costs this much in lost tolls each season, for this many seasons. */
+    burnLoss: 10,
+    burnSeasons: 2,
+  },
+
+  /** Attacks on the Crossing: what makes a nation march on the valley, and how often. */
+  attack: {
+    hostileTrust: -30,
+    hostileWeight: 0.5,
+    grievanceWeight: 0.25,
+    /** Every region the Crossing holds beyond this makes it a fatter target. */
+    largeFrom: 4,
+    largeWeight: 0.12,
+    lowNeutrality: 40,
+    lowNeutralityWeight: 0.1,
+    /** Fresh soldiers a nation raises for an assault on the valley. */
+    assaultTroops: 3,
+    /** A nation busy with its own wars has less appetite for the Crossing. */
+    busyPenalty: 0.2,
+    /** Chance of an attack is the motive minus this, capped. */
+    calm: 0.05,
+    maxChance: 0.7,
   },
 
   military: {
@@ -155,9 +180,33 @@ export const CONFIG = {
 
   /** What answering letters costs and brings (letters.ts). */
   letters: {
+    /** No more than this many letters needing a real decision land in one season. */
+    maxDecisions: 3,
     apologyGold: 20,
     apologyTrust: 10,
     apologySuspicion: 10,
+    passageFee: [20, 30] as const,
+    passageTrust: 6,
+    passageEnemyTrust: -10,
+    passageNeutrality: -5,
+    refusedTrust: -8,
+    /** A refused army may force its way through: chance is the nation's aggression times this. */
+    forcedChance: 0.6,
+    forcedGold: 15,
+    forcedNeutrality: -4,
+    tradeFee: [12, 20] as const,
+    tradeWaiveTrust: 8,
+    tradeChargeTrust: -3,
+    raidCost: [20, 30] as const,
+    raidChance: 0.45,
+    tribute: [30, 45] as const,
+    tributeTrust: 5,
+    sellswordsCost: 35,
+    sellswordsTroops: 4,
+    talksCost: 15,
+    talksChance: 0.6,
+    talksTrust: 6,
+    talksTension: -5,
   },
 
   ambitions: {

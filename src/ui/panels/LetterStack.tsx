@@ -5,6 +5,11 @@ import type { Letter, LetterKind } from '../../engine/types';
 import { WaxSeal } from '../common/WaxSeal';
 
 const KIND_LABEL: Record<LetterKind, string> = {
+  attack: 'An army marches on you',
+  raid: 'Raiders at the border',
+  passage: 'Asks to march through',
+  talks: 'Would talk peace',
+  trade: 'Caravans on the road',
   last: 'A last letter',
   angry: 'An angry letter',
 };

@@ -12,6 +12,7 @@ import { Legend } from './Legend';
 import { RegionHitAreas, RegionHover } from './Region';
 import { StaticMap } from './StaticMap';
 import { Tokens } from './Tokens';
+import { WarMarks } from './WarMarks';
 
 interface Props {
   world: WorldState;
@@ -164,6 +165,7 @@ export function MapView({ world, fx = null, onSelect, children, interactive = tr
         <svg viewBox={`0 0 ${map.width} ${map.height}`} className="absolute inset-0 h-full w-full">
           {interactive && <RegionHitAreas map={map} onEnter={handleEnter} onLeave={handleLeave} onClick={handleClick} />}
           {hover && hoverState && <RegionHover map={map} id={hover.id} owner={hoverState.owner} />}
+          <WarMarks world={world} />
           <Tokens map={map} regions={shown} />
           {fx && !fx.settled && <SeasonFx map={map} fx={fx} />}
           {children}

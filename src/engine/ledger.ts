@@ -35,7 +35,7 @@ export function evaluateClaim(
   const x = w.nations[about];
   switch (kind) {
     case 'military_threat': {
-      const aimed = w.intents.some((i) => i.nation === about && i.target === to);
+      const aimed = w.intents.some((i) => i.kind === 'war' && i.nation === about && i.target === to);
       return aimed || atWar(w, about, to) || x.trust[to] <= -55 || troopsFacing(w, about, to) >= 8;
     }
     case 'secret_alliance':

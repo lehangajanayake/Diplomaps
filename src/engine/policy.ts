@@ -8,8 +8,8 @@ import { CONFIG } from './config.js';
 import { PROFILES } from './nations.js';
 import type { Rng } from './rng.js';
 import { clamp, redLineCrossedRecently } from './tension.js';
-import { NATION_IDS, type ClaimKind, type Intent, type NationId, type WorldState } from './types.js';
-import { allied, atWar, isStanding, totalTroops, warsOf } from './world.js';
+import { CROSSING, NATION_IDS, type ClaimKind, type Intent, type NationId, type RegionId, type WorldState } from './types.js';
+import { allied, atWar, bordersOwner, isStanding, regionsOf, totalTroops, warsOf } from './world.js';
 
 const PROVOKING: ReadonlySet<ClaimKind> = new Set(['military_threat', 'hostile_intent', 'secret_alliance']);
 
@@ -61,11 +61,11 @@ export function favouriteEnemy(w: WorldState, nation: NationId): { target: Natio
 }
 
 /**
- * When a season opens, the hottest grudge in the realm may boil over: one nation, picked in proportion
- * to how badly it wants war, rolls to see whether it marches this season. At most one planned war a
- * season keeps the story readable; allies, favours and the Warden's words add the rest.
+ * The hottest grudge in the realm may boil over: one nation, picked in proportion to how badly it
+ * wants war, rolls to see whether it marches this season. At most one planned war a season keeps the
+ * story readable; allies, favours and the Warden's words add the rest.
  */
-export function planIntents(w: WorldState, rng: Rng): Intent[] {
+function planWar(w: WorldState, rng: Rng): Intent[] {
   const candidates = NATION_IDS.flatMap((nation) => {
     const best = favouriteEnemy(w, nation);
     return best ? [{ nation, target: best.target, chance: warChance(best.desire) }] : [];
@@ -75,9 +75,57 @@ export function planIntents(w: WorldState, rng: Rng): Intent[] {
   return rng.chance(pick.chance) ? [{ kind: 'war', nation: pick.nation, target: pick.target }] : [];
 }
 
+/** Does `nation` have to march through the Crossing to reach `target`? */
+export function needsPassage(w: WorldState, nation: NationId, target: NationId): boolean {
+  return !bordersOwner(w, nation, target);
+}
+
+/** How much `nation` wants to march on the Crossing itself: hatred, grievances, and a valley grown fat. */
+export function attackMotive(w: WorldState, nation: NationId): number {
+  if (!isStanding(w, nation) || !bordersOwner(w, nation, CROSSING)) return 0;
+  const a = CONFIG.attack;
+  const n = w.nations[nation];
+  let motive = 0;
+  if (n.trustPlayer <= a.hostileTrust) motive += a.hostileWeight + (a.hostileTrust - n.trustPlayer) / 100;
+  motive += n.grievances * a.grievanceWeight;
+  motive += Math.max(0, regionsOf(w, CROSSING).length - a.largeFrom) * a.largeWeight;
+  if (w.player.neutrality < a.lowNeutrality) motive += a.lowNeutralityWeight;
+  return motive - warsOf(w, nation) * a.busyPenalty;
+}
+
+export function attackChance(motive: number): number {
+  return clamp(motive - CONFIG.attack.calm, 0, CONFIG.attack.maxChance);
+}
+
+/** The Crossing region an army would strike: the weakest one it borders, sparing Wayhold unless it is the only way in. */
+export function attackTarget(w: WorldState, nation: NationId): RegionId | null {
+  const capital = w.map.capitals[CROSSING].region;
+  const reachable = regionsOf(w, CROSSING).filter((id) => w.map.regions[id]!.neighbours.some((nb) => w.regions[nb]!.owner === nation));
+  const outer = reachable.filter((id) => id !== capital);
+  const pool = outer.length > 0 ? outer : reachable;
+  if (pool.length === 0) return null;
+  return pool.reduce((best, id) => (w.regions[id]!.troops < w.regions[best]!.troops ? id : best));
+}
+
+/** At most one army a season marches on the Crossing, chosen by how badly each wants to. */
+function planAttack(w: WorldState, rng: Rng, busy: readonly NationId[]): Intent[] {
+  const candidates = NATION_IDS.filter((n) => !busy.includes(n)).map((nation) => ({ nation, chance: attackChance(attackMotive(w, nation)) }));
+  const willing = candidates.filter((c) => c.chance > 0);
+  if (willing.length === 0) return [];
+  const pick = rng.weighted(willing, willing.map((c) => c.chance));
+  const region = attackTarget(w, pick.nation);
+  return region && rng.chance(pick.chance) ? [{ kind: 'attack', nation: pick.nation, region }] : [];
+}
+
+/** When a season opens: what the nations mean to do before the bell rings again. */
+export function planIntents(w: WorldState, rng: Rng): Intent[] {
+  const wars = planWar(w, rng);
+  return [...wars, ...planAttack(w, rng, wars.map((i) => i.nation))];
+}
+
 /** At the bell: does a planned war still stand, now that the Warden has had a season to talk? */
-export function intentHolds(w: WorldState, intent: Intent): boolean {
-  return warDesire(w, intent.nation, intent.target) >= CONFIG.war.standDown;
+export function warHolds(w: WorldState, nation: NationId, target: NationId): boolean {
+  return warDesire(w, nation, target) >= CONFIG.war.standDown;
 }
 
 /** Wars the Warden's words sparked this season: a court told its rival is arming may strike first. */
@@ -87,7 +135,7 @@ export function sparkedByWords(w: WorldState, rng: Rng): Intent[] {
     if (e.season !== w.season || e.type !== 'claim' || !e.about || !e.claimKind || !PROVOKING.has(e.claimKind)) continue;
     const nation = e.to;
     const target = e.about;
-    if (out.some((x) => x.nation === nation) || w.intents.some((x) => x.nation === nation && x.target === target)) continue;
+    if (out.some((x) => x.nation === nation) || w.intents.some((x) => x.kind === 'war' && x.nation === nation && x.target === target)) continue;
     if (rng.chance(warChance(warDesire(w, nation, target)))) out.push({ kind: 'war', nation, target });
   }
   return out;

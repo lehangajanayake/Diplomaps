@@ -4,11 +4,15 @@
  * icons on the letter and changes the world, so what a letter says an answer costs is what it costs.
  */
 import { CONFIG } from './config.js';
-import { LAST_WORDS, ANGRY_WORDS } from './fallbacks.js';
-import { nameOf } from './nations.js';
-import { addTension, adjustNeutrality, adjustSuspicion, adjustTrustPlayer } from './tension.js';
-import { NATION_IDS, type GameEvent, type Letter, type LetterKind, type NationId, type WorldState } from './types.js';
-import { cloneWorld } from './world.js';
+import { assaultOdds, burn, passageWanted } from './crossing.js';
+import { isBurning } from './economy.js';
+import { ANGRY_WORDS, LAST_WORDS, LETTER_WORDS } from './fallbacks.js';
+import { nameOf, PROFILES } from './nations.js';
+import type { Rng } from './rng.js';
+import { addTension, adjustNeutrality, adjustSuspicion, adjustTrustPlayer, crossRedLine } from './tension.js';
+import { CROSSING, NATION_IDS, type GameEvent, type Letter, type LetterKind, type NationId, type WorldState } from './types.js';
+import { makePeace } from './war.js';
+import { atWar, bordersOwner, cloneWorld, isStanding, regionName, warsOf } from './world.js';
 
 /** Everything an answer does. Numbers first; `act` does whatever numbers cannot say. */
 export interface Outcome {
@@ -56,7 +60,140 @@ function afford(w: WorldState, cost: number): string | undefined {
   return w.player.gold >= cost ? undefined : `You have only ${w.player.gold} gold.`;
 }
 
+/** Nations whose red line is crossed if the Warden lets `nation`'s army through. */
+function redLinesCrossedByPassage(nation: NationId): NationId[] {
+  return NATION_IDS.filter((n) => PROFILES[n].redLine.kind === 'passage_to_enemy' && PROFILES[n].redLine.about === nation);
+}
+
+const L = CONFIG.letters;
+
 const KINDS: Record<LetterKind, LetterKindDef> = {
+  attack: {
+    summary: (w, l) => `${cap(l.from)}'s army marches on ${regionName(w, l.region!)}.`,
+    answers: (w, l) => {
+      const region = regionName(w, l.region!);
+      const odds = (extra: number) => `${region} ${assaultOdds(w, l.from, l.region!, extra)}`;
+      return [
+        {
+          id: 'tribute',
+          label: `Pay ${l.amount} gold in tribute`,
+          outcome: {
+            gold: -l.amount,
+            trust: { [l.from]: L.tributeTrust },
+            notes: ['they turn back'],
+            act: (x) => {
+              x.intents = x.intents.filter((i) => !(i.kind === 'attack' && i.nation === l.from));
+              x.nations[l.from].grievances = 0;
+            },
+          },
+          blocked: afford(w, l.amount),
+        },
+        {
+          id: 'sellswords',
+          label: `Hire sellswords for ${L.sellswordsCost} gold`,
+          outcome: {
+            gold: -L.sellswordsCost,
+            notes: [`+${L.sellswordsTroops} soldiers`, odds(L.sellswordsTroops)],
+            act: (x) => {
+              x.regions[l.region!]!.troops += L.sellswordsTroops;
+            },
+          },
+          blocked: afford(w, L.sellswordsCost),
+        },
+        { id: 'fight', label: 'Stand and fight', outcome: { notes: [odds(0)] } },
+      ];
+    },
+    fallback: 'fight',
+    quote: (l) => LETTER_WORDS.attack[l.from],
+  },
+  raid: {
+    summary: (w, l) => `${cap(l.from)}'s foragers threaten to burn ${regionName(w, l.region!)}.`,
+    answers: (w, l) => [
+      { id: 'pay', label: `Pay them ${l.amount} gold to ride on`, outcome: { gold: -l.amount }, blocked: afford(w, l.amount) },
+      {
+        id: 'burn',
+        label: 'Let it burn',
+        outcome: {
+          notes: [`${regionName(w, l.region!)} burns: −${CONFIG.economy.burnLoss} gold a season, for ${CONFIG.economy.burnSeasons} seasons`],
+          act: (x, events) => burn(x, l.from, l.region!, events),
+        },
+      },
+    ],
+    fallback: 'burn',
+    quote: (l) => LETTER_WORDS.raid[l.from],
+  },
+  passage: {
+    summary: (_w, l) => `${cap(l.from)} asks to march its army through your valley to attack ${nameOf(l.about!)}.`,
+    answers: (_w, l) => {
+      const enemy = l.about!;
+      const angered = redLinesCrossedByPassage(l.from);
+      return [
+        {
+          id: 'grant',
+          label: 'Let them pass',
+          outcome: {
+            gold: l.amount,
+            trust: { [l.from]: L.passageTrust, [enemy]: L.passageEnemyTrust },
+            neutrality: L.passageNeutrality,
+            notes: ['their army marches through', ...angered.map((n) => `crosses ${nameOf(n)}'s red line`)],
+            act: (x, events) => {
+              for (const n of angered) {
+                const e = crossRedLine(x, n, CROSSING, `the Warden let ${nameOf(l.from)}'s army through`);
+                if (e) events.push(e);
+              }
+            },
+          },
+        },
+        {
+          id: 'refuse',
+          label: 'Refuse',
+          outcome: {
+            trust: { [l.from]: L.refusedTrust },
+            notes: ['they may force their way through'],
+            act: (x) => {
+              x.nations[l.from].grievances += 1;
+            },
+          },
+        },
+      ];
+    },
+    fallback: 'refuse',
+    quote: (l) => LETTER_WORDS.passage[l.from],
+  },
+  talks: {
+    summary: (_w, l) => `${cap(l.from)} and ${nameOf(l.about!)} would talk peace in Wayhold, if you host them.`,
+    answers: (w, l) => [
+      {
+        id: 'host',
+        label: `Host the talks for ${l.amount} gold`,
+        outcome: {
+          gold: -l.amount,
+          trust: { [l.from]: L.talksTrust, [l.about!]: L.talksTrust },
+          tension: L.talksTension,
+          notes: ['their war ends'],
+          act: (x, events) => {
+            const war = x.wars.find((v) => (v.a === l.from && v.b === l.about) || (v.a === l.about && v.b === l.from));
+            if (!war) return;
+            makePeace(x, war, 'talks', events);
+            x.stats.peacesBrokered += 1;
+          },
+        },
+        blocked: afford(w, l.amount),
+      },
+      { id: 'decline', label: 'Decline', outcome: { notes: ['the war goes on'] } },
+    ],
+    fallback: 'decline',
+    quote: (l) => LETTER_WORDS.talks[l.from],
+  },
+  trade: {
+    summary: (_w, l) => `${cap(l.from)}'s caravans are bound for ${nameOf(l.about!)}, and ask you to waive the toll.`,
+    answers: (_w, l) => [
+      { id: 'charge', label: 'Charge the toll', outcome: { gold: l.amount, trust: { [l.from]: L.tradeChargeTrust } } },
+      { id: 'waive', label: 'Waive it', outcome: { trust: { [l.from]: L.tradeWaiveTrust } } },
+    ],
+    fallback: 'charge',
+    quote: (l) => LETTER_WORDS.trade[l.from],
+  },
   last: {
     summary: (_w, l) => `${cap(l.from)} has fallen. Its ruler sends you a last letter.`,
     answers: () => [{ id: 'keep', label: 'Keep the letter', outcome: {} }],
@@ -187,11 +324,37 @@ export function sendLetter(w: WorldState, fields: Pick<Letter, 'kind' | 'from'> 
   return letter;
 }
 
+/** Nations at war beside a region of the valley that is not already burning: raiders. */
+function raidTargets(w: WorldState): { nation: NationId; region: string }[] {
+  const out: { nation: NationId; region: string }[] = [];
+  for (const nation of NATION_IDS) {
+    if (!isStanding(w, nation) || warsOf(w, nation) === 0) continue;
+    for (const id of w.map.regionIds) {
+      if (w.regions[id]!.owner !== CROSSING || isBurning(w, id)) continue;
+      if (w.map.regions[id]!.neighbours.some((nb) => w.regions[nb]!.owner === nation)) out.push({ nation, region: id });
+    }
+  }
+  return out;
+}
+
+/** A nation with caravans to send, and a friend beyond the valley to send them to. */
+function tradeRoute(w: WorldState, rng: Rng): { nation: NationId; partner: NationId } | null {
+  const writing = new Set(w.letters.filter((l) => l.season === w.season).map((l) => l.from));
+  const traders = NATION_IDS.filter((n) => isStanding(w, n) && warsOf(w, n) === 0 && w.player.passes[n] === 'open' && !writing.has(n));
+  if (traders.length === 0) return null;
+  const nation = rng.pick(traders);
+  const partners = NATION_IDS.filter((p) => p !== nation && isStanding(w, p) && !atWar(w, nation, p) && !bordersOwner(w, nation, p));
+  if (partners.length === 0) return null;
+  const partner = partners.reduce((best, p) => (w.nations[nation].trust[p] > w.nations[nation].trust[best] ? p : best));
+  return { nation, partner };
+}
+
 /**
- * The letters that land when a season opens, written from what happened at the last bell: the last
- * words of fallen nations, and angry letters from courts that caught a lie.
+ * The letters that land when a season opens: the last words of fallen nations and angry letters from
+ * courts that caught a lie, then up to three decisions in order of urgency: an army marching on the
+ * valley, raiders, armies asking leave to cross, peace talks, and caravans to fill a quiet season.
  */
-export function deliverLetters(w: WorldState, events: readonly GameEvent[]): void {
+export function deliverLetters(w: WorldState, events: readonly GameEvent[], rng: Rng): void {
   for (const e of events) {
     if (e.kind === 'collapse') sendLetter(w, { kind: 'last', from: e.nation });
   }
@@ -200,8 +363,38 @@ export function deliverLetters(w: WorldState, events: readonly GameEvent[]): voi
     if (e.kind !== 'lie_caught') continue;
     const entry = w.player.ledger.find((x) => x.id === e.entry);
     const from = entry && e.by.includes(entry.to) ? entry.to : e.by[0];
-    if (!from || angry.has(from) || w.nations[from].fallen !== null) continue;
+    if (!from || angry.has(from) || !isStanding(w, from) || angry.size >= 2) continue;
     angry.add(from);
     sendLetter(w, { kind: 'angry', from, entry: e.entry });
+  }
+
+  let decisions = 0;
+  const room = () => decisions < L.maxDecisions;
+  const send = (fields: Parameters<typeof sendLetter>[1]) => {
+    sendLetter(w, fields);
+    decisions += 1;
+  };
+  const amount = (range: readonly [number, number]) => rng.int(range[0], range[1]);
+
+  for (const intent of w.intents) {
+    if (intent.kind === 'attack' && room()) send({ kind: 'attack', from: intent.nation, region: intent.region, amount: amount(L.tribute) });
+  }
+  const raids = raidTargets(w);
+  if (raids.length > 0 && room() && rng.chance(L.raidChance)) {
+    const raid = rng.pick(raids);
+    send({ kind: 'raid', from: raid.nation, region: raid.region, amount: amount(L.raidCost) });
+  }
+  for (const march of passageWanted(w)) {
+    if (room()) send({ kind: 'passage', from: march.nation, about: march.target, amount: amount(L.passageFee) });
+  }
+  const weary = w.wars.filter((war) => war.since < w.season).sort((a, b) => a.since - b.since)[0];
+  if (weary && room() && rng.chance(L.talksChance)) {
+    const from = rng.chance(0.5) ? weary.a : weary.b;
+    send({ kind: 'talks', from, about: from === weary.a ? weary.b : weary.a, amount: L.talksCost });
+  }
+  while (decisions < 2) {
+    const route = tradeRoute(w, rng);
+    if (!route) break;
+    send({ kind: 'trade', from: route.nation, about: route.partner, amount: amount(L.tradeFee) });
   }
 }

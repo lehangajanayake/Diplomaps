@@ -58,6 +58,16 @@ export function fallbackChronicle(news: readonly News[], seasonTitle: string): s
       case 'cede':
         add(`${n.region} passed from ${mid(n.nation)} to ${mid(n.target)} without a sword being drawn.`);
         break;
+      case 'march':
+        add(
+          n.forced
+            ? `The soldiers of ${mid(n.nation)} forced the passes of the Crossing, and the Warden's fields were trampled flat.`
+            : `The Warden opened the valley roads, and the soldiers of ${mid(n.nation)} marched through toward ${mid(n.target)}.`,
+        );
+        break;
+      case 'burn':
+        add(`Smoke rose over ${n.region}, where foragers from ${mid(n.nation)} put the barns to the torch.`);
+        break;
       default:
         break;
     }
@@ -66,6 +76,45 @@ export function fallbackChronicle(news: readonly News[], seasonTitle: string): s
   if (lines.length < 2) add(`In the taverns of ${CROSSING_PROFILE.capitalName}, travellers spoke in low voices of what the next season might bring.`);
   return lines;
 }
+
+/** What each ruler writes on each kind of letter, when the AI cannot write it. */
+export const LETTER_WORDS: Record<'attack' | 'raid' | 'passage' | 'talks' | 'trade', Record<NationId, string>> = {
+  attack: {
+    varrow: 'Varrow asked. You refused. Now Varrow rides. Pay, or watch the horses drink from your wells.',
+    kelm: 'Your account is in arrears, Warden. Kelm has sent collectors. They carry spears.',
+    sael: 'Darling, you have been so tiresome. My soldiers are coming to discuss it with you.',
+    tarn: 'The water rises slowly, Warden, and then all at once. Hm.',
+    ostrin: 'It is written: the proud valley shall be humbled. We have come to see it written.',
+  },
+  raid: {
+    varrow: 'Varrow\u2019s riders are hungry and your barns are full. Pay, and they eat elsewhere.',
+    kelm: 'A small fee secures your fields. Consider it insurance. Noted, either way.',
+    sael: 'My foragers adore your orchards, darling. Shall I call them off, or shall they picnic?',
+    tarn: 'Fen folk take what the war leaves lying about. Leave less lying about.',
+    ostrin: 'The hungry soldier sees an omen in every full granary. Buy a better omen, child.',
+  },
+  passage: {
+    varrow: 'Varrow\u2019s riders need your road. Varrow pays in gold today. Varrow remembers refusals forever.',
+    kelm: 'Kelm requests transit for one army, fees paid in advance. A straightforward transaction.',
+    sael: 'Open your little gates, darling. My soldiers promise to wipe their boots.',
+    tarn: 'The clans must cross your valley. Will you be a bridge, or a dam? Hm.',
+    ostrin: 'The pilgrims of the Lamp march to war. It is written they pass through the valley.',
+  },
+  talks: {
+    varrow: 'Varrow does not beg for peace. Varrow will sit at your table, if the wine is strong.',
+    kelm: 'This war is running at a loss. Kelm is prepared to discuss terms. Discreetly.',
+    sael: 'War is so dreadfully unfashionable this season, darling. Host us, won\u2019t you?',
+    tarn: 'Even the heron tires of standing in cold water. The clans will talk.',
+    ostrin: 'It is written that the peacemaker shall be blessed. Also, we are tired, child.',
+  },
+  trade: {
+    varrow: 'Varrow\u2019s horse-traders ride through. Varrow thinks tolls are theft. Prove Varrow wrong.',
+    kelm: 'Kelm proposes a small concession on the toll. Goodwill compounds, Warden.',
+    sael: 'My caravans carry silk and salt, darling. Surely a friend would not charge a friend?',
+    tarn: 'Reed-boats and eel-barrels, passing through. The fen does not pay twice for the same road.',
+    ostrin: 'The pilgrims carry candles for the shrine. Charity is its own toll, child.',
+  },
+};
 
 /** A fallen ruler's last letter, when the AI cannot write it. */
 export const LAST_WORDS: Record<NationId, string> = {

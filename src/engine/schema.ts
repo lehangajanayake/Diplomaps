@@ -93,6 +93,8 @@ export const NewsSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('peace'), a: NationIdSchema, b: NationIdSchema, how: z.enum(['truce', 'fallen', 'talks']) }),
   z.object({ kind: z.literal('alliance'), a: NationIdSchema, b: NationIdSchema }),
   z.object({ kind: z.literal('collapse'), nation: NationIdSchema, by: OwnerSchema }),
+  z.object({ kind: z.literal('march'), nation: NationIdSchema, target: NationIdSchema, forced: z.boolean() }),
+  z.object({ kind: z.literal('burn'), nation: NationIdSchema, region: PlaceNameSchema }),
   z.object({ kind: z.literal('cede'), nation: OwnerSchema, target: OwnerSchema, region: PlaceNameSchema }),
   z.object({ kind: z.literal('lie_caught'), by: z.array(NationIdSchema).max(5), what: safeText(160) }),
   z.object({ kind: z.literal('letter'), nation: NationIdSchema, letterKind: z.enum(LETTER_KINDS), answer: z.string().regex(/^[a-z_]{1,16}$/) }),

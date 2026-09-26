@@ -6,11 +6,25 @@ import { AMBITION } from './ambitions.js';
 import { nameOf } from './nations.js';
 import { sealedLetters } from './letters.js';
 import type { Crisis, NationId, WorldState } from './types.js';
+import { regionName } from './world.js';
 
 export function composeCrisis(w: WorldState): Crisis {
   const ambitionNote = w.player.ambition ? AMBITION[w.player.ambition].note(w) : null;
   const base = { season: w.season, regions: [], ambitionNote };
   const cap = (n: NationId) => nameOf(n, 'start');
+
+  const attack = w.intents.find((i) => i.kind === 'attack');
+  if (attack && attack.kind === 'attack') {
+    return {
+      ...base,
+      tone: 'danger',
+      headline: `${cap(attack.nation)} marches on you`,
+      line: `${cap(attack.nation)}'s army will attack ${regionName(w, attack.region)} when the season ends.`,
+      suggestion: 'Answer its letter: pay tribute, hire sellswords, or stand and fight.',
+      nations: [attack.nation],
+      regions: [attack.region],
+    };
+  }
 
   const fallen = sealedLetters(w).find((l) => l.kind === 'last');
   if (fallen) {
@@ -24,14 +38,13 @@ export function composeCrisis(w: WorldState): Crisis {
     };
   }
 
-  const march = w.intents[0];
-  if (march) {
-    const also = w.intents.length > 1 ? ` ${w.intents.length - 1 === 1 ? 'Another war is' : `${w.intents.length - 1} more wars are`} brewing too.` : '';
+  const march = w.intents.find((i) => i.kind === 'war');
+  if (march && march.kind === 'war') {
     return {
       ...base,
       tone: 'warning',
       headline: `${cap(march.nation)} prepares for war`,
-      line: `${cap(march.nation)} means to attack ${nameOf(march.target)} when the season ends.${also}`,
+      line: `${cap(march.nation)} means to attack ${nameOf(march.target)} when the season ends.`,
       suggestion: `Talk to ${nameOf(march.nation)} to stop it, or let the war come and profit from it.`,
       nations: [march.nation, march.target],
     };

@@ -50,8 +50,11 @@ export function muster(w: WorldState, events: GameEvent[]): void {
   }
 }
 
-/** One season of fighting: the aggressor presses the attack, the defender strikes back when it can. */
-export function fightWars(w: WorldState, rng: Rng, events: GameEvent[]): void {
+/**
+ * One season of fighting: the aggressor presses the attack, the defender strikes back when it can.
+ * An army marching through the Crossing (`marches`) can strike anywhere its enemy touches the valley.
+ */
+export function fightWars(w: WorldState, rng: Rng, events: GameEvent[], marches: ReadonlyMap<NationId, NationId> = new Map()): void {
   for (const war of w.wars) {
     let fought = false;
     const sides: [NationId, NationId][] = [
@@ -60,7 +63,7 @@ export function fightWars(w: WorldState, rng: Rng, events: GameEvent[]): void {
     ];
     for (const [x, y] of sides) {
       if (!isStanding(w, x) || !isStanding(w, y)) continue;
-      const opt = chooseAttack(w, x, y, null, rng);
+      const opt = chooseAttack(w, x, y, null, rng, marches.get(x) === y);
       if (!opt) continue;
       const pressing = x === war.aggressor;
       const odds = available(w, opt.from) - w.regions[opt.to]!.troops;
@@ -87,7 +90,7 @@ export function collapseFallen(w: WorldState, events: GameEvent[]): NationId[] {
     }
     w.wars = w.wars.filter((x) => !involves(x, nation));
     w.alliances = w.alliances.filter((al) => al.a !== nation && al.b !== nation);
-    w.intents = w.intents.filter((i) => i.nation !== nation && i.target !== nation);
+    w.intents = w.intents.filter((i) => i.nation !== nation && !(i.kind === 'war' && i.target === nation));
     addTension(w, CONFIG.tension.collapse);
     events.push({ kind: 'collapse', season: w.season, nation, by: holder === UNCLAIMED ? nation : holder, region: capital });
     fallen.push(nation);

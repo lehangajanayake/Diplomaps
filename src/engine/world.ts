@@ -59,6 +59,7 @@ export function createWorld(seed: number): WorldState {
       lastAudienceSeason: null,
       startTroops: 0,
       fallen: null,
+      grievances: 0,
     };
   }
 
@@ -85,6 +86,7 @@ export function createWorld(seed: number): WorldState {
     wars: [],
     alliances: startingAlliances(),
     letters: [],
+    burning: {},
     intents: [],
     audiencesThisSeason: [],
     seasonLog: [],

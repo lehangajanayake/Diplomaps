@@ -28,6 +28,13 @@ export function summariseSeason(before: WorldState, after: WorldState, events: r
   }
 
   for (const e of events) {
+    if (e.kind === 'battle' && e.defender === CROSSING && !e.captured) you.push({ text: `You held ${place(e.region)} against ${who(e.attacker)}`, tone: 'good' });
+    else if (e.kind === 'burn') you.push({ text: `${cap(e.nation)} burned ${place(e.region)}`, tone: 'bad' });
+    else if (e.kind === 'march' && e.forced) you.push({ text: `${cap(e.nation)} forced its way through your valley`, tone: 'bad' });
+    else if (e.kind === 'march') you.push({ text: `${cap(e.nation)}'s army marched through your valley`, tone: 'neutral' });
+  }
+
+  for (const e of events) {
     if (e.kind === 'lie_caught') {
       const entry = after.player.ledger.find((x) => x.id === e.entry);
       you.push({ text: `${e.by.map((n, i) => nameOf(n, i === 0 ? 'start' : 'mid')).join(' and ')} caught your lie${entry ? `: "${entry.what}"` : ''}`, tone: 'bad' });

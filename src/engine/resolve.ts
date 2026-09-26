@@ -4,11 +4,12 @@
  */
 import { CONFIG } from './config.js';
 import { composeCrisis } from './crisis.js';
+import { attackTheCrossing, recoverBurning, resolveMarches } from './crossing.js';
 import { computeIncome } from './economy.js';
 import { checkEnding } from './endings.js';
 import { runGossip } from './gossip.js';
 import { closeLetters, deliverLetters } from './letters.js';
-import { intentHolds, planIntents, sparkedByWords } from './policy.js';
+import { planIntents, sparkedByWords, warHolds } from './policy.js';
 import { Rng } from './rng.js';
 import { addTension, adjustNeutrality, adjustSuspicion } from './tension.js';
 import { NATION_IDS, type Ending, type GameEvent, type SeasonRecord, type WorldState } from './types.js';
@@ -31,6 +32,7 @@ function settle(w: WorldState, events: GameEvent[], tensionStart: number): void 
   }
   addTension(w, festering * t.grudgePressure);
   if (w.player.neutrality < t.lowNeutralityBelow) addTension(w, t.lowNeutrality);
+  recoverBurning(w);
   adjustNeutrality(w, CONFIG.neutrality.recovery);
   for (const n of NATION_IDS) adjustSuspicion(w, n, -CONFIG.suspicion.decay);
   events.push({ kind: 'tension', season: w.season, from: tensionStart, to: w.tension });
@@ -49,14 +51,20 @@ export function resolveSeason(state: WorldState): { state: WorldState; events: G
   // 2. The nations act on what they meant to do, unless the Warden talked them out of it,
   //    and words spoken this season may start wars nobody planned.
   for (const intent of w.intents) {
-    if (intentHolds(w, intent)) declareWar(w, intent.nation, intent.target, 'grudge', events);
+    if (intent.kind !== 'war') continue;
+    if (warHolds(w, intent.nation, intent.target)) declareWar(w, intent.nation, intent.target, 'grudge', events);
     else events.push({ kind: 'stand_down', season: w.season, nation: intent.nation, target: intent.target });
   }
-  for (const spark of sparkedByWords(w, rng)) declareWar(w, spark.nation, spark.target, 'words', events);
+  for (const spark of sparkedByWords(w, rng)) {
+    if (spark.kind === 'war') declareWar(w, spark.nation, spark.target, 'words', events);
+  }
 
-  // 3. Armies muster and fight; nations whose capitals fall collapse into ruins.
+  // 3. Armies muster, march through the valley where they were let (or forced their way), strike at
+  //    the Crossing itself, and fight; nations whose capitals fall collapse into ruins.
   muster(w, events);
-  fightWars(w, rng, events);
+  const marches = resolveMarches(w, rng, events);
+  attackTheCrossing(w, rng, events);
+  fightWars(w, rng, events, marches);
   collapseFallen(w, events);
 
   // 4. The realm shifts: ruins are taken, friends ally, tired wars end.
@@ -81,8 +89,8 @@ function openSeason(w: WorldState, events: readonly GameEvent[]): void {
   w.audiencesThisSeason = [];
   const rng = new Rng(w.rng);
   w.intents = planIntents(w, rng);
+  deliverLetters(w, events, rng);
   w.rng = rng.state;
-  deliverLetters(w, events);
   w.crisis = composeCrisis(w);
 }
 
@@ -91,6 +99,7 @@ export function openFirstSeason(world: WorldState): WorldState {
   const w = cloneWorld(world);
   const rng = new Rng(w.rng);
   w.intents = planIntents(w, rng);
+  deliverLetters(w, [], rng);
   w.rng = rng.state;
   w.crisis = composeCrisis(w);
   return w;

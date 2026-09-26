@@ -154,7 +154,10 @@ export type WarCause = 'grudge' | 'ally' | 'favour' | 'words';
  * What a nation means to do this season. Code decides these when the season opens, so the crisis
  * card can warn of them and the Warden has a season to change a ruler's mind.
  */
-export type Intent = { kind: 'war'; nation: NationId; target: NationId };
+export type Intent =
+  | { kind: 'war'; nation: NationId; target: NationId }
+  /** An army marching on one of the Crossing's regions. */
+  | { kind: 'attack'; nation: NationId; region: RegionId };
 
 export interface KnowledgeRef {
   entry: string;
@@ -185,6 +188,8 @@ export interface NationState {
   startTroops: number;
   /** The season the nation's capital fell and it collapsed, or null while it stands. */
   fallen: number | null;
+  /** How often the Warden has refused it lately. Grievances build toward an attack on the Crossing. */
+  grievances: number;
 }
 
 export const PROMISE_KINDS = [
@@ -234,7 +239,7 @@ export interface LedgerEntry {
   broken: boolean;
 }
 
-export const LETTER_KINDS = ['last', 'angry'] as const;
+export const LETTER_KINDS = ['attack', 'raid', 'passage', 'talks', 'trade', 'last', 'angry'] as const;
 export type LetterKind = (typeof LETTER_KINDS)[number];
 
 /** A letter on the Warden's table. What it says and what each answer does live in letters.ts. */
@@ -298,6 +303,9 @@ export type GameEvent =
   | { kind: 'stand_down'; season: number; nation: NationId; target: NationId }
   | { kind: 'peace'; season: number; a: NationId; b: NationId; how: 'truce' | 'fallen' | 'talks' }
   | { kind: 'collapse'; season: number; nation: NationId; by: Owner; region: RegionId }
+  /** A nation's army marched through the Crossing: let through, or forcing its way past a refusal. */
+  | { kind: 'march'; season: number; nation: NationId; target: NationId; forced: boolean }
+  | { kind: 'burn'; season: number; nation: NationId; region: RegionId }
   | {
       kind: 'battle';
       season: number;
@@ -314,7 +322,7 @@ export type GameEvent =
     }
   | { kind: 'move'; season: number; nation: Owner; from: RegionId; to: RegionId; troops: number }
   | { kind: 'red_line'; season: number; nation: NationId; by: Owner; what: string }
-  | { kind: 'income'; season: number; gold: number; tolls: number }
+  | { kind: 'income'; season: number; gold: number; tolls: number; land: number; lost: number }
   | { kind: 'gossip'; season: number; from: NationId; to: NationId; entry: string }
   | { kind: 'lie_caught'; season: number; entry: string; by: NationId[]; how: string }
   | { kind: 'letter'; season: number; letter: string; nation: NationId; letterKind: LetterKind; answer: string }
@@ -428,6 +436,8 @@ export interface WorldState {
   wars: War[];
   alliances: Alliance[];
   letters: Letter[];
+  /** Crossing regions set alight by raiders, and the season each one will have recovered by. */
+  burning: Record<RegionId, number>;
   /** What each nation means to do this season (see policy.ts). */
   intents: Intent[];
   /** Nations the player has held an audience with this season. */
