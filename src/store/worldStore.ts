@@ -30,7 +30,6 @@ export interface AudienceState {
   turns: AudienceTurnUI[];
   status: 'awaiting' | 'speaking' | 'closing' | 'closed';
   streamText: string;
-  audio: string | null;
   mood: Mood;
   moodTick: number;
   endedByRuler: boolean;

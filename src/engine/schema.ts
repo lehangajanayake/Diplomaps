@@ -290,7 +290,7 @@ export const EndingRequestSchema = z.object({
         regionsStart: z.number().int().min(0).max(40),
         regionsEnd: z.number().int().min(0).max(40),
         fallen: z.boolean(),
-        atWarWithCrossing: z.boolean(),
+        attackedCrossing: z.boolean(),
         liesTold: z.number().int().min(0).max(99),
         liesCaught: z.number().int().min(0).max(99),
         promises: z.number().int().min(0).max(99),

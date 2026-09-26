@@ -221,7 +221,7 @@ export function buildEndingRequest(w: WorldState): EndingRequest {
       regionsStart: startRegions(id),
       regionsEnd: regionsOf(w, id).length,
       fallen: regionsOf(w, id).length === 0,
-      atWarWithCrossing: atWar(w, id, CROSSING),
+      attackedCrossing: w.history.some((h) => h.events.some((e) => e.kind === 'battle' && e.attacker === id && e.defender === CROSSING)),
       liesTold: lies.filter((e) => e.to === id).length,
       liesCaught: lies.filter((e) => e.caughtBy.includes(id)).length,
       promises: w.player.ledger.filter((e) => e.to === id && e.type === 'promise').length,

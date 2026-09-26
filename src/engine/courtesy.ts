@@ -1,7 +1,7 @@
 /** The small courtesies of an audience: how each ruler greets you, and ideas for what to say. */
 import { PROFILES } from './nations.js';
-import { CROSSING, NATION_IDS, type NationId, type WorldState } from './types.js';
-import { atWar } from './world.js';
+import { NATION_IDS, type NationId, type WorldState } from './types.js';
+import { marchingOnCrossing } from './world.js';
 
 export type GreetingTone = 'warm' | 'neutral' | 'cold' | 'war';
 
@@ -33,15 +33,18 @@ export const GREETINGS: Record<NationId, Record<Exclude<GreetingTone, 'war'>, st
   },
 };
 
-export function greetingFor(w: WorldState, nation: NationId): string {
+/** The words of each greeting. The recorded voices in public/audio/greetings speak exactly these. */
+export function greetingText(nation: NationId, tone: GreetingTone): string {
   const g = GREETINGS[nation];
-  if (atWar(w, nation, CROSSING)) return `${g.cold} And know that our soldiers stand at your gates.`;
-  const tone = greetingToneFor(w, nation);
-  return g[tone === 'war' ? 'cold' : tone];
+  return tone === 'war' ? `${g.cold} And know that our soldiers stand at your gates.` : g[tone];
+}
+
+export function greetingFor(w: WorldState, nation: NationId): string {
+  return greetingText(nation, greetingToneFor(w, nation));
 }
 
 export function greetingToneFor(w: WorldState, nation: NationId): GreetingTone {
-  if (atWar(w, nation, CROSSING)) return 'war';
+  if (marchingOnCrossing(w, nation)) return 'war';
   const t = w.nations[nation].trustPlayer;
   if (t >= 25) return 'warm';
   if (t <= -20 || w.nations[nation].suspicion >= 50) return 'cold';

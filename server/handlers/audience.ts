@@ -79,7 +79,10 @@ export async function handleAudience(req: Request): Promise<Response> {
           open = false;
         }
       };
+      // Without narration the reply inks itself in as it is written; with it, the words wait for the voice.
+      const streamWords = !CONFIG.narrationEnabled;
       let metaSent = false;
+      let emitted = '';
       let parser = new ReplyParser();
       let finished = false;
       for (let attempt = 0; attempt < 2 && !finished; attempt++) {
@@ -101,9 +104,14 @@ export async function handleAudience(req: Request): Promise<Response> {
               send({ t: 'meta', mood: parser.mood ?? 'neutral', ends: parser.ends ?? false });
               metaSent = true;
             }
+            if (streamWords && metaSent && parser.reply.length > emitted.length && parser.reply.startsWith(emitted)) {
+              send({ t: 'delta', text: parser.reply.slice(emitted.length) });
+              emitted = parser.reply;
+            }
           },
         });
         if (result.ok && parser.complete) finished = true;
+        else if (emitted.length > 0) break; // words already shown; do not start the reply again
       }
 
       let mood: Mood = parser.mood ?? 'neutral';
@@ -125,7 +133,7 @@ export async function handleAudience(req: Request): Promise<Response> {
       if (reply) {
         const audio = CONFIG.narrationEnabled ? await synthesizeRulerSpeech(nation, reply) : null;
         if (audio) send({ t: 'audio', data: audio });
-        send({ t: 'delta', text: reply });
+        if (reply.length > emitted.length && reply.startsWith(emitted)) send({ t: 'delta', text: reply.slice(emitted.length) });
         send({ t: 'done', mood, ends: ends || playerTurn >= CONFIG.messagesPerAudience, reply, fallback: false });
       } else {
         const text = fallbackAudienceReply(nation);

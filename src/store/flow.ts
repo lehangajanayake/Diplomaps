@@ -218,7 +218,6 @@ export function startAudience(nation: NationId): void {
       turns: [{ role: 'ruler', text: greeting }],
       status: 'awaiting',
       streamText: '',
-      audio: null,
       mood: w.nations[nation].trustPlayer >= 25 ? 'warm' : w.nations[nation].trustPlayer <= -20 ? 'wary' : 'neutral',
       moodTick: 0,
       endedByRuler: false,
@@ -227,7 +226,10 @@ export function startAudience(nation: NationId): void {
       leaving: false,
     },
   });
-  sound.play('doors', () => sound.playGreeting(nation, greetingToneFor(w, nation)));
+  // The greeting is spoken once the doors have closed, unless the Warden has already left.
+  sound.play('doors', () => {
+    if (get().audience?.nation === nation) sound.playGreeting(nation, greetingToneFor(w, nation));
+  });
 }
 
 function playerMessages(turns: AudienceTurnUI[]): number {

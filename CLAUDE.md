@@ -86,6 +86,10 @@ Rules:
   (action -> `wait` "watches and waits"; extraction -> empty; chronicle -> template; audience -> the ruler is
   called away). Output tokens are capped on every call. Per-IP rate limit (60/min). Token usage is logged per call.
 - **Never print, log or commit the API key.** `.env*` is git-ignored except `.env.example`.
+- Voices (optional, ElevenLabs, server-only in `server/elevenlabs.ts`): off unless `CONFIG.narrationEnabled`. With
+  narration on, a reply's words wait for its voice; off, they stream in as written. Greetings are pre-recorded in
+  `public/audio/greetings/` from `greetingText()` in `src/engine/courtesy.ts`: if that text changes, run
+  `npm run generate:greeting-voices` so the voices still match.
 
 ## Gotchas
 

@@ -170,8 +170,14 @@ export function bordersOwner(world: WorldState, owner: Owner, other: Owner): boo
   });
 }
 
-export function atWar(world: WorldState, a: Owner, b: Owner): boolean {
+/** Wars are fought between nations; the Crossing is struck by attacks instead (see `marchingOnCrossing`). */
+export function atWar(world: WorldState, a: NationId, b: NationId): boolean {
   return world.wars.some((w) => (w.a === a && w.b === b) || (w.a === b && w.b === a));
+}
+
+/** Does this nation mean to attack the valley when the bell rings? */
+export function marchingOnCrossing(world: WorldState, nation: NationId): boolean {
+  return world.intents.some((i) => i.kind === 'attack' && i.nation === nation);
 }
 
 /** How many wars a nation is fighting. */

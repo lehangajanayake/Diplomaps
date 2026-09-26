@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { loadEnv } from 'vite';
-import { GREETINGS, type GreetingTone } from '../src/engine/courtesy.js';
+import { greetingText, type GreetingTone } from '../src/engine/courtesy.js';
 import { NATION_IDS, type NationId } from '../src/engine/types.js';
 
 const root = process.cwd();
@@ -27,7 +27,7 @@ for (const nation of NATION_IDS) {
   if (!voiceId) throw new Error(`${voiceEnv[nation]} or ELEVENLABS_VOICE_ID is not configured`);
   for (const tone of tones) {
     const outputPath = path.join(outputDir, `${nation}-${tone}.mp3`);
-    const text = tone === 'war' ? `${GREETINGS[nation].cold} And know that our soldiers stand at your gates.` : GREETINGS[nation][tone];
+    const text = greetingText(nation, tone);
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`, {
       method: 'POST',
       headers: { Accept: 'audio/mpeg', 'Content-Type': 'application/json', 'xi-api-key': apiKey },

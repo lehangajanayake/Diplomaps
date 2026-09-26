@@ -30,7 +30,7 @@ export function endingInput(req: EndingRequest): string {
       const p = PROFILES[n.nation];
       const v = VOICES[n.nation];
       return `- ${n.nation}: ${p.ruler.name}, ${p.ruler.title} of ${p.name}. Voice: ${p.speechStyle} Example: "${v.examples[0]}"
-  Feels ${trustWord(n.trust)} toward the Warden (${n.trust}) and ${suspicionWord(n.suspicion)}. Regions ${n.regionsStart} -> ${n.regionsEnd}${n.fallen ? ' (THE NATION FELL)' : ''}.${n.atWarWithCrossing ? ' At war with the Crossing.' : ''}
+  Feels ${trustWord(n.trust)} toward the Warden (${n.trust}) and ${suspicionWord(n.suspicion)}. Regions ${n.regionsStart} -> ${n.regionsEnd}${n.fallen ? ' (THE NATION FELL)' : ''}.${n.attackedCrossing ? ' Attacked the Crossing.' : ''}
   Audiences: ${n.audiences}. Promises received: ${n.promises}. Lies told to them: ${n.liesTold}. Lies they caught: ${n.liesCaught}.`;
     })
     .join('\n');
