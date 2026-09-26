@@ -1,4 +1,17 @@
 {
+  // Solution file: editors and `npm run typecheck` use the three referenced projects.
+  // The compilerOptions here are what Vercel uses when it compiles the /api functions.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
   "files": [],
   "references": [
     { "path": "./tsconfig.app.json" },

@@ -180,6 +180,7 @@ export const AudienceRequestSchema = z.object({
   nation: NationIdSchema,
   turns: z.array(AudienceTurnSchema).min(1).max(10),
   context: AudienceContextSchema,
+  endedByRuler: z.boolean().default(false),
 });
 export type AudienceRequest = z.input<typeof AudienceRequestSchema>;
 

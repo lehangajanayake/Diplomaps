@@ -85,6 +85,7 @@ export function createWorld(seed: number): WorldState {
     alliances: [],
     letters: [],
     audiencesThisSeason: [],
+    seasonLog: [],
     chronicle: [
       {
         season: 0,

@@ -384,6 +384,8 @@ export interface WorldState {
   letters: Letter[];
   /** Nations the player has held an audience with this season. */
   audiencesThisSeason: NationId[];
+  /** Things the player did this season before it ended (letters, gifts, promises caught...). */
+  seasonLog: GameEvent[];
   chronicle: ChronicleEntry[];
   history: SeasonRecord[];
   stats: WorldStats;

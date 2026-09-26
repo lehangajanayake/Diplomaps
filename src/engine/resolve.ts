@@ -457,7 +457,7 @@ export function playSeason(world: WorldState, actions: readonly NationAction[]):
   const resolved = resolveSeason(world, actions);
   const gossip = runGossip(resolved.state, new Rng(resolved.state.rng));
   const w = gossip.state;
-  const events = [...resolved.events, ...gossip.events];
+  const events = [...world.seasonLog, ...resolved.events, ...gossip.events];
   const ending = checkEnding(w, w.season >= CONFIG.seasons);
   const record: SeasonRecord = {
     season: w.season,
@@ -469,6 +469,7 @@ export function playSeason(world: WorldState, actions: readonly NationAction[]):
     goldEnd: w.player.gold,
   };
   w.history.push(record);
+  w.seasonLog = [];
   if (ending) {
     w.ending = ending;
   } else {
