@@ -20,10 +20,10 @@ export const CONFIG = {
     /** Regions per nation, handed out to the five nations (largest first). */
     nationRegions: [4, 4, 4, 4, 3],
     /** Share of land cells given to the Crossing (kept small and central). */
-    crossingShare: 0.1,
-    landRadiusX: 452,
-    landRadiusY: 300,
-    coastNoise: 0.34,
+    crossingShare: 0.085,
+    landRadiusX: 405,
+    landRadiusY: 262,
+    coastNoise: 0.4,
     mountainBorderChance: 0.65,
     maxAttempts: 60,
   },

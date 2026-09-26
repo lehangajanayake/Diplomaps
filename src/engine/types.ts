@@ -105,8 +105,10 @@ export interface MapData {
   regionIds: RegionId[];
   regions: Record<RegionId, MapRegion>;
   edges: MapEdge[];
-  /** Outline of all land, used for fills, shoreline ripples and clipping. */
+  /** Outline of all land, used for fills and clipping. */
   coast: string;
+  /** Concentric shoreline lines drawn in the sea, innermost first. */
+  ripples: string[];
   roads: MapRoad[];
   river: { d: string; line: Point[] };
   bridges: Point[];
