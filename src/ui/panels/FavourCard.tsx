@@ -88,7 +88,7 @@ function ChooseTarget({ world, nation }: { world: WorldState; nation: NationId }
       </ul>
 
       <p className="mt-[0.7em] font-hand text-[0.95rem] italic leading-snug text-ink-soft">
-        {risk} in 10 chance {target ? nameOf(target) : 'the target'} learns you asked: {nameOf(nation)} is {risk >= 5 ? 'a gossip' : 'discreet'}.
+        {risk} in 10 chance {target ? nameOf(target) : 'the target'} learns you asked: {nameOf(nation)} {risk >= 5 ? 'loves to gossip' : 'keeps secrets'}.
       </p>
       {blocked && <p className="mt-[0.3em] font-body text-[0.9rem] italic text-ink-red">{blocked}</p>}
       <div className="mt-[0.9em] flex justify-center gap-[1.6em]">

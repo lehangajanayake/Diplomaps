@@ -92,9 +92,12 @@ export const CONFIG = {
     strengthWeight: 0.4,
     redLine: 1,
     /** The Warden's words: warning a court about its rival, promising support, or reassuring it. */
-    provoked: 0.8,
+    provoked: 0.6,
     emboldened: 0.5,
-    reassured: 1,
+    reassured: 0.6,
+    /** Words move a court only as far as it believes the Warden: not at all at this trust, fully at `beliefFull`. */
+    beliefNone: -20,
+    beliefFull: 40,
     /** Each war a nation is already fighting cools its appetite for another. */
     busyPenalty: 0.9,
     maxWarsPerNation: 2,
@@ -137,6 +140,8 @@ export const CONFIG = {
     brokenPromise: 22,
     redLine: 10,
     decay: 3,
+    /** Each season a war started by a lie goes on, each side may find the lie out on the field. */
+    warReveal: 0.45,
   },
 
   neutrality: {
@@ -223,6 +228,8 @@ export const CONFIG = {
     sellswordsTroops: 4,
     talksCost: 15,
     talksChance: 0.6,
+    /** How many wars may ask for talks in one season. */
+    talksPerSeason: 2,
     talksTrust: 6,
     talksTension: -5,
     /** A nation about to be attacked through the valley may pay you to close the pass to its enemy. */
@@ -239,7 +246,7 @@ export const CONFIG = {
     /** What calling one costs: that friend's trust, and the Warden's neutrality. */
     trustCost: -20,
     neutralityCost: -15,
-    /** If the target learns who asked (the chance is one minus the friend's discretion). */
+    /** If the target learns who asked (the chance is how much the friend gossips). */
     exposedSuspicion: 30,
     exposedTrust: -15,
   },
@@ -266,16 +273,18 @@ export const CONFIG = {
     growthNeutrality: -5,
     /** ...and makes every nation it borders this much warier. */
     growthTrust: -4,
-    claimCost: 30,
+    claimCost: 35,
     claimStep: 15,
+    /** A court hands over land instead of gold only if it trusts the Warden at least this much. */
+    askTrust: 5,
     spoilsGold: 40,
   },
 
   ambitions: {
-    merchantGold: 300,
+    merchantGold: 330,
     kingdomRegions: 7,
-    spiderSuspicion: 50,
-    peacemakerTension: 30,
+    spiderSuspicion: 40,
+    peacemakerTension: 26,
   },
 
   endings: {

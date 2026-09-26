@@ -22,8 +22,10 @@ export function declareWar(w: WorldState, nation: NationId, target: NationId, ca
   adjustTrust(w, target, nation, CONFIG.trust.warDeclared);
   addTension(w, CONFIG.tension.warDeclared);
   events.push({ kind: 'war', season: w.season, nation, target, cause });
+  // The Warden started this war only if a favour or the Warden's words set it off; a war planned
+  // before they spoke would have come anyway.
   if (cause === 'favour') recordInstigation(w, nation, target, 'favour');
-  else if (cause !== 'ally') recordInstigation(w, nation, target, instigationOf(w, nation, target));
+  else if (cause === 'words') recordInstigation(w, nation, target, instigationOf(w, nation, target));
   if (cause === 'ally') return;
   for (const ally of alliesOf(w, target)) {
     if (ally === nation || allied(w, ally, nation)) continue;

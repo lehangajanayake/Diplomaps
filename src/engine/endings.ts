@@ -11,7 +11,6 @@ import { CROSSING, NATION_IDS, type AmbitionId, type Ending, type EndingReason, 
 
 const HOW_WORDS: Record<string, string> = {
   favour: 'your favour',
-  passage: 'the passage you granted',
   lie: 'your lie',
   word: 'your warning',
   promise: 'your promise of support',

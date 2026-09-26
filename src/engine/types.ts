@@ -50,7 +50,8 @@ export interface NationProfile {
   redLine: { kind: RedLineKind; about: NationId | null; text: string };
   grudges: { against: NationId; reason: string }[];
   friends: { with: NationId; reason: string }[];
-  discretion: number;
+  /** How readily this court passes on what it hears, 0 to 1: a chatty court spreads the Warden's words and secrets. */
+  gossip: number;
   aggression: number;
   trustToPlayer: number;
   regionWords: string[];
@@ -441,7 +442,7 @@ export interface Instigation {
   a: NationId;
   b: NationId;
   season: number;
-  how: 'favour' | 'passage' | 'lie' | 'word' | 'promise';
+  how: 'favour' | 'lie' | 'word' | 'promise';
 }
 
 /** The card that opens each season: what is at stake, in one plain sentence, and a suggested move. */

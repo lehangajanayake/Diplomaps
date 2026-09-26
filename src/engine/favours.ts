@@ -1,7 +1,7 @@
 /**
  * Favours: once a season, a nation that trusts the Warden enough goes to war on the Warden's word.
  * It costs that friend's trust and the Warden's neutrality, and the target may learn who asked: the
- * less discreet the friend, the likelier.
+ * more the friend gossips, the likelier.
  */
 import { CONFIG } from './config.js';
 import { nameOf, PROFILES } from './nations.js';
@@ -50,9 +50,9 @@ export function friendAgainst(w: WorldState, target: NationId): NationId | null 
   return willing.reduce((best, n) => (w.nations[n].trustPlayer > w.nations[best].trustPlayer ? n : best));
 }
 
-/** The chance the target learns the Warden asked for the war. */
+/** The chance the target learns the Warden asked for the war: a chatty friend lets it slip. */
 export function exposureChance(nation: NationId): number {
-  return 1 - PROFILES[nation].discretion;
+  return PROFILES[nation].gossip;
 }
 
 /** What calling in a favour from `nation` costs, whoever the target. */

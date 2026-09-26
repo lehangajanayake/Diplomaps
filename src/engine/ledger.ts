@@ -4,6 +4,7 @@
  */
 import { CONFIG } from './config.js';
 import { CLAIM_KINDS, CROSSING, NATION_IDS, type ClaimKind, type GameEvent, type LedgerEntry, type NationId, type WorldState } from './types.js';
+import type { Rng } from './rng.js';
 import type { ExtractedEntry } from './schema.js';
 import { addTension, adjustNeutrality, adjustSuspicion, adjustTrustPlayer, crossRedLine, strike } from './tension.js';
 import { PROFILES } from './nations.js';
@@ -141,6 +142,25 @@ export function becomeAware(w: WorldState, entry: LedgerEntry, nation: NationId,
   }
   if (firstCatch) addTension(w, CONFIG.tension.lieCaught);
   return events;
+}
+
+/**
+ * A lie that started a war does not survive the fighting: each season the war goes on, the court that
+ * was lied to may find there was no truth in it, and the court it slandered may hear what was said.
+ */
+export function revealLiesOnTheField(w: WorldState, rng: Rng, events: GameEvent[]): void {
+  for (const war of w.wars) {
+    for (const [told, about] of [[war.a, war.b], [war.b, war.a]] as const) {
+      for (const entry of w.player.ledger) {
+        if (entry.type !== 'claim' || entry.truth !== false || entry.to !== told || entry.about !== about) continue;
+        const catchers = [told, about].filter((n) => !entry.caughtBy.includes(n) && rng.chance(CONFIG.suspicion.warReveal));
+        if (catchers.length === 0) continue;
+        const how = `${PROFILES[told].name} found no truth in it on the field`;
+        for (const n of catchers) events.push(...becomeAware(w, entry, n, how));
+        events.push({ kind: 'lie_caught', season: w.season, entry: entry.id, by: catchers, how });
+      }
+    }
+  }
 }
 
 /* ------------------------------------------------------------------ */

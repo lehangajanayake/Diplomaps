@@ -13,6 +13,12 @@ import { allied, atWar, bordersOwner, isStanding, regionsOf, totalTroops, warsOf
 
 const PROVOKING: ReadonlySet<ClaimKind> = new Set(['military_threat', 'hostile_intent', 'secret_alliance']);
 
+/** How far `nation` believes the Warden, 0 to 1: words from a Warden it distrusts move it not at all. */
+export function belief(w: WorldState, nation: NationId): number {
+  const c = CONFIG.war;
+  return clamp((w.nations[nation].trustPlayer - c.beliefNone) / (c.beliefFull - c.beliefNone), 0, 1);
+}
+
 /** How the Warden's words to `nation` about `target`, this season and last, push it toward war or away. */
 export function wordsAbout(w: WorldState, nation: NationId, target: NationId): number {
   const c = CONFIG.war;
@@ -23,7 +29,7 @@ export function wordsAbout(w: WorldState, nation: NationId, target: NationId): n
     else if (e.type === 'claim' && e.claimKind === 'friendly_intent') push -= c.reassured;
     else if (e.promiseKind === 'support_against') push += c.emboldened;
   }
-  return push;
+  return push * belief(w, nation);
 }
 
 /** How much `nation` wants war with `target` right now. War is a coin flip at CONFIG.war.threshold. */
@@ -123,8 +129,12 @@ export function planIntents(w: WorldState, rng: Rng): Intent[] {
   return [...wars, ...planAttack(w, rng, wars.map((i) => i.nation))];
 }
 
-/** At the bell: does a planned war still stand, now that the Warden has had a season to talk? */
+/**
+ * At the bell: does a planned war still stand, now that the Warden has had a season to talk? An army
+ * that can only reach its enemy through the valley calls the war off while the Warden's pass is closed.
+ */
 export function warHolds(w: WorldState, nation: NationId, target: NationId): boolean {
+  if (needsPassage(w, nation, target) && w.player.passes[nation] === 'closed') return false;
   return warDesire(w, nation, target) >= CONFIG.war.standDown;
 }
 

@@ -59,7 +59,7 @@ export const NationProfileSchema = z.object({
   redLine: RedLineSchema,
   grudges: z.array(z.object({ against: NationIdSchema, reason: z.string().min(5) })),
   friends: z.array(z.object({ with: NationIdSchema, reason: z.string().min(5) })),
-  discretion: z.number().min(0).max(1),
+  gossip: z.number().min(0).max(1),
   aggression: z.number().min(0).max(1),
   trustToPlayer: z.number().min(-100).max(100),
   regionWords: z.array(z.string().min(2)).min(4),

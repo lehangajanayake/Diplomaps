@@ -11,6 +11,7 @@ import { checkEnding } from './endings.js';
 import { honourFavours } from './favours.js';
 import { runGossip } from './gossip.js';
 import { honourOffers } from './land.js';
+import { revealLiesOnTheField } from './ledger.js';
 import { closeLetters, deliverLetters } from './letters.js';
 import { resentClosedPasses } from './passes.js';
 import { planIntents, sparkedByWords, warHolds } from './policy.js';
@@ -65,11 +66,13 @@ export function resolveSeason(state: WorldState): { state: WorldState; events: G
   }
 
   // 3. Armies muster, march through the valley where they were let (or forced their way), strike at
-  //    the Crossing itself, and fight; nations whose capitals fall collapse into ruins.
+  //    the Crossing itself, and fight; lies that started wars come out on the field; nations whose
+  //    capitals fall collapse into ruins.
   muster(w, events);
   const marches = resolveMarches(w, rng, events);
   attackTheCrossing(w, rng, events);
   fightWars(w, rng, events, marches);
+  revealLiesOnTheField(w, rng, events);
   collapseFallen(w, events);
 
   // 4. The realm shifts: ruins are taken, friends ally, tired wars end.

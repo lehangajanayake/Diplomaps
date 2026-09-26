@@ -44,6 +44,11 @@ function afford(w: WorldState, cost: number): string | undefined {
   return w.player.gold >= cost ? undefined : `You have only ${w.player.gold} gold.`;
 }
 
+/** Why `nation` will not pay in land, if it will not: it must trust the Warden first. */
+function landRefused(w: WorldState, nation: NationId): string | undefined {
+  return w.nations[nation].trustPlayer >= CONFIG.land.askTrust ? undefined : `${cap(nation)} does not trust you enough to part with land.`;
+}
+
 /** Nations whose red line is crossed if the Warden lets `nation`'s army through. */
 function redLinesCrossedByPassage(nation: NationId): NationId[] {
   return NATION_IDS.filter((n) => PROFILES[n].redLine.kind === 'passage_to_enemy' && PROFILES[n].redLine.about === nation);
@@ -150,7 +155,9 @@ const KINDS: Record<LetterKind, LetterKindDef> = {
       const closed = w.player.passes[l.from] === 'closed' ? `Your pass is closed to ${nameOf(l.from)}.` : undefined;
       return [
         { id: 'grant', label: 'Let them pass', outcome: letThrough({ gold: l.amount }), blocked: closed },
-        ...(region ? [{ id: 'land', label: `Ask for ${regionName(w, region)} instead`, outcome: letThrough({ land: { region, how: 'payment' } }), blocked: closed }] : []),
+        ...(region
+          ? [{ id: 'land', label: `Ask for ${regionName(w, region)} instead`, outcome: letThrough({ land: { region, how: 'payment' } }), blocked: closed ?? landRefused(w, l.from) }]
+          : []),
         {
           id: 'refuse',
           label: 'Refuse',
@@ -178,7 +185,7 @@ const KINDS: Record<LetterKind, LetterKindDef> = {
       const region = regionToCede(w, l.from);
       return [
         { id: 'close', label: `${verb} for ${l.amount} gold`, outcome: close({ gold: l.amount }), blocked: locked },
-        ...(region ? [{ id: 'land', label: `${verb} for ${regionName(w, region)} instead`, outcome: close({ land: { region, how: 'payment' } }), blocked: locked }] : []),
+        ...(region ? [{ id: 'land', label: `${verb} for ${regionName(w, region)} instead`, outcome: close({ land: { region, how: 'payment' } }), blocked: locked ?? landRefused(w, l.from) }] : []),
         { id: 'refuse', label: 'Refuse', outcome: { trust: { [l.from]: L.helpRefusedTrust } } },
       ];
     },
@@ -416,8 +423,9 @@ export function deliverLetters(w: WorldState, events: readonly GameEvent[], rng:
       send({ kind: 'help', from: march.target, about: march.nation, amount: amount(L.helpFee) });
     }
   }
-  const weary = w.wars.filter((war) => war.since < w.season).sort((a, b) => a.since - b.since)[0];
-  if (weary && room() && rng.chance(L.talksChance)) {
+  // The two oldest wars may tire of themselves and ask for talks.
+  for (const weary of w.wars.filter((war) => war.since < w.season).sort((a, b) => a.since - b.since).slice(0, L.talksPerSeason)) {
+    if (!room() || !rng.chance(L.talksChance)) continue;
     const from = rng.chance(0.5) ? weary.a : weary.b;
     send({ kind: 'talks', from, about: from === weary.a ? weary.b : weary.a, amount: L.talksCost });
   }
