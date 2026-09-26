@@ -36,6 +36,8 @@ watch and wait, and the chronicle writes itself from templates.
 
 ## How to play
 
+The full guide, with screenshots and strategy, is in [TUTORIAL.md](TUTORIAL.md). In short:
+
 1. **Open a dossier.** Click a nation on the map to see its ruler, how they regard you, and their red line.
 2. **Hold audiences.** Up to three per season, four messages each. Every promise and claim you make is written in
    your ledger. Lies are caught when the wrong courts compare notes.
