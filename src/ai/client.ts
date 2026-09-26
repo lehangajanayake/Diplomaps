@@ -154,7 +154,7 @@ export function writeChronicle(req: ChronicleRequest): Promise<ChronicleResult> 
 
 export function writeEnding(req: EndingRequest): Promise<EndingAIResult> {
   return postJson<EndingAIResult>('/api/ending', req, 50_000, () => ({
-    verdicts: Object.fromEntries(req.nations.map((n) => [n.nation, fallbackVerdict(n.nation, n.trust, n.blame)])),
+    verdicts: Object.fromEntries(req.nations.map((n) => [n.nation, fallbackVerdict(n.nation, n.trust, n.suspicion)])),
     epilogue: fallbackEpilogue(req.ending.id),
     fallback: true,
   }));

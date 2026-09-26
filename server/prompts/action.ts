@@ -3,7 +3,7 @@ import { PROFILES } from '../../src/engine/nations.js';
 import type { ActionContext } from '../../src/engine/schema.js';
 import type { NationId } from '../../src/engine/types.js';
 import { VOICES } from './nations/index.js';
-import { blameWord, identityBlock, relationLines, renderKnowledge, renderNews, tensionWord, trustWord, who } from './shared.js';
+import { suspicionWord, identityBlock, relationLines, renderKnowledge, renderNews, tensionWord, trustWord, who } from './shared.js';
 
 export function actionInstructions(nation: NationId, ctx: ActionContext): string {
   const p = PROFILES[nation];
@@ -36,7 +36,7 @@ THE OTHER CROWNS
 ${relationLines(ctx.relations)}
 
 THE WARDEN OF THE CROSSING
-- You are ${trustWord(ctx.crossing.trust)} toward the Warden and ${blameWord(ctx.crossing.blame)}.
+- You are ${trustWord(ctx.crossing.trust)} toward the Warden and ${suspicionWord(ctx.crossing.suspicion)}.
 - Passage for your armies through the Crossing: ${passage}. The Crossing holds ${ctx.crossing.militia} militia; its neutrality is ${ctx.crossing.neutrality}/100.${ctx.crossing.atWar ? ' You are AT WAR with the Crossing.' : ''}
 - What the Warden told you:
 ${renderKnowledge(ctx.told, 'Nothing.')}

@@ -78,13 +78,6 @@ export function eventsToNews(w: WorldState, events: readonly GameEvent[], perspe
         if (perspective && e.to !== perspective && e.from !== perspective) break;
         out.push({ kind: 'gossip', from: e.from, to: e.to });
         break;
-      case 'gift':
-        if (perspective && perspective !== e.nation) break;
-        out.push({ kind: 'gift', nation: e.nation, gold: e.gold });
-        break;
-      case 'sellswords':
-        out.push({ kind: 'sellswords', region: place(w, e.region) });
-        break;
       default:
         break;
     }
@@ -92,7 +85,7 @@ export function eventsToNews(w: WorldState, events: readonly GameEvent[], perspe
   // Keep the most important news when there is too much.
   const rank: Record<News['kind'], number> = {
     war: 0, battle: 1, lie_caught: 2, peace: 3, cede: 4, red_line: 5, alliance: 6, passage: 7, land: 8, tribute: 9,
-    action: 10, rumour: 11, sellswords: 12, gift: 13, audience: 14, gossip: 15,
+    action: 10, rumour: 11, audience: 12, gossip: 13,
   };
   return out.map((n, i) => ({ n, i })).sort((a, b) => rank[a.n.kind] - rank[b.n.kind] || a.i - b.i).slice(0, 24).sort((a, b) => a.i - b.i).map((x) => x.n);
 }
@@ -163,7 +156,7 @@ export function buildAudienceContext(w: WorldState, nation: NationId): AudienceC
   return {
     ...seasonInfo(w),
     trust: n.trustPlayer,
-    blame: n.blame,
+    suspicion: n.suspicion,
     passage: w.player.passage[nation],
     atWarWithCrossing: atWar(w, nation, CROSSING),
     neutrality: Math.round(w.player.neutrality),
@@ -178,7 +171,6 @@ export function buildAudienceContext(w: WorldState, nation: NationId): AudienceC
     redLineCrossedBy: recentRedLines(w, nation),
     news: recentNews(w, nation),
     learned: n.learned.map((l) => l.text).slice(-8),
-    giftGold: w.player.gifts[nation],
   };
 }
 
@@ -210,7 +202,7 @@ export function buildActionContext(w: WorldState, nation: NationId): ActionConte
     relations: relations(w, nation),
     crossing: {
       trust: n.trustPlayer,
-      blame: n.blame,
+      suspicion: n.suspicion,
       passage: w.player.passage[nation],
       militia: totalTroops(w, CROSSING),
       neutrality: Math.round(w.player.neutrality),
@@ -254,14 +246,13 @@ export function buildEndingRequest(w: WorldState): EndingRequest {
     nations: NATION_IDS.map((id) => ({
       nation: id,
       trust: w.nations[id].trustPlayer,
-      blame: w.nations[id].blame,
+      suspicion: w.nations[id].suspicion,
       regionsStart: w.map.regionIds.filter((r) => w.initialRegions[r]!.owner === id).length,
       regionsEnd: regionsOf(w, id).length,
       atWarWithCrossing: atWar(w, id, CROSSING),
       liesTold: lies.filter((e) => e.to === id).length,
       liesCaught: lies.filter((e) => e.caughtBy.includes(id)).length,
       promises: w.player.ledger.filter((e) => e.to === id && e.type === 'promise').length,
-      gifts: w.player.gifts[id],
       audiences: w.nations[id].audiences,
     })),
     stats: {

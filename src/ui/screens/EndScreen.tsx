@@ -76,7 +76,7 @@ export function EndScreen() {
         <section className="flex min-h-0 flex-col">
           <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1 }}>
             <p className="font-sc text-[0.95rem] tracking-[0.35em] text-parchment-300/75">
-              {end.early ? `The game ended early, in ${seasonTitle(end.season)}` : `The sixth season is over`}
+              {end.early ? `The game ended early, in ${seasonTitle(end.season)}` : 'The last season is over'}
             </p>
             <h1 className="font-title text-[clamp(2.4rem,4.6vw,4.4rem)] leading-[1.05] text-parchment-100 candle-text">{end.title}</h1>
             <p className="mt-[0.2em] font-body text-[1.1rem] italic text-parchment-200/90">{end.subtitle}</p>

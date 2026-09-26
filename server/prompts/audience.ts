@@ -4,7 +4,7 @@ import { PROFILES } from '../../src/engine/nations.js';
 import type { AudienceContext } from '../../src/engine/schema.js';
 import type { NationId } from '../../src/engine/types.js';
 import { VOICES } from './nations/index.js';
-import { blameWord, identityBlock, relationLines, renderKnowledge, renderNews, tensionWord, trustWord, who } from './shared.js';
+import { suspicionWord, identityBlock, relationLines, renderKnowledge, renderNews, tensionWord, trustWord, who } from './shared.js';
 
 export function audienceInstructions(nation: NationId, ctx: AudienceContext, playerTurn: number, suspicious: boolean): string {
   const p = PROFILES[nation];
@@ -37,8 +37,8 @@ ${relationLines(ctx.relations)}
 ${renderNews(ctx.news)}
 
 HOW YOU REGARD THE WARDEN
-- You are ${trustWord(ctx.trust)} toward the Warden, and ${blameWord(ctx.blame)}.
-${ctx.giftGold > 0 ? `- The Warden has given you ${ctx.giftGold} gold in gifts.\n` : ''}${ctx.redLineCrossedBy.includes('crossing') ? '- The Warden recently crossed your red line. You are furious about it.\n' : ''}- What the Warden has told you before:
+- You are ${trustWord(ctx.trust)} toward the Warden, and ${suspicionWord(ctx.suspicion)}.
+${ctx.redLineCrossedBy.includes('crossing') ? '- The Warden recently crossed your red line. You are furious about it.\n' : ''}- What the Warden has told you before:
 ${renderKnowledge(ctx.told, 'Nothing yet.')}
 - What other courts whisper about the Warden's words:
 ${renderKnowledge(ctx.heard, 'Nothing.')}

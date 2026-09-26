@@ -17,12 +17,12 @@ export function trustWord(t: number): string {
   return 'implacable';
 }
 
-export function blameWord(b: number): string {
-  if (b < 15) return 'blames the Warden for nothing yet';
-  if (b < 40) return 'suspects the Warden of meddling';
-  if (b < 70) return 'resents the Warden';
-  if (b < 90) return 'openly accuses the Warden';
-  return 'is certain the Warden is behind the realm\'s troubles';
+export function suspicionWord(s: number): string {
+  if (s < 15) return 'does not suspect the Warden of anything';
+  if (s < 40) return 'is a little suspicious of the Warden';
+  if (s < 70) return 'suspects the Warden of meddling';
+  if (s < 90) return 'openly accuses the Warden of meddling';
+  return "is certain the Warden is behind the realm's troubles";
 }
 
 export function tensionWord(t: number): string {
@@ -83,10 +83,6 @@ export function renderNews(news: readonly News[]): string {
           return `- ${who(n.from)} passed word of the Warden's promises to ${who(n.to)}.`;
         case 'audience':
           return `- The Warden held an audience with ${ruler(n.nation)} of ${who(n.nation)}.`;
-        case 'gift':
-          return `- The Warden sent ${n.gold} gold to ${who(n.nation)} as a gift.`;
-        case 'sellswords':
-          return `- The Warden hired sellswords to guard ${n.region}.`;
         default:
           return '';
       }

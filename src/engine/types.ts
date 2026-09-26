@@ -182,7 +182,7 @@ export interface NationState {
   strikes: Partial<Record<Owner, number>>;
   trust: Record<NationId, number>;
   trustPlayer: number;
-  blame: number;
+  suspicion: number;
   knowledge: KnowledgeRef[];
   redLineCrossings: RedLineCrossing[];
   /** Short notes the player has learned in audiences (shown in the dossier). */
@@ -261,8 +261,6 @@ export interface PlayerState {
   passage: Record<NationId, PassageStatus>;
   ledger: LedgerEntry[];
   ceded: RegionId[];
-  gifts: Record<NationId, number>;
-  sellswords: number;
 }
 
 export interface War {
@@ -314,10 +312,7 @@ export type GameEvent =
   | { kind: 'income'; season: number; gold: number; tolls: number; fees: number; trade: number }
   | { kind: 'gossip'; season: number; from: NationId; to: NationId; entry: string }
   | { kind: 'lie_caught'; season: number; entry: string; by: NationId[]; how: string }
-  | { kind: 'ignored'; season: number; nation: NationId }
   | { kind: 'letter'; season: number; letter: string; nation: NationId; letterKind: LetterKind; granted: boolean }
-  | { kind: 'gift'; season: number; nation: NationId; gold: number }
-  | { kind: 'sellswords'; season: number; region: RegionId; troops: number; gold: number }
   | { kind: 'tension'; season: number; from: number; to: number };
 
 export interface ChronicleEntry {
@@ -358,6 +353,29 @@ export interface Ending {
   nation: NationId | null;
 }
 
+/** The card that opens each season: what is at stake, in one plain sentence, and a suggested move. */
+export interface Crisis {
+  season: number;
+  tone: 'danger' | 'warning' | 'calm';
+  headline: string;
+  line: string;
+  suggestion: string;
+  nations: NationId[];
+  regions: RegionId[];
+}
+
+export interface SummaryLine {
+  text: string;
+  tone: 'good' | 'bad' | 'neutral';
+}
+
+/** The "What changed" card shown after a season resolves. */
+export interface SeasonSummary {
+  season: number;
+  you: SummaryLine[];
+  realm: SummaryLine[];
+}
+
 export interface WorldStats {
   warsStarted: number;
   battles: number;
@@ -384,10 +402,11 @@ export interface WorldState {
   letters: Letter[];
   /** Nations the player has held an audience with this season. */
   audiencesThisSeason: NationId[];
-  /** Things the player did this season before it ended (letters, gifts, promises caught...). */
+  /** Things the player did this season before it ended (letters answered, lies caught...). */
   seasonLog: GameEvent[];
   chronicle: ChronicleEntry[];
   history: SeasonRecord[];
+  crisis: Crisis | null;
   stats: WorldStats;
   ending: Ending | null;
 }

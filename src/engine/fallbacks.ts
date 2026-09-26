@@ -96,10 +96,10 @@ const VERDICTS: Record<NationId, { warm: string; cool: string; cold: string }> =
   },
 };
 
-export function fallbackVerdict(nation: NationId, trust: number, blame: number): string {
+export function fallbackVerdict(nation: NationId, trust: number, suspicion: number): string {
   const v = VERDICTS[nation];
-  if (blame >= 60 || trust <= -25) return v.cold;
-  if (trust >= 30 && blame < 40) return v.warm;
+  if (suspicion >= 60 || trust <= -25) return v.cold;
+  if (trust >= 30 && suspicion < 40) return v.warm;
   return v.cool;
 }
 

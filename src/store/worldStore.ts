@@ -4,7 +4,7 @@
  */
 import { create } from 'zustand';
 import type { Mood } from '../engine/schema';
-import type { LedgerEntry, NationId, Owner, RegionId, WorldState } from '../engine/types';
+import type { LedgerEntry, NationId, Owner, RegionId, SeasonSummary, WorldState } from '../engine/types';
 
 export type Phase = 'title' | 'table' | 'ending';
 export type Overlay = null | { kind: 'ledger' } | { kind: 'letter'; id: string } | { kind: 'crossing' };
@@ -34,7 +34,6 @@ export interface AudienceState {
   moodTick: number;
   endedByRuler: boolean;
   calledAway: boolean;
-  giftGold: number;
   result: AudienceResult | null;
   leaving: boolean;
 }
@@ -85,8 +84,10 @@ export interface StoreState {
   chronicleFresh: number | null;
   chroniclePending: string | null;
   ending: EndingState | null;
-  tutorialStep: number;
-  tutorialDismissed: boolean;
+  /** The crisis card for the current season is open. */
+  crisisOpen: boolean;
+  /** The "What changed" card after a season resolves. */
+  summary: SeasonSummary | null;
   muted: boolean;
   notes: Note[];
   setHoverRegion: (id: RegionId | null) => void;
@@ -106,8 +107,8 @@ export const useStore = create<StoreState>()((set) => ({
   chronicleFresh: null,
   chroniclePending: null,
   ending: null,
-  tutorialStep: 0,
-  tutorialDismissed: false,
+  crisisOpen: false,
+  summary: null,
   muted: false,
   notes: [],
   setHoverRegion: (id) => set({ hoverRegion: id }),

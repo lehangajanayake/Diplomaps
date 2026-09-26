@@ -5,6 +5,7 @@
 import { attackOptions, chooseAttack, fight } from './battles.js';
 import { CONFIG } from './config.js';
 import { computeIncome, pairKey } from './economy.js';
+import { composeCrisis } from './crisis.js';
 import { checkEnding } from './endings.js';
 import { runGossip } from './gossip.js';
 import { setPassage } from './ledger.js';
@@ -14,7 +15,7 @@ import { cleanText } from './schema.js';
 import {
   actionTension,
   addTension,
-  adjustBlame,
+  adjustSuspicion,
   adjustTrust,
   adjustTrustPlayer,
   clamp,
@@ -156,13 +157,7 @@ export function resolveSeason(state: WorldState, rawActions: readonly NationActi
     if (e) events.push(e);
   };
 
-  // 0. Close the season: rulers you ignored, letters you left sealed.
-  for (const n of NATION_IDS) {
-    if (!w.audiencesThisSeason.includes(n)) {
-      adjustTrustPlayer(w, n, CONFIG.trust.ignoredPerSeason);
-      events.push({ kind: 'ignored', season, nation: n });
-    }
-  }
+  // 0. Close the season: letters left sealed count as refusals.
   for (const letter of w.letters) {
     if (letter.status !== 'sealed' || letter.season > season) continue;
     letter.status = 'ignored';
@@ -241,7 +236,7 @@ export function resolveSeason(state: WorldState, rawActions: readonly NationActi
             for (const m of NATION_IDS) {
               if (m === n) continue;
               adjustTrustPlayer(w, m, -3);
-              adjustBlame(w, m, 3);
+              adjustSuspicion(w, m, 3);
             }
           } else {
             for (const m of NATION_IDS) if (m !== n && m !== t) adjustTrust(w, m, t, CONFIG.trust.rumourVictim);
@@ -438,7 +433,7 @@ export function resolveSeason(state: WorldState, rawActions: readonly NationActi
   addTension(w, festering * CONFIG.tension.grudgePressure);
   if (w.player.neutrality < CONFIG.tension.lowNeutralityBelow) addTension(w, CONFIG.tension.lowNeutrality);
   w.player.neutrality = clamp(w.player.neutrality + CONFIG.neutrality.recovery, 0, 100);
-  for (const n of NATION_IDS) adjustBlame(w, n, -CONFIG.blame.decay);
+  for (const n of NATION_IDS) adjustSuspicion(w, n, -CONFIG.suspicion.decay);
   events.push({ kind: 'tension', season, from: tensionStart, to: w.tension });
 
   w.rng = rng.state;
@@ -475,6 +470,7 @@ export function playSeason(world: WorldState, actions: readonly NationAction[]):
   } else {
     w.season += 1;
     w.audiencesThisSeason = [];
+    w.crisis = composeCrisis(w);
   }
   return { state: w, events, ending, record };
 }

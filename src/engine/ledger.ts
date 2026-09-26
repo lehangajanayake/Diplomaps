@@ -1,11 +1,11 @@
 /**
  * Everything the player does outside the season resolution: promises and claims (the ledger),
- * answering letters, gifts, hired sellswords and the outcome of audiences.
+ * answering letters and the outcome of audiences.
  */
 import { CONFIG } from './config.js';
 import { CLAIM_KINDS, CROSSING, NATION_IDS, type ClaimKind, type GameEvent, type LedgerEntry, type NationId, type WorldState } from './types.js';
 import type { ExtractedEntry } from './schema.js';
-import { addTension, adjustBlame, adjustTrust, adjustTrustPlayer, clamp, crossRedLine, strike } from './tension.js';
+import { addTension, adjustSuspicion, adjustTrust, adjustTrustPlayer, clamp, crossRedLine, strike } from './tension.js';
 import { PROFILES } from './nations.js';
 import { allied, atWar, cloneWorld, hasGrudge, regionsOf, totalTroops } from './world.js';
 
@@ -128,13 +128,13 @@ export function becomeAware(w: WorldState, entry: LedgerEntry, nation: NationId,
   }
   if (role === 'victim') {
     adjustTrustPlayer(w, nation, CONFIG.trust.lieToVictim);
-    adjustBlame(w, nation, CONFIG.blame.lieToVictim);
+    adjustSuspicion(w, nation, CONFIG.suspicion.lieToVictim);
   } else if (role === 'slandered') {
     adjustTrustPlayer(w, nation, CONFIG.trust.slandered);
-    adjustBlame(w, nation, CONFIG.blame.slandered);
+    adjustSuspicion(w, nation, CONFIG.suspicion.slandered);
   } else {
     adjustTrustPlayer(w, nation, CONFIG.trust.lieHeardOf);
-    adjustBlame(w, nation, CONFIG.blame.lieHeardOf);
+    adjustSuspicion(w, nation, CONFIG.suspicion.lieHeardOf);
   }
   if (PROFILES[nation].redLine.kind === 'deceit' && role !== 'bystander') {
     const ev = crossRedLine(w, nation, CROSSING, 'was lied to by the Warden');
@@ -245,7 +245,7 @@ export function setPassage(w: WorldState, nation: NationId, grant: boolean, even
     addTension(w, CONFIG.tension.passageGranted);
     for (const enemy of enemiesOf(w, nation)) {
       adjustTrustPlayer(w, enemy, CONFIG.trust.passageToEnemy);
-      adjustBlame(w, enemy, CONFIG.blame.passageToEnemy);
+      adjustSuspicion(w, enemy, CONFIG.suspicion.passageToEnemy);
     }
     for (const n of NATION_IDS) {
       const rl = PROFILES[n].redLine;
@@ -314,49 +314,6 @@ export function changePassage(world: WorldState, nation: NationId, grant: boolea
   const events: GameEvent[] = [];
   setPassage(w, nation, grant, events);
   events.push({ kind: 'letter', season: w.season, letter: `passage-${nation}`, nation, letterKind: 'passage', granted: grant });
-  return { world: w, events };
-}
-
-/* ------------------------------------------------------------------ */
-/* Gold                                                                 */
-/* ------------------------------------------------------------------ */
-
-export function giftTrust(gold: number): number {
-  return Math.min(CONFIG.trust.giftMax, Math.floor(gold / 10) * CONFIG.trust.giftPerTenGold);
-}
-
-export function giveGift(world: WorldState, nation: NationId, gold: number): { world: WorldState; events: GameEvent[] } {
-  if (gold <= 0 || gold > world.player.gold) return { world, events: [] };
-  const w = cloneWorld(world);
-  w.player.gold -= gold;
-  w.player.goldSpent += gold;
-  w.player.gifts[nation] += gold;
-  adjustTrustPlayer(w, nation, giftTrust(gold));
-  return { world: w, events: [{ kind: 'gift', season: w.season, nation, gold }] };
-}
-
-export function hireSellswords(world: WorldState): { world: WorldState; events: GameEvent[] } {
-  const cost = CONFIG.economy.sellswordCost;
-  const own = regionsOf(world, CROSSING);
-  if (world.player.gold < cost || own.length === 0) return { world, events: [] };
-  const w = cloneWorld(world);
-  // Reinforce the most exposed region: the one facing the most foreign troops.
-  const exposure = (id: string) =>
-    w.map.regions[id]!.neighbours.reduce((s, nb) => (w.regions[nb]!.owner !== CROSSING ? s + w.regions[nb]!.troops : s), 0) -
-    w.regions[id]!.troops;
-  const region = [...own].sort((a, b) => exposure(b) - exposure(a))[0]!;
-  w.player.gold -= cost;
-  w.player.goldSpent += cost;
-  w.player.sellswords += CONFIG.economy.sellswordTroops;
-  w.regions[region]!.troops += CONFIG.economy.sellswordTroops;
-  const events: GameEvent[] = [{ kind: 'sellswords', season: w.season, region, troops: CONFIG.economy.sellswordTroops, gold: cost }];
-  for (const n of NATION_IDS) {
-    if (PROFILES[n].redLine.kind !== 'border_troops') continue;
-    if (w.map.regions[region]!.neighbours.some((nb) => w.regions[nb]!.owner === n)) {
-      const ev = crossRedLine(w, n, CROSSING, 'the Crossing massed sellswords at the edge of the fen');
-      if (ev) events.push(ev);
-    }
-  }
   return { world: w, events };
 }
 

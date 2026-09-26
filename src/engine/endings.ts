@@ -32,7 +32,7 @@ export function checkEnding(w: WorldState, final: boolean): Ending | null {
   const capital = w.map.capitals.crossing.region;
   const occupier = w.regions[capital]!.owner;
   if (occupier !== CROSSING) return make(w, 'ashes', !final, occupier);
-  if (NATION_IDS.filter((n) => w.nations[n].blame >= CONFIG.blame.unmasked).length >= CONFIG.blame.unmaskedCount) {
+  if (NATION_IDS.filter((n) => w.nations[n].suspicion >= CONFIG.suspicion.unmasked).length >= CONFIG.suspicion.unmaskedCount) {
     return make(w, 'unmasked', !final);
   }
   if (NATION_IDS.every((n) => w.nations[n].trustPlayer >= e.grandPeaceTrust) && w.tension <= e.grandPeaceTension) {
@@ -52,11 +52,11 @@ export function checkEnding(w: WorldState, final: boolean): Ending | null {
 
   const start = NATION_IDS.reduce((s, n) => s + w.nations[n].startTroops, 0);
   const now = NATION_IDS.reduce((s, n) => s + totalTroops(w, n), 0);
-  const avgBlame = NATION_IDS.reduce((s, n) => s + w.nations[n].blame, 0) / NATION_IDS.length;
+  const avgSuspicion = NATION_IDS.reduce((s, n) => s + w.nations[n].suspicion, 0) / NATION_IDS.length;
   const avgTrust = NATION_IDS.reduce((s, n) => s + w.nations[n].trustPlayer, 0) / NATION_IDS.length;
   const weakened = now <= start * e.spiderWeakened || w.stats.battles >= 3;
   const liesWorked = w.player.ledger.filter((x) => isLie(x) && !x.caught).length;
-  if (weakened && liesWorked >= e.spiderLies && w.player.gold >= e.spiderGold && avgBlame <= e.spiderBlame && !w.stats.crossingAttacked) {
+  if (weakened && liesWorked >= e.spiderLies && w.player.gold >= e.spiderGold && avgSuspicion <= e.spiderSuspicion && !w.stats.crossingAttacked) {
     return make(w, 'spider', false);
   }
   if (w.stats.warsStarted === 0 && avgTrust >= e.peacemakerTrust) return make(w, 'peacemaker', false);

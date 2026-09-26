@@ -36,7 +36,7 @@ export function greetingFor(w: WorldState, nation: NationId): string {
   const g = GREETINGS[nation];
   if (atWar(w, nation, CROSSING)) return `${g.cold} And know that our soldiers stand at your gates.`;
   if (t >= 25) return g.warm;
-  if (t <= -20 || w.nations[nation].blame >= 50) return g.cold;
+  if (t <= -20 || w.nations[nation].suspicion >= 50) return g.cold;
   return g.neutral;
 }
 

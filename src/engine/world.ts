@@ -1,5 +1,6 @@
 /** Creating a new world, plus small read-only queries used across the engine and UI. */
 import { CONFIG } from './config.js';
+import { composeCrisis } from './crisis.js';
 import { generateMap } from './mapgen.js';
 import { PROFILES } from './nations.js';
 import { Rng } from './rng.js';
@@ -49,7 +50,7 @@ export function createWorld(seed: number): WorldState {
       strikes: {},
       trust,
       trustPlayer: profile.trustToPlayer,
-      blame: 0,
+      suspicion: 0,
       knowledge: [],
       redLineCrossings: [],
       learned: [],
@@ -78,8 +79,6 @@ export function createWorld(seed: number): WorldState {
       passage: Object.fromEntries(NATION_IDS.map((id) => [id, 'none'])) as Record<NationId, 'none'>,
       ledger: [],
       ceded: [],
-      gifts: Object.fromEntries(NATION_IDS.map((id) => [id, 0])) as Record<NationId, number>,
-      sellswords: 0,
     },
     wars: [],
     alliances: [],
@@ -98,6 +97,7 @@ export function createWorld(seed: number): WorldState {
       },
     ],
     history: [],
+    crisis: null,
     stats: {
       warsStarted: 0,
       battles: 0,
@@ -109,6 +109,7 @@ export function createWorld(seed: number): WorldState {
     ending: null,
   };
   for (const id of NATION_IDS) world.nations[id].startTroops = totalTroops(world, id);
+  world.crisis = composeCrisis(world);
   return world;
 }
 

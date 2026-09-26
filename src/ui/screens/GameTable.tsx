@@ -23,10 +23,11 @@ import { LetterView } from '../panels/LetterView';
 import { PassageLetters } from '../panels/PassageLetters';
 import { InkPot } from '../table/Decor';
 import { Notes } from '../table/Notes';
-import { Tutorial } from '../table/Tutorial';
 import { Snuffer } from '../hud/Snuffer';
 import { Table } from '../table/Table';
+import { CrisisCard } from './CrisisCard';
 import { SeasonCard } from './SeasonCard';
+import { WhatChanged } from './WhatChanged';
 
 export function GameTable() {
   const world = useStore((s) => s.world);
@@ -114,10 +115,11 @@ export function GameTable() {
           {letter && <LetterView key={letter.id} world={world} letter={letter} />}
         </AnimatePresence>
         <Notes />
-        <Tutorial />
       </div>
       <AnimatePresence>{audience && <AudienceScene key="audience" />}</AnimatePresence>
       <SeasonCard />
+      <WhatChanged />
+      <CrisisCard />
     </Table>
   );
 }

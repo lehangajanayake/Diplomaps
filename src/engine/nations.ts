@@ -17,6 +17,16 @@ export function ownerName(owner: Owner): string {
   return owner === CROSSING ? CROSSING_PROFILE.name : PROFILES[owner].name;
 }
 
+/**
+ * A nation's name for use in a sentence: "The Tarn" at the start, "the Tarn" anywhere else.
+ * The Crossing is "the Crossing" (or "The Crossing") in the same way.
+ */
+export function nameOf(owner: Owner, at: 'start' | 'mid' = 'mid'): string {
+  const name = ownerName(owner);
+  if (at === 'start') return name.charAt(0).toUpperCase() + name.slice(1);
+  return name.startsWith('The ') ? `the ${name.slice(4)}` : name;
+}
+
 export function ownerColour(owner: Owner): string {
   return owner === CROSSING ? CROSSING_PROFILE.colour : PROFILES[owner].colour;
 }

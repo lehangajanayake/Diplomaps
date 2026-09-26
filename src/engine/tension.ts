@@ -22,9 +22,9 @@ export function adjustTrustPlayer(w: WorldState, nation: NationId, delta: number
   n.trustPlayer = clamp(Math.round(n.trustPlayer + delta), -100, 100);
 }
 
-export function adjustBlame(w: WorldState, nation: NationId, delta: number): void {
+export function adjustSuspicion(w: WorldState, nation: NationId, delta: number): void {
   const n = w.nations[nation];
-  n.blame = clamp(Math.round(n.blame + delta), 0, 100);
+  n.suspicion = clamp(Math.round(n.suspicion + delta), 0, 100);
 }
 
 export function adjustTrust(w: WorldState, from: NationId, toward: Owner, delta: number): void {
@@ -44,7 +44,7 @@ export function crossRedLine(w: WorldState, nation: NationId, by: Owner, what: s
   if (n.redLineCrossings.some((c) => c.by === by && c.season === w.season)) return null;
   n.redLineCrossings.push({ by, season: w.season, what });
   adjustTrust(w, nation, by, CONFIG.trust.redLine);
-  if (by === CROSSING) adjustBlame(w, nation, CONFIG.blame.redLine);
+  if (by === CROSSING) adjustSuspicion(w, nation, CONFIG.suspicion.redLine);
   addTension(w, CONFIG.tension.redLine);
   return { kind: 'red_line', season: w.season, nation, by, what };
 }
@@ -71,7 +71,7 @@ export function warTargets(w: WorldState, nation: NationId): Owner[] {
     if (open || atWar(w, nation, other) || redLineCrossedRecently(w, nation, other)) out.push(other);
   }
   const n = w.nations[nation];
-  const hostile = n.trustPlayer <= CONFIG.military.crossingWarTrust || n.blame >= CONFIG.military.crossingWarBlame;
+  const hostile = n.trustPlayer <= CONFIG.military.crossingWarTrust || n.suspicion >= CONFIG.military.crossingWarSuspicion;
   if (atWar(w, nation, CROSSING) || (hostile && (open || redLineCrossedRecently(w, nation, CROSSING)))) out.push(CROSSING);
   return out;
 }

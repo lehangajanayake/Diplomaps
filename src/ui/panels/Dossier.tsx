@@ -13,7 +13,7 @@ import { InkGauge } from '../common/InkGauge';
 import { Portrait } from '../common/Portrait';
 import { SealButton } from '../common/SealButton';
 import { WaxSeal } from '../common/WaxSeal';
-import { blameWord, trustWord } from '../hud/words';
+import { suspicionWord, trustWord } from '../hud/words';
 
 const ACTION_PAST: Record<string, string> = {
   mobilise: 'mobilised troops',
@@ -81,7 +81,7 @@ export function Dossier({ world, nation }: { world: WorldState; nation: NationId
         <div className="my-[0.6em] h-px bg-ink/25" />
         <div className="space-y-[0.2em]">
           <InkGauge label="Trust" value={n.trustPlayer} min={-100} max={100} word={trustWord(n.trustPlayer)} />
-          <InkGauge label="Blame" value={n.blame} min={0} max={100} word={blameWord(n.blame)} tone="red" />
+          <InkGauge label="Suspicion" value={n.suspicion} min={0} max={100} word={suspicionWord(n.suspicion)} tone="red" />
         </div>
 
         <blockquote className="mt-[0.6em] border-l-2 border-wax/70 pl-[0.7em] font-hand text-[0.9rem] italic leading-snug text-ink">

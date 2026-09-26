@@ -3,9 +3,8 @@ import { motion } from 'motion/react';
 import { CONFIG } from '../../engine/config';
 import { CROSSING_PROFILE, PROFILES } from '../../engine/nations';
 import { CROSSING, NATION_IDS, type WorldState } from '../../engine/types';
-import { regionsOf, totalTroops } from '../../engine/world';
-import { buySellswords, closeOverlay, openLedger, setPassage } from '../../store/flow';
-import { SealButton } from '../common/SealButton';
+import { regionsOf } from '../../engine/world';
+import { closeOverlay, openLedger, setPassage } from '../../store/flow';
 import { WaxSeal } from '../common/WaxSeal';
 import { neutralityWord } from '../hud/words';
 
@@ -40,10 +39,8 @@ export function CrossingSheet({ world }: { world: WorldState }) {
         <dd>
           {world.player.gold} gold{income && income.kind === 'income' ? ` (last season: +${income.gold} in tolls and fees)` : ''}
         </dd>
-        <dt className="font-sc text-ink-soft">Militia</dt>
-        <dd>
-          {totalTroops(world, CROSSING)} across {regionsOf(world, CROSSING).length} regions
-        </dd>
+        <dt className="font-sc text-ink-soft">Land</dt>
+        <dd>{regionsOf(world, CROSSING).length} regions</dd>
         <dt className="font-sc text-ink-soft">Neutrality</dt>
         <dd>
           {Math.round(world.player.neutrality)} · {neutralityWord(world.player.neutrality)}
@@ -68,16 +65,7 @@ export function CrossingSheet({ world }: { world: WorldState }) {
       <p className="mt-[0.3em] font-hand text-[0.8rem] italic leading-snug text-ink-faded">
         Passage lets a nation march through the valley to strike anyone who borders it. Each grant pays a fee, and costs you neutrality.
       </p>
-      <div className="mt-[0.9em] flex flex-wrap items-center gap-x-[1.4em] gap-y-[0.6em] border-t border-ink/20 pt-[0.8em]">
-        <SealButton
-          label={`Hire sellswords (${CONFIG.economy.sellswordCost} gold)`}
-          onClick={buySellswords}
-          disabled={world.player.gold < CONFIG.economy.sellswordCost}
-          colour="#5a4418"
-          seed={9}
-          size="2.6em"
-          hint={`+${CONFIG.economy.sellswordTroops} militia at your most exposed region. Soldiers near a border can unsettle neighbours.`}
-        />
+      <div className="mt-[0.9em] border-t border-ink/20 pt-[0.8em]">
         <button type="button" onClick={openLedger} className="font-sc text-[0.9rem] text-ink hover:text-wax">
           Open the ledger →
         </button>

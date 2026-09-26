@@ -33,7 +33,7 @@ export async function handleEnding(req: Request): Promise<Response> {
   let fallback = !raw;
   for (const n of request.nations) {
     if (!verdicts[n.nation]) {
-      verdicts[n.nation] = fallbackVerdict(n.nation, n.trust, n.blame);
+      verdicts[n.nation] = fallbackVerdict(n.nation, n.trust, n.suspicion);
       fallback = true;
     }
   }

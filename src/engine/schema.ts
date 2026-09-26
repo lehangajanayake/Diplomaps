@@ -106,8 +106,6 @@ export const NewsSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('rumour'), nation: NationIdSchema, target: OwnerSchema, exposed: z.boolean() }),
   z.object({ kind: z.literal('gossip'), from: NationIdSchema, to: NationIdSchema }),
   z.object({ kind: z.literal('audience'), nation: NationIdSchema }),
-  z.object({ kind: z.literal('gift'), nation: NationIdSchema, gold: z.number().int().min(0).max(1000) }),
-  z.object({ kind: z.literal('sellswords'), region: PlaceNameSchema }),
 ]);
 export type News = z.infer<typeof NewsSchema>;
 
@@ -150,7 +148,7 @@ const SeasonInfoSchema = z.object({
 
 export const AudienceContextSchema = SeasonInfoSchema.extend({
   trust: z.number().min(-100).max(100),
-  blame: z.number().min(0).max(100),
+  suspicion: z.number().min(0).max(100),
   passage: z.enum(['granted', 'denied', 'none']),
   atWarWithCrossing: z.boolean(),
   neutrality: z.number().min(0).max(100),
@@ -165,7 +163,6 @@ export const AudienceContextSchema = SeasonInfoSchema.extend({
   redLineCrossedBy: z.array(OwnerSchema).max(6),
   news: z.array(NewsSchema).max(24),
   learned: z.array(safeText(160)).max(8),
-  giftGold: z.number().int().min(0).max(1000),
 });
 export type AudienceContext = z.infer<typeof AudienceContextSchema>;
 
@@ -270,7 +267,7 @@ export const ActionContextSchema = SeasonInfoSchema.extend({
   relations: z.array(RelationSchema).max(5),
   crossing: z.object({
     trust: z.number().min(-100).max(100),
-    blame: z.number().min(0).max(100),
+    suspicion: z.number().min(0).max(100),
     passage: z.enum(['granted', 'denied', 'none']),
     militia: z.number().int().min(0).max(999),
     neutrality: z.number().min(0).max(100),
@@ -331,14 +328,13 @@ export const EndingRequestSchema = z.object({
       z.object({
         nation: NationIdSchema,
         trust: z.number().min(-100).max(100),
-        blame: z.number().min(0).max(100),
+        suspicion: z.number().min(0).max(100),
         regionsStart: z.number().int().min(0).max(40),
         regionsEnd: z.number().int().min(0).max(40),
         atWarWithCrossing: z.boolean(),
         liesTold: z.number().int().min(0).max(99),
         liesCaught: z.number().int().min(0).max(99),
         promises: z.number().int().min(0).max(99),
-        gifts: z.number().int().min(0).max(5000),
         audiences: z.number().int().min(0).max(30),
       }),
     )

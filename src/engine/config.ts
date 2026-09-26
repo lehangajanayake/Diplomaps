@@ -5,10 +5,10 @@
  */
 
 export const CONFIG = {
-  seasons: 6,
+  seasons: 4,
   startYear: 614,
   seasonNames: ['Spring', 'Summer', 'Autumn', 'Winter'] as const,
-  audiencesPerSeason: 3,
+  audiencesPerSeason: 2,
   messagesPerAudience: 4,
 
   map: {
@@ -77,7 +77,6 @@ export const CONFIG = {
   },
 
   trust: {
-    ignoredPerSeason: -3,
     threatened: -15,
     demanded: -10,
     rumourVictim: -6,
@@ -101,8 +100,6 @@ export const CONFIG = {
     tributeRefused: -14,
     landCeded: 22,
     landRefused: -18,
-    giftPerTenGold: 2,
-    giftMax: 12,
     lieToVictim: -22,
     slandered: -20,
     lieHeardOf: -6,
@@ -114,7 +111,7 @@ export const CONFIG = {
     confidant: 40,
   },
 
-  blame: {
+  suspicion: {
     lieToVictim: 30,
     slandered: 28,
     lieHeardOf: 10,
@@ -145,8 +142,6 @@ export const CONFIG = {
     neutralityFloor: 0.7,
     crossingWarFactor: 0.25,
     tributeGold: [20, 35] as const,
-    sellswordCost: 30,
-    sellswordTroops: 2,
   },
 
   military: {
@@ -165,7 +160,7 @@ export const CONFIG = {
     truceAfterQuiet: 2,
     /** Hostility needed before a nation can attack the Crossing. */
     crossingWarTrust: -30,
-    crossingWarBlame: 60,
+    crossingWarSuspicion: 60,
     redLineMemory: 2,
     /** A 'threat' red line breaks on the second threat or demand from the same court. */
     threatStrikes: 2,
@@ -177,7 +172,7 @@ export const CONFIG = {
     grandPeaceTrust: 60,
     grandPeaceTension: 15,
     spiderGold: 300,
-    spiderBlame: 30,
+    spiderSuspicion: 30,
     spiderLies: 1,
     spiderWeakened: 0.85,
     kingmakerTrust: 45,
