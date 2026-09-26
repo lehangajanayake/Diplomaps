@@ -14,6 +14,7 @@
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.node.json --noEmit",
     "lint": "eslint .",
     "simulate": "tsx scripts/simulate.ts",
+    "generate:greeting-voices": "tsx scripts/generate-greeting-voices.ts",
     "playtest": "node scripts/playtest.mjs"
   },
   "dependencies": {

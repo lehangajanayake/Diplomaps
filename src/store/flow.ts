@@ -4,7 +4,7 @@
  */
 import { assessAudience, extractPromises, fetchHealth, streamAudience, writeEnding, writeFlavour } from '../ai/client';
 import { CONFIG, seasonName, seasonTitle, seasonYear } from '../engine/config';
-import { greetingFor } from '../engine/courtesy';
+import { greetingFor, greetingToneFor } from '../engine/courtesy';
 import { addLedgerEntries, recordAudience } from '../engine/ledger';
 import { claimRuin } from '../engine/actions';
 import { cedableRegions, recordOffer } from '../engine/land';
@@ -123,7 +123,11 @@ export function resumeGame(): boolean {
 export function openDossier(nation: NationId | null): void {
   if (get().audience || get().resolving) return;
   set({ selectedNation: nation, overlay: null });
-  if (nation) sound.play('paper');
+  if (nation) {
+    sound.play('paper');
+    const w = get().world;
+    if (w) sound.preloadGreeting(nation, greetingToneFor(w, nation));
+  }
 }
 
 export function openCrossing(): void {
@@ -205,12 +209,13 @@ export function canHoldAudience(w: WorldState, nation: NationId): string | null 
 export function startAudience(nation: NationId): void {
   const w = get().world;
   if (!w || canHoldAudience(w, nation)) return;
+  const greeting = greetingFor(w, nation);
   set({
     selectedNation: null,
     overlay: null,
     audience: {
       nation,
-      turns: [{ role: 'ruler', text: greetingFor(w, nation) }],
+      turns: [{ role: 'ruler', text: greeting }],
       status: 'awaiting',
       streamText: '',
       mood: w.nations[nation].trustPlayer >= 25 ? 'warm' : w.nations[nation].trustPlayer <= -20 ? 'wary' : 'neutral',

@@ -6,7 +6,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
 import { sound } from '../../audio/sound';
 import { CONFIG } from '../../engine/config';
-import { suggestionsFor } from '../../engine/courtesy';
+import { greetingToneFor, suggestionsFor } from '../../engine/courtesy';
 import { PROFILES } from '../../engine/nations';
 import type { Mood } from '../../engine/schema';
 import type { WorldState } from '../../engine/types';
@@ -174,6 +174,11 @@ export function AudienceScene() {
   useEffect(() => {
     if (status === 'awaiting') inputRef.current?.focus();
   }, [status]);
+  useEffect(() => {
+    if (!audience || !world || status !== 'awaiting' || audience.turns.length !== 1) return;
+    const timer = window.setTimeout(() => sound.playGreeting(audience.nation, greetingToneFor(world, audience.nation)), 0);
+    return () => window.clearTimeout(timer);
+  }, [audience, world, status]);
   useEffect(() => () => sound.stopSpeech(), []);
 
   if (!audience || !world) return null;

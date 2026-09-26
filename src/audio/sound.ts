@@ -5,6 +5,8 @@
  */
 import { Howl, Howler } from 'howler';
 import { audioFiles } from 'virtual:diplomaps-assets';
+import type { GreetingTone } from '../engine/courtesy';
+import type { NationId } from '../engine/types';
 import { synthesize, type SoundName } from './synth';
 
 const VOLUME: Record<SoundName, number> = { ambient: 0.35, paper: 0.5, quill: 0.45, bell: 0.55, drums: 0.5, doors: 0.5, coins: 0.45 };
@@ -16,6 +18,8 @@ class SoundBoard {
   private ambientNode: AudioBufferSourceNode | null = null;
   private ambientGain: GainNode | null = null;
   private speechHowl: Howl | null = null;
+  private greetingAudio: HTMLAudioElement | null = null;
+  private preloadedGreetings = new Map<string, HTMLAudioElement>();
   private drumsTimer: number | undefined;
   muted = false;
 
@@ -164,13 +168,55 @@ class SoundBoard {
     }
   }
 
+  playGreeting(nation: NationId, tone: GreetingTone): void {
+    if (this.muted) return;
+    try {
+      this.speechHowl?.stop();
+      this.greetingAudio?.pause();
+      const key = `${nation}-${tone}`;
+      const audio = this.preloadedGreetings.get(key) ?? new Audio(`/audio/greetings/${key}.mp3`);
+      audio.currentTime = 0;
+      audio.volume = 0.85;
+      audio.preload = 'auto';
+      audio.onended = () => {
+        if (this.greetingAudio === audio) this.greetingAudio = null;
+      };
+      audio.onerror = () => {
+        console.warn(`[audio] greeting load failed: ${nation}-${tone}`);
+        if (this.greetingAudio === audio) this.greetingAudio = null;
+      };
+      this.greetingAudio = audio;
+      void audio.play().catch((error: unknown) => {
+        console.warn('[audio] greeting playback failed', error);
+        if (this.greetingAudio === audio) this.greetingAudio = null;
+      });
+    } catch {
+      this.greetingAudio = null;
+    }
+  }
+
+  preloadGreeting(nation: NationId, tone: GreetingTone): void {
+    const key = `${nation}-${tone}`;
+    if (this.preloadedGreetings.has(key)) return;
+    try {
+      const audio = new Audio(`/audio/greetings/${key}.mp3`);
+      audio.preload = 'auto';
+      audio.load();
+      this.preloadedGreetings.set(key, audio);
+    } catch {
+      // The opening playback will retry from the URL if preloading is unavailable.
+    }
+  }
+
   stopSpeech(): void {
     try {
       this.speechHowl?.stop();
+      this.greetingAudio?.pause();
     } catch {
       // ignore
     }
     this.speechHowl = null;
+    this.greetingAudio = null;
   }
 
   /** A slow heartbeat of drums while tension is dangerously high. */
