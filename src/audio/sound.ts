@@ -75,11 +75,12 @@ class SoundBoard {
     return b;
   }
 
-  play(name: SoundName): void {
+  play(name: SoundName, onEnded?: () => void): void {
     if (this.muted || !this.activated()) return;
     try {
       const h = this.howl(name);
       if (h) {
+        if (onEnded) h.once('end', onEnded);
         h.play();
         return;
       }
@@ -90,6 +91,7 @@ class SoundBoard {
       const gain = ctx.createGain();
       gain.gain.value = VOLUME[name];
       src.buffer = b;
+      if (onEnded) src.onended = onEnded;
       src.connect(gain).connect(ctx.destination);
       src.start();
     } catch {

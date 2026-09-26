@@ -227,7 +227,7 @@ export function startAudience(nation: NationId): void {
       leaving: false,
     },
   });
-  sound.play('doors');
+  sound.play('doors', () => sound.playGreeting(nation, greetingToneFor(w, nation)));
 }
 
 function playerMessages(turns: AudienceTurnUI[]): number {

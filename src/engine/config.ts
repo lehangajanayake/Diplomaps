@@ -4,7 +4,7 @@
  */
 
 export const CONFIG = {
-  narrationEnabled: false,
+  narrationEnabled: true,
   seasons: 4,
   startYear: 614,
   seasonNames: ['Spring', 'Summer', 'Autumn', 'Winter'] as const,
