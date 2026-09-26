@@ -6,6 +6,7 @@
 import { Howl, Howler } from 'howler';
 import { audioFiles } from 'virtual:diplomaps-assets';
 import type { GreetingTone } from '../engine/courtesy';
+import { CONFIG } from '../engine/config';
 import type { NationId } from '../engine/types';
 import { synthesize, type SoundName } from './synth';
 
@@ -143,7 +144,7 @@ class SoundBoard {
   }
 
   playSpeech(base64: string): void {
-    if (this.muted) return;
+    if (this.muted || !CONFIG.narrationEnabled) return;
     try {
       if (Howler.ctx?.state === 'suspended') void Howler.ctx.resume();
       this.speechHowl?.stop();
@@ -169,7 +170,7 @@ class SoundBoard {
   }
 
   playGreeting(nation: NationId, tone: GreetingTone): void {
-    if (this.muted) return;
+    if (this.muted || !CONFIG.narrationEnabled) return;
     try {
       this.speechHowl?.stop();
       this.greetingAudio?.pause();

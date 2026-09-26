@@ -218,6 +218,7 @@ export function startAudience(nation: NationId): void {
       turns: [{ role: 'ruler', text: greeting }],
       status: 'awaiting',
       streamText: '',
+      audio: null,
       mood: w.nations[nation].trustPlayer >= 25 ? 'warm' : w.nations[nation].trustPlayer <= -20 ? 'wary' : 'neutral',
       moodTick: 0,
       endedByRuler: false,

@@ -123,7 +123,7 @@ export async function handleAudience(req: Request): Promise<Response> {
       }
       reply = cleanText(reply, 900);
       if (reply) {
-        const audio = await synthesizeRulerSpeech(nation, reply);
+        const audio = CONFIG.narrationEnabled ? await synthesizeRulerSpeech(nation, reply) : null;
         if (audio) send({ t: 'audio', data: audio });
         send({ t: 'delta', text: reply });
         send({ t: 'done', mood, ends: ends || playerTurn >= CONFIG.messagesPerAudience, reply, fallback: false });
