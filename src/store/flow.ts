@@ -245,6 +245,7 @@ export async function sendAudienceMessage(raw: string): Promise<void> {
     if (!cur) return;
     if (e.t === 'meta') set({ audience: { ...cur, mood: e.mood, moodTick: cur.moodTick + 1 } });
     else if (e.t === 'delta') set({ audience: { ...cur, streamText: cur.streamText + e.text } });
+    else if (e.t === 'audio') sound.playSpeech(e.data);
   });
   const cur = get().audience;
   if (!cur) return;

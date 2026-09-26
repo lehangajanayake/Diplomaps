@@ -106,6 +106,8 @@ export async function streamAudience(
         } else if (event.t === 'delta') {
           text += event.text;
           onEvent(event);
+        } else if (event.t === 'audio') {
+          onEvent(event);
         } else if (event.t === 'done') {
           return { reply: event.reply || text, mood: event.mood, ends: event.ends, fallback: event.fallback };
         }

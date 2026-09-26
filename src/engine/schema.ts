@@ -185,6 +185,7 @@ export type Mood = (typeof MOODS)[number];
 export type AudienceStreamEvent =
   | { t: 'meta'; mood: Mood; ends: boolean }
   | { t: 'delta'; text: string }
+  | { t: 'audio'; data: string }
   | { t: 'done'; mood: Mood; ends: boolean; reply: string; fallback: boolean };
 
 export interface AudienceAssessment {

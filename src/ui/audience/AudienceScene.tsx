@@ -4,6 +4,7 @@
  */
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
+import { sound } from '../../audio/sound';
 import { CONFIG } from '../../engine/config';
 import { suggestionsFor } from '../../engine/courtesy';
 import { PROFILES } from '../../engine/nations';
@@ -173,6 +174,7 @@ export function AudienceScene() {
   useEffect(() => {
     if (status === 'awaiting') inputRef.current?.focus();
   }, [status]);
+  useEffect(() => () => sound.stopSpeech(), []);
 
   if (!audience || !world) return null;
   const p = PROFILES[audience.nation];

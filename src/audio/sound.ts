@@ -15,6 +15,7 @@ class SoundBoard {
   private ctx: AudioContext | null = null;
   private ambientNode: AudioBufferSourceNode | null = null;
   private ambientGain: GainNode | null = null;
+  private speechHowl: Howl | null = null;
   private drumsTimer: number | undefined;
   muted = false;
 
@@ -137,6 +138,41 @@ class SoundBoard {
     this.ambientGain = null;
   }
 
+  playSpeech(base64: string): void {
+    if (this.muted) return;
+    try {
+      if (Howler.ctx?.state === 'suspended') void Howler.ctx.resume();
+      this.speechHowl?.stop();
+      this.speechHowl = new Howl({
+        src: [`data:audio/mpeg;base64,${base64}`],
+        format: ['mp3'],
+        volume: 0.85,
+        onend: () => {
+          this.speechHowl = null;
+        },
+        onplayerror: (_id, error) => {
+          console.warn('[audio] speech playback failed', error);
+          this.speechHowl?.once('unlock', () => this.speechHowl?.play());
+        },
+        onloaderror: () => {
+          this.speechHowl = null;
+        },
+      });
+      this.speechHowl.play();
+    } catch {
+      this.speechHowl = null;
+    }
+  }
+
+  stopSpeech(): void {
+    try {
+      this.speechHowl?.stop();
+    } catch {
+      // ignore
+    }
+    this.speechHowl = null;
+  }
+
   /** A slow heartbeat of drums while tension is dangerously high. */
   setDrums(on: boolean): void {
     if (on && this.drumsTimer === undefined) {
@@ -152,6 +188,7 @@ class SoundBoard {
     this.muted = muted;
     try {
       Howler.mute(muted);
+      if (muted) this.stopSpeech();
       if (this.ambientGain && this.ctx) this.ambientGain.gain.value = muted ? 0 : VOLUME.ambient;
       if (muted) this.setDrums(false);
       else if (!this.ambientNode && !this.howls.get('ambient')?.playing()) this.startAmbient();

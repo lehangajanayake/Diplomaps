@@ -18,6 +18,7 @@ import {
 import { guard, json, readJson } from '../http.js';
 import { looksLikeManipulation } from '../manipulation.js';
 import { MODELS, effortFor, streamStructured, structured } from '../openai.js';
+import { synthesizeRulerSpeech } from '../elevenlabs.js';
 import { assessInput, assessInstructions } from '../prompts/assess.js';
 import { audienceInput, audienceInstructions } from '../prompts/audience.js';
 import { ReplyParser } from '../replyParser.js';
@@ -79,7 +80,6 @@ export async function handleAudience(req: Request): Promise<Response> {
         }
       };
       let metaSent = false;
-      let emitted = '';
       let parser = new ReplyParser();
       let finished = false;
       for (let attempt = 0; attempt < 2 && !finished; attempt++) {
@@ -101,14 +101,9 @@ export async function handleAudience(req: Request): Promise<Response> {
               send({ t: 'meta', mood: parser.mood ?? 'neutral', ends: parser.ends ?? false });
               metaSent = true;
             }
-            if (metaSent && parser.reply.length > emitted.length && parser.reply.startsWith(emitted)) {
-              send({ t: 'delta', text: parser.reply.slice(emitted.length) });
-              emitted = parser.reply;
-            }
           },
         });
         if (result.ok && parser.complete) finished = true;
-        else if (emitted.length > 0) break; // words already shown; do not start the reply again
       }
 
       let mood: Mood = parser.mood ?? 'neutral';
@@ -128,7 +123,9 @@ export async function handleAudience(req: Request): Promise<Response> {
       }
       reply = cleanText(reply, 900);
       if (reply) {
-        if (reply.length > emitted.length && reply.startsWith(emitted)) send({ t: 'delta', text: reply.slice(emitted.length) });
+        const audio = await synthesizeRulerSpeech(nation, reply);
+        if (audio) send({ t: 'audio', data: audio });
+        send({ t: 'delta', text: reply });
         send({ t: 'done', mood, ends: ends || playerTurn >= CONFIG.messagesPerAudience, reply, fallback: false });
       } else {
         const text = fallbackAudienceReply(nation);
