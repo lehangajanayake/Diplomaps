@@ -76,6 +76,7 @@ export function beginGame(seed?: number): void {
     ending: null,
     notes: [],
     resolving: false,
+    tutorialStep: 0,
   });
   sound.startAmbient();
 }
@@ -298,7 +299,7 @@ export function exitAudience(): void {
   sound.play('doors');
   window.setTimeout(() => {
     set({ audience: null });
-    if (get().world && audiencesLeft(get().world!) <= 0) advanceTutorial(3);
+    advanceTutorial(3);
   }, 900);
 }
 

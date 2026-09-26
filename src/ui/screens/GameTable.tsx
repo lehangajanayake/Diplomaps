@@ -23,6 +23,8 @@ import { LetterView } from '../panels/LetterView';
 import { PassageLetters } from '../panels/PassageLetters';
 import { InkPot } from '../table/Decor';
 import { Notes } from '../table/Notes';
+import { Tutorial } from '../table/Tutorial';
+import { Snuffer } from '../hud/Snuffer';
 import { Table } from '../table/Table';
 import { SeasonCard } from './SeasonCard';
 
@@ -73,6 +75,9 @@ export function GameTable() {
     <Table danger={world.tension > CONFIG.tension.drumsAbove}>
       <div className="game-layout relative h-full w-full">
         <InkPot className="pointer-events-none absolute left-[0.8vw] top-[0.6vh] h-[7.5vh] w-auto opacity-90" />
+        <div className="absolute left-[calc(0.8vw+7.5vh)] top-[1.6vh] z-20">
+          <Snuffer />
+        </div>
         <SeasonStrip season={world.season} audiencesLeft={audiencesLeft(world)} />
 
         <aside className="absolute bottom-[var(--bottom)] left-[1.1vw] top-[calc(var(--top)+1vh)] z-20 flex w-[var(--left-col)] flex-col gap-[2vh]">
@@ -111,6 +116,7 @@ export function GameTable() {
           {letter && <LetterView key={letter.id} world={world} letter={letter} />}
         </AnimatePresence>
         <Notes />
+        <Tutorial />
       </div>
       <AnimatePresence>{audience && <AudienceScene key="audience" />}</AnimatePresence>
       <SeasonCard />

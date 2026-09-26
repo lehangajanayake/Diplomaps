@@ -2,7 +2,7 @@
 import { CONFIG } from '../../engine/config';
 import { tensionWord } from './words';
 
-export function TensionCandle({ tension }: { tension: number }) {
+export function TensionCandle({ tension, bare = false }: { tension: number; bare?: boolean }) {
   const t = Math.max(0, Math.min(100, tension));
   const waxTop = 58 + (t / 100) * 118;
   const danger = t >= CONFIG.tension.drumsAbove;
@@ -61,12 +61,14 @@ export function TensionCandle({ tension }: { tension: number }) {
           <ellipse cx="50" cy={waxTop - 12} rx="2.6" ry="5" fill="#3b82f6" opacity="0.35" />
         </g>
       </svg>
+      {!bare && (
       <div className="mt-1 text-center leading-tight">
         <div className="font-sc text-[0.72rem] tracking-[0.14em] text-parchment-300/80">Tension</div>
         <div className={`font-display text-[1.05rem] font-semibold ${war ? 'text-[#f08a5d]' : 'text-parchment-100'} candle-text`}>
           {Math.round(t)} <span className="font-body text-[0.8rem] font-normal italic opacity-80">{tensionWord(t)}</span>
         </div>
       </div>
+      )}
     </div>
   );
 }
