@@ -1,11 +1,11 @@
 /**
- * Everything the player does outside the season resolution: promises and claims (the ledger),
- * answering letters and the outcome of audiences.
+ * The ledger: every promise and claim the Warden makes in audiences, whether each claim was true,
+ * which promises contradict each other, and what happens when a court learns it was lied to.
  */
 import { CONFIG } from './config.js';
 import { CLAIM_KINDS, CROSSING, NATION_IDS, type ClaimKind, type GameEvent, type LedgerEntry, type NationId, type WorldState } from './types.js';
 import type { ExtractedEntry } from './schema.js';
-import { addTension, adjustSuspicion, adjustTrust, adjustTrustPlayer, clamp, crossRedLine, strike } from './tension.js';
+import { addTension, adjustNeutrality, adjustSuspicion, adjustTrustPlayer, clamp, crossRedLine, strike } from './tension.js';
 import { PROFILES } from './nations.js';
 import { allied, atWar, cloneWorld, hasGrudge, regionsOf, totalTroops } from './world.js';
 
@@ -35,8 +35,7 @@ export function evaluateClaim(
   const x = w.nations[about];
   switch (kind) {
     case 'military_threat': {
-      const last = x.lastAction;
-      const aimed = !!last && last.target === to && ['mobilise', 'threaten', 'declare_war', 'demand'].includes(last.action);
+      const aimed = w.intents.some((i) => i.nation === about && i.target === to);
       return aimed || atWar(w, about, to) || x.trust[to] <= -55 || troopsFacing(w, about, to) >= 8;
     }
     case 'secret_alliance':
@@ -198,9 +197,7 @@ export function addLedgerEntries(
     added.push(entry);
 
     // Side effects of the words themselves.
-    if (entry.promiseKind === 'support_against' || entry.promiseKind === 'alliance') {
-      w.player.neutrality = clamp(w.player.neutrality + CONFIG.neutrality.promiseSupport, 0, 100);
-    }
+    if (entry.promiseKind === 'support_against' || entry.promiseKind === 'alliance') adjustNeutrality(w, CONFIG.neutrality.promiseSupport);
     if (entry.promiseKind === 'threat') {
       adjustTrustPlayer(w, nation, -6);
       const ev = strike(w, nation, CROSSING, 'was threatened twice by the Warden');
@@ -228,96 +225,6 @@ export function addLedgerEntries(
 }
 
 /* ------------------------------------------------------------------ */
-/* Letters                                                              */
-/* ------------------------------------------------------------------ */
-
-function enemiesOf(w: WorldState, nation: NationId): NationId[] {
-  return NATION_IDS.filter((n) => n !== nation && (atWar(w, n, nation) || w.nations[n].trust[nation] <= -30));
-}
-
-export function setPassage(w: WorldState, nation: NationId, grant: boolean, events: GameEvent[]): void {
-  const before = w.player.passage[nation];
-  if (grant) {
-    if (before === 'granted') return;
-    w.player.passage[nation] = 'granted';
-    adjustTrustPlayer(w, nation, CONFIG.trust.passageGranted);
-    w.player.neutrality = clamp(w.player.neutrality + CONFIG.neutrality.passageGranted, 0, 100);
-    addTension(w, CONFIG.tension.passageGranted);
-    for (const enemy of enemiesOf(w, nation)) {
-      adjustTrustPlayer(w, enemy, CONFIG.trust.passageToEnemy);
-      adjustSuspicion(w, enemy, CONFIG.suspicion.passageToEnemy);
-    }
-    for (const n of NATION_IDS) {
-      const rl = PROFILES[n].redLine;
-      if (rl.kind === 'passage_to_enemy' && rl.about === nation) {
-        const ev = crossRedLine(w, n, CROSSING, `the Crossing opened its roads to ${PROFILES[nation].name}`);
-        if (ev) events.push(ev);
-      }
-    }
-  } else {
-    if (before === 'denied') return;
-    w.player.passage[nation] = 'denied';
-    adjustTrustPlayer(w, nation, before === 'granted' ? CONFIG.trust.passageRevoked : CONFIG.trust.passageDenied);
-    w.player.neutrality = clamp(w.player.neutrality + CONFIG.neutrality.passageDenied, 0, 100);
-    // Refusing passage after promising it is a broken promise, and the refused ruler knows it at once.
-    for (const e of w.player.ledger) {
-      if (e.to === nation && e.promiseKind === 'passage' && !e.broken) {
-        e.broken = true;
-        events.push(...becomeAware(w, e, nation, `${PROFILES[nation].name} was promised passage, then refused it`));
-        events.push({ kind: 'lie_caught', season: w.season, entry: e.id, by: [nation], how: 'a promise of passage was broken' });
-      }
-    }
-  }
-}
-
-export function answerLetter(world: WorldState, letterId: string, grant: boolean): { world: WorldState; events: GameEvent[] } {
-  const w = cloneWorld(world);
-  const events: GameEvent[] = [];
-  const letter = w.letters.find((l) => l.id === letterId);
-  if (!letter || letter.status !== 'sealed') return { world, events };
-  letter.status = grant ? 'granted' : 'denied';
-  const from = letter.from;
-  if (letter.kind === 'passage') {
-    setPassage(w, from, grant, events);
-  } else if (letter.kind === 'tribute') {
-    if (grant && w.player.gold >= letter.amount) {
-      w.player.gold -= letter.amount;
-      w.player.goldSpent += letter.amount;
-      adjustTrustPlayer(w, from, CONFIG.trust.tributePaid);
-      w.player.neutrality = clamp(w.player.neutrality + CONFIG.neutrality.tributePaid, 0, 100);
-    } else {
-      letter.status = 'denied';
-      adjustTrustPlayer(w, from, CONFIG.trust.tributeRefused);
-    }
-  } else if (letter.kind === 'land' && letter.region) {
-    const region = w.regions[letter.region];
-    if (grant && region && region.owner === CROSSING && !w.map.regions[letter.region]!.capital) {
-      region.owner = from;
-      region.troops = 1;
-      w.player.ceded.push(letter.region);
-      w.stats.regionsChanged += 1;
-      adjustTrustPlayer(w, from, CONFIG.trust.landCeded);
-      w.player.neutrality = clamp(w.player.neutrality + CONFIG.neutrality.landCeded, 0, 100);
-      addTension(w, -5);
-      events.push({ kind: 'cede', season: w.season, nation: CROSSING, target: from, region: letter.region });
-    } else {
-      letter.status = 'denied';
-      adjustTrustPlayer(w, from, CONFIG.trust.landRefused);
-    }
-  }
-  events.push({ kind: 'letter', season: w.season, letter: letter.id, nation: from, letterKind: letter.kind, granted: letter.status === 'granted' });
-  return { world: w, events };
-}
-
-export function changePassage(world: WorldState, nation: NationId, grant: boolean): { world: WorldState; events: GameEvent[] } {
-  const w = cloneWorld(world);
-  const events: GameEvent[] = [];
-  setPassage(w, nation, grant, events);
-  events.push({ kind: 'letter', season: w.season, letter: `passage-${nation}`, nation, letterKind: 'passage', granted: grant });
-  return { world: w, events };
-}
-
-/* ------------------------------------------------------------------ */
 /* Audiences                                                            */
 /* ------------------------------------------------------------------ */
 
@@ -341,6 +248,3 @@ export function recordAudience(
   return { world: w, events: [] };
 }
 
-export function adjustNationTrust(w: WorldState, a: NationId, b: NationId, delta: number): void {
-  adjustTrust(w, a, b, delta);
-}

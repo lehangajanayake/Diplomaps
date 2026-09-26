@@ -8,34 +8,19 @@ import { isLie } from '../../engine/ledger';
 import { PROFILES } from '../../engine/nations';
 import type { NationId, WorldState } from '../../engine/types';
 import { allied, atWar, regionsOf, totalTroops } from '../../engine/world';
-import { canHoldAudience, openDossier, setPassage, startAudience } from '../../store/flow';
+import { canHoldAudience, openDossier, startAudience } from '../../store/flow';
 import { InkGauge } from '../common/InkGauge';
 import { Portrait } from '../common/Portrait';
 import { SealButton } from '../common/SealButton';
 import { WaxSeal } from '../common/WaxSeal';
 import { suspicionWord, trustWord } from '../hud/words';
 
-const ACTION_PAST: Record<string, string> = {
-  mobilise: 'mobilised troops',
-  threaten: 'made threats',
-  trade: 'sought trade',
-  ally: 'sought an alliance',
-  demand: 'made demands',
-  request_passage: 'asked for passage',
-  spread_rumour: 'spread rumours',
-  cede: 'ceded land',
-  declare_war: 'went to war',
-  wait: 'watched and waited',
-};
-
 export function Dossier({ world, nation }: { world: WorldState; nation: NationId }) {
   const p = PROFILES[nation];
   const n = world.nations[nation];
   const blocked = canHoldAudience(world, nation);
-  const last = n.lastAction;
   const lies = world.player.ledger.filter((e) => e.to === nation);
   const caught = world.player.ledger.filter((e) => e.caughtBy.includes(nation) && isLie(e));
-  const passage = world.player.passage[nation];
   const relations = (['grudges', 'friends'] as const).map((k) =>
     k === 'grudges' ? p.grudges.map((g) => PROFILES[g.against].name) : p.friends.map((f) => PROFILES[f.with].name),
   );
@@ -54,9 +39,11 @@ export function Dossier({ world, nation }: { world: WorldState; nation: NationId
     >
       <div className="flex-1 overflow-y-auto px-[1.3em] pb-[0.8em] pt-[1em]">
         <div className="flex items-start gap-[0.8em]">
-          <WaxSeal colour={p.colour} emblem={p.emblem} size="3.3em" seed={nation.length * 7} />
+          <WaxSeal colour={p.colour} emblem={p.emblem} size="3.3em" seed={nation.length * 7} cracked={n.fallen !== null} />
           <div className="min-w-0 flex-1">
-            <h2 className="font-display text-[1.45rem] font-semibold leading-none tracking-[0.12em]">{p.name.toUpperCase()}</h2>
+            <h2 className={`font-display text-[1.45rem] font-semibold leading-none tracking-[0.12em] ${n.fallen !== null ? 'line-through decoration-ink-red' : ''}`}>
+              {p.name.toUpperCase()}
+            </h2>
             <p className="mt-1 font-body text-[0.86rem] italic text-ink-soft">{p.epithet}</p>
           </div>
           <button type="button" onClick={() => openDossier(null)} className="font-sc text-[0.85rem] text-ink-faded hover:text-wax" aria-label="Set the dossier aside">
@@ -104,29 +91,10 @@ export function Dossier({ world, nation }: { world: WorldState; nation: NationId
           <dd>
             {regionsOf(world, nation).length} regions · {totalTroops(world, nation)} troops
           </dd>
-          <dt className="font-sc text-ink-soft">Passage</dt>
-          <dd className="flex flex-wrap items-center gap-x-2">
-            <span>{passage === 'granted' ? 'granted through the Crossing' : passage === 'denied' ? 'denied' : 'never requested'}</span>
-            {passage === 'granted' ? (
-              <button type="button" className="font-sc text-[0.78rem] text-wax underline decoration-dotted" onClick={() => setPassage(nation, false)}>
-                revoke
-              </button>
-            ) : (
-              <button type="button" className="font-sc text-[0.78rem] text-wax underline decoration-dotted" onClick={() => setPassage(nation, true)}>
-                grant
-              </button>
-            )}
-          </dd>
         </dl>
 
         <h3 className="mt-[0.7em] font-sc text-[0.86rem] tracking-[0.08em] text-wax">What you have learned</h3>
         <ul className="mt-[0.2em] space-y-[0.25em] font-body text-[0.82rem] leading-snug">
-          {last && (
-            <li>
-              <span className="font-sc text-ink-soft">Last season:</span> {ACTION_PAST[last.action] ?? last.action}
-              {last.target ? ` (${last.target === 'crossing' ? 'the Crossing' : PROFILES[last.target].name})` : ''}. <span className="italic">“{last.reason}”</span>
-            </li>
-          )}
           {n.learned.slice(-3).map((l, i) => (
             <li key={i}>
               <span className="font-sc text-ink-soft">{seasonTitle(l.season)}:</span> {l.text}
@@ -139,7 +107,7 @@ export function Dossier({ world, nation }: { world: WorldState; nation: NationId
             </li>
           )}
           {caught.length > 0 && <li className="text-ink-red">They have caught {caught.length === 1 ? 'one of your lies' : `${caught.length} of your lies`}.</li>}
-          {!last && n.learned.length === 0 && lies.length === 0 && <li className="italic text-ink-faded">Nothing yet. An audience would tell you more.</li>}
+          {n.learned.length === 0 && lies.length === 0 && <li className="italic text-ink-faded">Nothing yet. An audience would tell you more.</li>}
         </ul>
       </div>
 

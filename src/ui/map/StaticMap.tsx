@@ -2,13 +2,13 @@
  * Everything on the map that only changes when territory changes. Kept in its own SVG so hover,
  * tokens and effects (in the dynamic layer) never force the heavy map to repaint.
  */
-import { memo } from 'react';
-import type { MapData, Holder, RegionId } from '../../engine/types';
+import { memo, useMemo } from 'react';
+import { NATION_IDS, type Holder, type MapData, type NationId, type RegionId } from '../../engine/types';
 import { Borders } from './Borders';
 import { Compass, Frame } from './Compass';
 import { Capitals, NationLabels, RegionLabels, SeaLabels } from './Labels';
 import { INK, LAND, SEA_LINE } from './palette';
-import { RegionBands, RegionClips, RegionFills } from './Region';
+import { RegionBands, RegionClips, RegionFills, Ruins } from './Region';
 import { Roads } from './Roads';
 import { MapSymbols } from './symbols';
 import { River, Terrain } from './Terrain';
@@ -20,6 +20,9 @@ interface Props {
 }
 
 export const StaticMap = memo(function StaticMap({ map, owners }: Props) {
+  // A nation that holds no land has fallen.
+  const fallenKey = NATION_IDS.filter((n) => !map.regionIds.some((id) => owners[id] === n)).join(',');
+  const fallen = useMemo(() => (fallenKey ? (fallenKey.split(',') as NationId[]) : []), [fallenKey]);
   return (
     <svg
       viewBox={`0 0 ${map.width} ${map.height}`}
@@ -45,13 +48,14 @@ export const StaticMap = memo(function StaticMap({ map, owners }: Props) {
       <use href="#coast-path" fill={LAND} />
       <RegionFills map={map} owners={owners} />
       <RegionBands map={map} owners={owners} />
+      <Ruins map={map} owners={owners} />
       <Terrain map={map} />
       <River map={map} />
       <Borders map={map} owners={owners} />
       <use href="#coast-path" fill="none" stroke={INK} strokeWidth={1.5} strokeLinejoin="round" />
       <Roads map={map} />
       <Capitals map={map} />
-      <NationLabels map={map} />
+      <NationLabels map={map} fallen={fallen} />
       <RegionLabels map={map} />
       <SeaLabels map={map} />
       <Compass map={map} />

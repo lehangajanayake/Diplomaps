@@ -1,16 +1,10 @@
-/** Tension bookkeeping and red lines: the two things that decide when war becomes possible. */
+/** Small bookkeeping shared by the whole engine: tension, trust, suspicion and red lines. */
 import { CONFIG } from './config.js';
 import { PROFILES } from './nations.js';
-import type { ActionKind, GameEvent, NationId, Owner, WorldState } from './types.js';
-import { CROSSING, NATION_IDS } from './types.js';
-import { atWar } from './world.js';
+import { CROSSING, type GameEvent, type NationId, type Owner, type WorldState } from './types.js';
 
 export function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
-}
-
-export function actionTension(action: ActionKind): number {
-  return CONFIG.tension[action];
 }
 
 export function addTension(w: WorldState, delta: number): void {
@@ -25,6 +19,10 @@ export function adjustTrustPlayer(w: WorldState, nation: NationId, delta: number
 export function adjustSuspicion(w: WorldState, nation: NationId, delta: number): void {
   const n = w.nations[nation];
   n.suspicion = clamp(Math.round(n.suspicion + delta), 0, 100);
+}
+
+export function adjustNeutrality(w: WorldState, delta: number): void {
+  w.player.neutrality = clamp(Math.round(w.player.neutrality + delta), 0, 100);
 }
 
 export function adjustTrust(w: WorldState, from: NationId, toward: Owner, delta: number): void {
@@ -49,7 +47,7 @@ export function crossRedLine(w: WorldState, nation: NationId, by: Owner, what: s
   return { kind: 'red_line', season: w.season, nation, by, what };
 }
 
-/** A threat or demand landed on `nation`. Returns the red-line event when it was one too many. */
+/** A threat landed on `nation`. Returns the red-line event when it was one too many. */
 export function strike(w: WorldState, nation: NationId, by: Owner, what: string): GameEvent | null {
   if (PROFILES[nation].redLine.kind !== 'threat') return null;
   const n = w.nations[nation];
@@ -60,22 +58,4 @@ export function strike(w: WorldState, nation: NationId, by: Owner, what: string)
 
 export function redLineCrossedRecently(w: WorldState, nation: NationId, by: Owner): boolean {
   return w.nations[nation].redLineCrossings.some((c) => c.by === by && w.season - c.season <= CONFIG.military.redLineMemory);
-}
-
-/** Who this nation may lawfully declare war on right now. */
-export function warTargets(w: WorldState, nation: NationId): Owner[] {
-  const out: Owner[] = [];
-  const open = w.tension >= CONFIG.tension.warGate;
-  for (const other of NATION_IDS) {
-    if (other === nation) continue;
-    if (open || atWar(w, nation, other) || redLineCrossedRecently(w, nation, other)) out.push(other);
-  }
-  const n = w.nations[nation];
-  const hostile = n.trustPlayer <= CONFIG.military.crossingWarTrust || n.suspicion >= CONFIG.military.crossingWarSuspicion;
-  if (atWar(w, nation, CROSSING) || (hostile && (open || redLineCrossedRecently(w, nation, CROSSING)))) out.push(CROSSING);
-  return out;
-}
-
-export function redLineKind(nation: NationId) {
-  return PROFILES[nation].redLine.kind;
 }

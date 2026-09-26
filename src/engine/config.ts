@@ -1,7 +1,6 @@
 /**
- * Every tunable number in the game lives here. `npm run simulate` plays 200
- * headless games so changes can be judged against the balance targets:
- * left alone, war should usually break out around season 4-5.
+ * Every tunable number in the game lives here. `npm run simulate` plays headless games with a
+ * bot for each ambition, so changes can be judged against the balance targets in scripts/simulate.ts.
  */
 
 export const CONFIG = {
@@ -45,66 +44,68 @@ export const CONFIG = {
   },
 
   tension: {
-    mobilise: 4,
-    threaten: 5,
-    demand: 4,
-    declare_war: 12,
-    battle: 4,
-    spread_rumour: 2,
-    ally: 1,
-    trade: -3,
-    cede: -8,
-    wait: -1,
-    request_passage: 1,
-    decay: 3,
+    warDeclared: 6,
+    battle: 2,
+    collapse: 5,
+    peace: -6,
+    decay: 4,
     /** Old grudges fester: tension added each season per pair of nations that mutually distrust. */
     grudgePressure: 0.5,
+    grudgeTrust: -30,
     /** Above this, war-weariness drains extra tension each season. */
     exhaustionAbove: 75,
     exhaustionRate: 0.15,
     /** A warm audience (trust gained at least this much) calms the realm a little. */
     warmAudience: 6,
     warmAudienceCalm: -2,
-    grudgeTrust: -30,
     lieCaught: 3,
-    passageGranted: 3,
     redLine: 3,
     lowNeutrality: 2,
     lowNeutralityBelow: 30,
-    /** declare_war is only allowed at or above this tension (or after a red line). */
-    warGate: 60,
     drumsAbove: 70,
   },
 
+  /** How the nations decide on war (policy.ts). Desire is a sum of these; the dice do the rest. */
+  war: {
+    grudgeWeight: 1 / 50,
+    aggressionWeight: 1.2,
+    tensionPivot: 45,
+    tensionWeight: 1 / 60,
+    strengthWeight: 0.4,
+    redLine: 1,
+    /** The Warden's words: warning a court about its rival, promising support, or reassuring it. */
+    provoked: 0.8,
+    emboldened: 0.5,
+    reassured: 1,
+    /** Each war a nation is already fighting cools its appetite for another. */
+    busyPenalty: 0.9,
+    maxWarsPerNation: 2,
+    /** Desire at which a nation is as likely as not to plan war, and how sharply the odds rise around it. */
+    threshold: 1.2,
+    steepness: 3,
+    /** A planned war is called off at the bell if desire has fallen below this. */
+    standDown: 0.7,
+    allianceTrust: 30,
+    allianceChance: 0.5,
+    /** Chance a nation marches into ruins beside it each season. */
+    occupyChance: 0.35,
+    /** Seasons a war can sit idle before it quietly becomes a truce. */
+    truceAfterQuiet: 2,
+    /** Peace softens old enemies toward each other, so the same war does not start again at once. */
+    peaceTrust: 20,
+    /** After this many seasons, each season of war may end in a weary peace. */
+    wearyAfter: 2,
+    wearyChance: 0.3,
+  },
+
   trust: {
-    threatened: -15,
-    demanded: -10,
-    rumourVictim: -6,
-    rumourExposed: -10,
-    trade: 6,
-    allyAccepted: 12,
-    allyThreshold: 18,
-    allyRebuffed: -4,
-    mobiliseNeighbour: -4,
     warDeclared: -40,
     warDeclaredOnAlly: -18,
-    battleLost: -8,
-    cedeReceived: 10,
     redLine: -20,
-    passageGranted: 10,
-    passageDenied: -12,
-    passageRevoked: -10,
-    passageToEnemy: -7,
-    letterIgnored: -5,
-    tributePaid: 12,
-    tributeRefused: -14,
-    landCeded: 22,
-    landRefused: -18,
     lieToVictim: -22,
     slandered: -20,
     lieHeardOf: -6,
     brokenPromise: -18,
-    tradeWithCrossing: 5,
     /** Minimum mutual trust for two nations to gossip without a formal alliance. */
     gossipFriends: 20,
     /** Minimum trust for a nation to know an ally's intentions (and catch lies about it). */
@@ -116,34 +117,22 @@ export const CONFIG = {
     slandered: 28,
     lieHeardOf: 10,
     brokenPromise: 22,
-    passageToEnemy: 6,
     redLine: 10,
     decay: 3,
   },
 
   neutrality: {
-    passageGranted: -8,
-    passageDenied: 2,
     promiseSupport: -4,
-    landCeded: -10,
-    tributePaid: -4,
     recovery: 2,
   },
 
   economy: {
     routeToll: 4,
-    deniedFactor: 0.55,
-    tradedFactor: 1.5,
     warFactor: 0.7,
-    directTrade: 8,
-    passageFee: 4,
     neutralityFloor: 0.7,
-    crossingWarFactor: 0.25,
-    tributeGold: [20, 35] as const,
   },
 
   military: {
-    mobiliseAmount: 3,
     minAttackTroops: 2,
     defenderBonus: 0.15,
     mountainBonus: 0.6,
@@ -154,16 +143,21 @@ export const CONFIG = {
     variance: 0.3,
     winnerLoss: [0.15, 0.4] as const,
     loserLoss: [0.5, 0.85] as const,
-    /** Seasons a war can sit idle before it quietly becomes a truce. */
-    truceAfterQuiet: 2,
-    /** Hostility needed before a nation can attack the Crossing. */
-    crossingWarTrust: -30,
-    crossingWarSuspicion: 60,
+    /** Troops a nation keeps home to guard its capital when it attacks from there. */
+    capitalGarrison: 2,
+    /** Fresh troops each season: at every capital, and at the front of every war. */
+    musterCapital: 1,
+    musterWar: 3,
     redLineMemory: 2,
-    /** A 'threat' red line breaks on the second threat or demand from the same court. */
+    /** A 'threat' red line breaks on the second threat from the same court. */
     threatStrikes: 2,
-    /** A 'border_troops' red line breaks when a neighbour masses at least this many troops at the border. */
-    borderTroops: 7,
+  },
+
+  /** What answering letters costs and brings (letters.ts). */
+  letters: {
+    apologyGold: 20,
+    apologyTrust: 10,
+    apologySuspicion: 10,
   },
 
   ambitions: {

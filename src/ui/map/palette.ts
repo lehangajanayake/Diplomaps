@@ -14,8 +14,12 @@ export const GOLD = '#c9a24a';
 export const GOLD_DEEP = '#8a6a26';
 export const HALO = '#efe3c3';
 
+export const INK_RED = '#8e2417';
+
+/** Ruins: land nobody holds, faded and torn. */
 export const RUIN = '#b9ab8a';
 export const RUIN_INK = '#7a6d55';
+export const RUIN_WASH = '#e8dec4';
 
 export function ownerFill(owner: Holder): string {
   if (owner === UNCLAIMED) return RUIN;

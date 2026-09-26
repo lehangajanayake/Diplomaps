@@ -33,17 +33,17 @@ export function tensionWord(t: number): string {
   return 'on the brink of general war';
 }
 
-const ACTION_WORDS: Record<string, string> = {
-  mobilise: 'mobilised troops',
-  threaten: 'threatened',
-  trade: 'sought trade with',
-  ally: 'proposed an alliance to',
-  demand: 'made demands of',
-  request_passage: 'asked the Crossing for passage for its armies',
-  spread_rumour: 'spread rumours about',
-  cede: 'ceded land to',
-  declare_war: 'declared war on',
-  wait: 'waited',
+const WAR_CAUSE: Record<string, string> = {
+  grudge: '',
+  ally: ' to defend its ally',
+  favour: ' (it is whispered the Warden asked it to)',
+  words: ' after hearing alarming words from the Warden',
+};
+
+const LETTER_NEWS: Record<string, (nation: string, answer: string) => string> = {
+  last: (nation) => `The Warden received the last letter of the fallen ruler of ${nation}.`,
+  angry: (nation, answer) =>
+    answer === 'apologise' ? `The Warden sent apologies and gold to ${nation} after a lie was exposed.` : `The Warden ignored ${nation}'s angry letter about a lie.`,
 };
 
 export function renderNews(news: readonly News[]): string {
@@ -51,34 +51,26 @@ export function renderNews(news: readonly News[]): string {
   return news
     .map((n) => {
       switch (n.kind) {
-        case 'action': {
-          const target = n.target ? ` ${who(n.target)}` : '';
-          const region = n.region ? ` (at ${n.region})` : '';
-          const reason = n.reason ? ` Their word: "${n.reason}"` : '';
-          return `- ${who(n.nation)} ${ACTION_WORDS[n.action] ?? n.action}${n.action === 'mobilise' || n.action === 'request_passage' ? '' : target}${region}.${reason}`;
-        }
         case 'battle':
           return `- Battle at ${n.region}: ${who(n.attacker)} attacked ${who(n.defender)} and ${n.captured ? 'took it' : 'was repulsed'}.`;
         case 'war':
-          return `- ${who(n.nation)} declared war on ${who(n.target)}.`;
+          return `- ${who(n.nation)} declared war on ${who(n.target)}${WAR_CAUSE[n.cause] ?? ''}.`;
+        case 'stand_down':
+          return `- ${who(n.nation)} called off a planned war on ${who(n.target)}.`;
         case 'peace':
-          return `- ${who(n.a)} and ${who(n.b)} made peace.`;
+          return n.how === 'fallen' ? '' : `- ${who(n.a)} and ${who(n.b)} made peace${n.how === 'talks' ? ' at talks hosted by the Warden' : ''}.`;
         case 'alliance':
-          return n.accepted ? `- ${who(n.a)} and ${who(n.b)} formed an alliance.` : `- ${who(n.b)} rebuffed an alliance offered by ${who(n.a)}.`;
+          return `- ${who(n.a)} and ${who(n.b)} formed an alliance.`;
+        case 'collapse':
+          return `- ${who(n.nation)} COLLAPSED: its capital fell to ${who(n.by)} and its remaining lands lie in ruins.`;
         case 'cede':
           return `- ${who(n.nation)} ceded ${n.region} to ${who(n.target)}.`;
         case 'lie_caught':
           return `- Scandal: ${n.by.map((b) => PROFILES[b].name).join(' and ')} caught the Warden in a lie ("${n.what}").`;
-        case 'passage':
-          return n.granted ? `- The Warden granted ${who(n.nation)} passage through the Crossing.` : `- The Warden denied ${who(n.nation)} passage.`;
-        case 'tribute':
-          return n.paid ? `- The Warden paid ${n.amount} gold in tribute to ${who(n.nation)}.` : `- The Warden refused ${who(n.nation)}'s demand for tribute.`;
-        case 'land':
-          return n.ceded ? `- The Warden ceded ${n.region} to ${who(n.nation)}.` : `- The Warden refused to cede ${n.region} to ${who(n.nation)}.`;
+        case 'letter':
+          return `- ${(LETTER_NEWS[n.letterKind] ?? (() => ''))(PROFILES[n.nation].name, n.answer)}`;
         case 'red_line':
           return `- ${who(n.by)} crossed ${who(n.nation)}'s red line.`;
-        case 'rumour':
-          return `- ${who(n.nation)} spread rumours about ${who(n.target)}${n.exposed ? ' and was found out' : ''}.`;
         case 'gossip':
           return `- ${who(n.from)} passed word of the Warden's promises to ${who(n.to)}.`;
         case 'audience':
@@ -87,7 +79,7 @@ export function renderNews(news: readonly News[]): string {
           return '';
       }
     })
-    .filter(Boolean)
+    .filter((line) => line && line !== '- ')
     .join('\n');
 }
 

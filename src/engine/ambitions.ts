@@ -22,10 +22,6 @@ export interface AmbitionDef {
 
 const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 
-function nationWarCount(w: WorldState): number {
-  return w.wars.filter((war) => war.a !== CROSSING && war.b !== CROSSING).length;
-}
-
 /** The war the Warden started whose two sides suspect them least. */
 export function bestInstigation(w: WorldState): { war: Instigation; worst: number } | null {
   let best: { war: Instigation; worst: number } | null = null;
@@ -51,7 +47,7 @@ export const AMBITION: Record<AmbitionId, AmbitionDef> = {
     }),
     achieved: (w) => w.player.gold >= merchantGold,
     tip: () => 'Keep the roads at peace and the passes open: war and closed passes cut your tolls.',
-    note: (w) => (nationWarCount(w) > 0 ? 'Every war closes roads and cuts your tolls.' : 'Peace keeps the tolls flowing.'),
+    note: (w) => (w.wars.length > 0 || w.intents.length > 0 ? 'Every war closes roads and cuts your tolls.' : 'Peace keeps the tolls flowing.'),
   },
   kingdom: {
     id: 'kingdom',
@@ -74,7 +70,7 @@ export const AMBITION: Record<AmbitionId, AmbitionDef> = {
     goal: `Get two nations to war with each other, and end with both at suspicion below ${spiderSuspicion}.`,
     progress: (w) => {
       const best = bestInstigation(w);
-      if (!best) return { value: 0, target: 2, ratio: 0, label: 'No war started by you yet' };
+      if (!best) return { value: 0, target: 2, ratio: 0, label: 'No war of yours yet' };
       const { a, b } = best.war;
       const sa = w.nations[a].suspicion;
       const sb = w.nations[b].suspicion;

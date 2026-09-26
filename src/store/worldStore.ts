@@ -47,7 +47,7 @@ export interface MapFx {
   battles: { region: RegionId; from: RegionId; attacker: Owner; captured: boolean }[];
   conquests: { region: RegionId; from: RegionId | null; owner: Owner }[];
   trails: { from: NationId; to: NationId; entry: string }[];
-  mobilised: RegionId[];
+  mobilised: { region: RegionId; amount: number }[];
 }
 
 export interface SeasonCardState {

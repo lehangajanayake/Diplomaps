@@ -6,6 +6,7 @@ import { Rng } from './rng.js';
 import {
   CROSSING,
   NATION_IDS,
+  type Alliance,
   type NationId,
   type NationState,
   type Owner,
@@ -56,8 +57,8 @@ export function createWorld(seed: number): WorldState {
       learned: [],
       audiences: 0,
       lastAudienceSeason: null,
-      lastAction: null,
       startTroops: 0,
+      fallen: null,
     };
   }
 
@@ -77,14 +78,14 @@ export function createWorld(seed: number): WorldState {
       goldEarned: 0,
       goldSpent: 0,
       neutrality: CONFIG.start.neutrality,
-      passage: Object.fromEntries(NATION_IDS.map((id) => [id, 'none'])) as Record<NationId, 'none'>,
+      passes: Object.fromEntries(NATION_IDS.map((id) => [id, 'open'])) as Record<NationId, 'open'>,
       ledger: [],
-      ceded: [],
       regionsGained: [],
     },
     wars: [],
-    alliances: [],
+    alliances: startingAlliances(),
     letters: [],
+    intents: [],
     audiencesThisSeason: [],
     seasonLog: [],
     chronicle: [
@@ -102,6 +103,7 @@ export function createWorld(seed: number): WorldState {
     crisis: null,
     stats: {
       warsStarted: 0,
+      collapses: 0,
       instigated: [],
       peacesBrokered: 0,
       battles: 0,
@@ -114,6 +116,19 @@ export function createWorld(seed: number): WorldState {
   };
   for (const id of NATION_IDS) world.nations[id].startTroops = totalTroops(world, id);
   return world;
+}
+
+/** Old friendships are sworn alliances from the start: an attack on one brings the other. */
+function startingAlliances(): Alliance[] {
+  const out: Alliance[] = [];
+  for (const a of NATION_IDS) {
+    for (const f of PROFILES[a].friends) {
+      const b = f.with;
+      const mutual = PROFILES[b].friends.some((x) => x.with === a);
+      if (mutual && a < b) out.push({ a, b, since: 0 });
+    }
+  }
+  return out;
 }
 
 function structuredCloneRegions(regions: Record<RegionId, RegionState>): Record<RegionId, RegionState> {
@@ -135,6 +150,15 @@ export function totalTroops(world: WorldState, owner: Owner): number {
   return sum;
 }
 
+/** A nation that has not collapsed. */
+export function isStanding(world: WorldState, nation: NationId): boolean {
+  return world.nations[nation].fallen === null;
+}
+
+export function standingNations(world: WorldState): NationId[] {
+  return NATION_IDS.filter((n) => isStanding(world, n));
+}
+
 export function bordersOwner(world: WorldState, owner: Owner, other: Owner): boolean {
   return world.map.regionIds.some((id) => {
     if (world.regions[id]!.owner !== owner) return false;
@@ -146,8 +170,17 @@ export function atWar(world: WorldState, a: Owner, b: Owner): boolean {
   return world.wars.some((w) => (w.a === a && w.b === b) || (w.a === b && w.b === a));
 }
 
+/** How many wars a nation is fighting. */
+export function warsOf(world: WorldState, nation: NationId): number {
+  return world.wars.filter((w) => w.a === nation || w.b === nation).length;
+}
+
 export function allied(world: WorldState, a: Owner, b: Owner): boolean {
   return world.alliances.some((al) => (al.a === a && al.b === b) || (al.a === b && al.b === a));
+}
+
+export function alliesOf(world: WorldState, nation: NationId): NationId[] {
+  return world.alliances.flatMap((al) => (al.a === nation ? [al.b] : al.b === nation ? [al.a] : []));
 }
 
 export function regionName(world: WorldState, id: RegionId): string {

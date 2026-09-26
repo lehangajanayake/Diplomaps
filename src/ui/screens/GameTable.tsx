@@ -2,6 +2,7 @@
 import { AnimatePresence } from 'motion/react';
 import { useCallback, useEffect } from 'react';
 import { CONFIG } from '../../engine/config';
+import { sealedLetters } from '../../engine/letters';
 import type { RegionId } from '../../engine/types';
 import { sound } from '../../audio/sound';
 import { audiencesLeft, closeOverlay, endSeason, openCrossing, openDossier, openLedger, openLetter } from '../../store/flow';
@@ -20,7 +21,7 @@ import { Dossier } from '../panels/Dossier';
 import { LedgerView } from '../panels/Ledger';
 import { LedgerBook } from '../panels/LedgerBook';
 import { LetterView } from '../panels/LetterView';
-import { PassageLetters } from '../panels/PassageLetters';
+import { LetterStack } from '../panels/LetterStack';
 import { InkPot } from '../table/Decor';
 import { Notes } from '../table/Notes';
 import { Snuffer } from '../hud/Snuffer';
@@ -69,8 +70,7 @@ export function GameTable() {
   if (!world) return null;
   const ledger = world.player.ledger;
   const letter = overlay?.kind === 'letter' ? world.letters.find((l) => l.id === overlay.id) : undefined;
-  const visibleLetters = world.letters.filter((l) => l.season <= world.season);
-  const sealed = visibleLetters.filter((l) => l.status === 'sealed').length;
+  const sealed = sealedLetters(world);
 
   return (
     <Table danger={world.tension > CONFIG.tension.drumsAbove}>
@@ -87,7 +87,7 @@ export function GameTable() {
             <Chronicle entries={world.chronicle} freshSeason={chronicleFresh} pending={chroniclePending} />
           </div>
           <div className="flex-[0_1_auto]">
-            <PassageLetters letters={visibleLetters} onOpen={openLetter} />
+            <LetterStack letters={sealed} onOpen={openLetter} />
           </div>
         </aside>
 
@@ -105,7 +105,7 @@ export function GameTable() {
           <EndSeasonBell
             onRing={() => void endSeason()}
             disabled={resolving || !!audience}
-            note={sealed ? `${sealed} ${sealed === 1 ? 'letter' : 'letters'} unanswered` : undefined}
+            note={sealed.length ? `${sealed.length} ${sealed.length === 1 ? 'letter' : 'letters'} unanswered` : undefined}
           />
         </aside>
 

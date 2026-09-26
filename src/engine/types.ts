@@ -144,35 +144,17 @@ export interface RegionState {
   troops: number;
 }
 
-export type PassageStatus = 'granted' | 'denied' | 'none';
+/** The pass on a nation's road into the Crossing. A closed pass stops its armies and its trade. */
+export type PassState = 'open' | 'closed';
 
-export const ACTIONS = [
-  'mobilise',
-  'threaten',
-  'trade',
-  'ally',
-  'demand',
-  'request_passage',
-  'spread_rumour',
-  'cede',
-  'declare_war',
-  'wait',
-] as const;
-export type ActionKind = (typeof ACTIONS)[number];
+/** Why a nation went to war: its own grudge, an ally's call, a favour the Warden called in, or the Warden's words. */
+export type WarCause = 'grudge' | 'ally' | 'favour' | 'words';
 
-export interface NationAction {
-  nation: NationId;
-  action: ActionKind;
-  target: Owner | null;
-  region: RegionId | null;
-  reason: string;
-}
-
-export interface ResolvedAction extends NationAction {
-  /** Set when the engine changed the requested action. */
-  requested?: ActionKind;
-  note?: 'war_gated' | 'invalid' | 'fallback' | 'already_granted';
-}
+/**
+ * What a nation means to do this season. Code decides these when the season opens, so the crisis
+ * card can warn of them and the Warden has a season to change a ruler's mind.
+ */
+export type Intent = { kind: 'war'; nation: NationId; target: NationId };
 
 export interface KnowledgeRef {
   entry: string;
@@ -200,8 +182,9 @@ export interface NationState {
   learned: { season: number; text: string }[];
   audiences: number;
   lastAudienceSeason: number | null;
-  lastAction: ResolvedAction | null;
   startTroops: number;
+  /** The season the nation's capital fell and it collapsed, or null while it stands. */
+  fallen: number | null;
 }
 
 export const PROMISE_KINDS = [
@@ -251,17 +234,27 @@ export interface LedgerEntry {
   broken: boolean;
 }
 
-export type LetterKind = 'passage' | 'tribute' | 'land';
+export const LETTER_KINDS = ['last', 'angry'] as const;
+export type LetterKind = (typeof LETTER_KINDS)[number];
 
+/** A letter on the Warden's table. What it says and what each answer does live in letters.ts. */
 export interface Letter {
   id: string;
   kind: LetterKind;
   from: NationId;
+  /** The season the letter is on the table. */
   season: number;
-  amount: number;
+  /** The other nation the letter concerns: the enemy, the target, the one who caught you. */
+  about: NationId | null;
   region: RegionId | null;
-  reason: string;
-  status: 'sealed' | 'granted' | 'denied' | 'ignored';
+  /** Gold offered or asked. */
+  amount: number;
+  /** The chosen answer, once answered or defaulted at the season's end. */
+  answer: string | null;
+  /** A line in the sender's voice: code writes a stand-in, the AI a better one when it can. */
+  quote: string;
+  /** The ledger entry an angry letter is about. */
+  entry: string | null;
 }
 
 export interface PlayerState {
@@ -271,18 +264,19 @@ export interface PlayerState {
   goldEarned: number;
   goldSpent: number;
   neutrality: number;
-  passage: Record<NationId, PassageStatus>;
+  passes: Record<NationId, PassState>;
   ledger: LedgerEntry[];
-  ceded: RegionId[];
   /** Regions the Crossing has won, in order. */
   regionsGained: RegionId[];
 }
 
 export interface War {
-  a: Owner;
-  b: Owner;
-  aggressor: Owner;
+  a: NationId;
+  b: NationId;
+  aggressor: NationId;
+  cause: WarCause;
   since: number;
+  /** Seasons in a row without a battle. */
   quiet: number;
 }
 
@@ -297,17 +291,13 @@ export interface Alliance {
 /* ------------------------------------------------------------------ */
 
 export type GameEvent =
-  | { kind: 'action'; season: number; action: ResolvedAction }
   | { kind: 'mobilise'; season: number; nation: NationId; region: RegionId; amount: number }
-  | { kind: 'threat'; season: number; nation: NationId; target: Owner }
-  | { kind: 'trade'; season: number; nation: NationId; target: Owner }
-  | { kind: 'alliance'; season: number; a: NationId; b: NationId; accepted: boolean }
-  | { kind: 'demand'; season: number; nation: NationId; target: Owner; region: RegionId | null; yielded: boolean }
-  | { kind: 'passage_request'; season: number; nation: NationId }
-  | { kind: 'rumour'; season: number; nation: NationId; target: Owner; exposed: boolean }
+  | { kind: 'alliance'; season: number; a: NationId; b: NationId }
   | { kind: 'cede'; season: number; nation: Owner; target: Owner; region: RegionId }
-  | { kind: 'war'; season: number; nation: Owner; target: Owner }
-  | { kind: 'peace'; season: number; a: Owner; b: Owner; how: string }
+  | { kind: 'war'; season: number; nation: NationId; target: NationId; cause: WarCause }
+  | { kind: 'stand_down'; season: number; nation: NationId; target: NationId }
+  | { kind: 'peace'; season: number; a: NationId; b: NationId; how: 'truce' | 'fallen' | 'talks' }
+  | { kind: 'collapse'; season: number; nation: NationId; by: Owner; region: RegionId }
   | {
       kind: 'battle';
       season: number;
@@ -324,10 +314,10 @@ export type GameEvent =
     }
   | { kind: 'move'; season: number; nation: Owner; from: RegionId; to: RegionId; troops: number }
   | { kind: 'red_line'; season: number; nation: NationId; by: Owner; what: string }
-  | { kind: 'income'; season: number; gold: number; tolls: number; fees: number; trade: number }
+  | { kind: 'income'; season: number; gold: number; tolls: number }
   | { kind: 'gossip'; season: number; from: NationId; to: NationId; entry: string }
   | { kind: 'lie_caught'; season: number; entry: string; by: NationId[]; how: string }
-  | { kind: 'letter'; season: number; letter: string; nation: NationId; letterKind: LetterKind; granted: boolean }
+  | { kind: 'letter'; season: number; letter: string; nation: NationId; letterKind: LetterKind; answer: string }
   | { kind: 'tension'; season: number; from: number; to: number };
 
 export interface ChronicleEntry {
@@ -339,7 +329,6 @@ export interface ChronicleEntry {
 
 export interface SeasonRecord {
   season: number;
-  actions: ResolvedAction[];
   events: GameEvent[];
   tensionStart: number;
   tensionEnd: number;
@@ -411,6 +400,7 @@ export interface SeasonSummary {
 
 export interface WorldStats {
   warsStarted: number;
+  collapses: number;
   instigated: Instigation[];
   peacesBrokered: number;
   battles: number;
@@ -438,6 +428,8 @@ export interface WorldState {
   wars: War[];
   alliances: Alliance[];
   letters: Letter[];
+  /** What each nation means to do this season (see policy.ts). */
+  intents: Intent[];
   /** Nations the player has held an audience with this season. */
   audiencesThisSeason: NationId[];
   /** Things the player did this season before it ended (letters answered, lies caught...). */

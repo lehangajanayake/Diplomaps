@@ -2,17 +2,17 @@
  * Game orchestration: everything that mixes the pure engine, the AI endpoints and the UI state.
  * Components call these functions; they read and write the Zustand store.
  */
-import { assessAudience, chooseAction, extractPromises, fetchHealth, streamAudience, writeChronicle, writeEnding } from '../ai/client';
+import { assessAudience, extractPromises, fetchHealth, streamAudience, writeEnding, writeFlavour } from '../ai/client';
 import { CONFIG, seasonName, seasonTitle, seasonYear } from '../engine/config';
 import { greetingFor } from '../engine/courtesy';
-import { composeCrisis } from '../engine/crisis';
-import { addLedgerEntries, answerLetter, changePassage, recordAudience } from '../engine/ledger';
+import { addLedgerEntries, recordAudience } from '../engine/ledger';
+import { answerLetter } from '../engine/letters';
 import { PROFILES } from '../engine/nations';
 import type { AudienceRequest } from '../engine/schema';
-import { playSeason } from '../engine/resolve';
-import { NATION_IDS, type AmbitionId, type GameEvent, type NationAction, type NationId, type RegionId, type WorldState } from '../engine/types';
+import { openFirstSeason, playSeason } from '../engine/resolve';
+import type { AmbitionId, GameEvent, NationId, WorldState } from '../engine/types';
 import { summariseSeason } from '../engine/summary';
-import { buildActionContext, buildAudienceContext, buildChronicleRequest, buildEndingRequest } from '../engine/views';
+import { buildAudienceContext, buildEndingRequest, buildFlavourRequest } from '../engine/views';
 import { createWorld } from '../engine/world';
 import { sound } from '../audio/sound';
 import { clearSave, loadSave, randomSeed, useStore, type AudienceTurnUI, type MapFx, type Note } from './worldStore';
@@ -88,8 +88,7 @@ export function beginGame(seed?: number): void {
 export function chooseAmbition(ambition: AmbitionId): void {
   const w = get().world;
   if (!w || w.player.ambition) return;
-  const world: WorldState = { ...w, player: { ...w.player, ambition } };
-  world.crisis = composeCrisis(world);
+  const world = openFirstSeason({ ...w, player: { ...w.player, ambition } });
   set({ world, crisisOpen: true });
   sound.play('quill');
 }
@@ -148,20 +147,12 @@ export function closeOverlay(): void {
   set({ overlay: null });
 }
 
-export function decideLetter(id: string, grant: boolean): void {
+export function decideLetter(id: string, answer: string): void {
   const w = get().world;
   if (!w) return;
-  const { world, events } = answerLetter(w, id, grant);
+  const { world, events } = answerLetter(w, id, answer);
   commit(world, events);
   set({ overlay: null });
-  sound.play(grant ? 'quill' : 'paper');
-}
-
-export function setPassage(nation: NationId, grant: boolean): void {
-  const w = get().world;
-  if (!w) return;
-  const { world, events } = changePassage(w, nation, grant);
-  commit(world, events);
   sound.play('quill');
 }
 
@@ -175,6 +166,7 @@ export function audiencesLeft(w: WorldState): number {
 
 export function canHoldAudience(w: WorldState, nation: NationId): string | null {
   if (w.ending) return 'The game is over.';
+  if (w.nations[nation].fallen !== null) return `${PROFILES[nation].name} has fallen. No one is left to receive you.`;
   if (w.audiencesThisSeason.includes(nation)) return `You have already met ${PROFILES[nation].ruler.name} this season.`;
   if (audiencesLeft(w) <= 0) return 'No audiences remain this season. Ring the bell to end it.';
   return null;
@@ -309,19 +301,6 @@ export function exitAudience(): void {
 
 const sleep = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
 
-function waitingLines(w: WorldState): string[] {
-  const caps = NATION_IDS.map((n) => ({ nation: PROFILES[n].name, capital: w.map.capitals[n].name, ruler: PROFILES[n].ruler.name }));
-  return [
-    `A rider sets out for ${caps[0]!.capital}…`,
-    `In ${caps[1]!.capital}, clerks tally the season's tolls…`,
-    `Wax is pressed on letters in ${caps[4]!.capital}…`,
-    `${caps[2]!.ruler} reads your words by candlelight…`,
-    `Reed-boats slip out of ${caps[3]!.capital} in the mist…`,
-    `${caps[0]!.ruler} counts the spears on the border…`,
-    'The five courts take counsel…',
-  ];
-}
-
 function buildFx(before: WorldState, events: GameEvent[]): MapFx {
   const fx: MapFx = {
     key: Date.now(),
@@ -339,7 +318,7 @@ function buildFx(before: WorldState, events: GameEvent[]): MapFx {
       fx.battles.push({ region: e.region, from: e.from, attacker: e.attacker, captured: e.captured });
       if (e.captured) fx.conquests.push({ region: e.region, from: e.from, owner: e.attacker });
     } else if (e.kind === 'cede') fx.conquests.push({ region: e.region, from: null, owner: e.target });
-    else if (e.kind === 'mobilise') fx.mobilised.push(e.region as RegionId);
+    else if (e.kind === 'mobilise') fx.mobilised.push({ region: e.region, amount: e.amount });
     else if (e.kind === 'gossip') fx.trails.push({ from: e.from, to: e.to, entry: e.entry });
   }
   fx.trails = fx.trails.slice(0, 8);
@@ -354,35 +333,19 @@ export async function endSeason(): Promise<void> {
   const next = w.season + 1;
   const title = finalSeason ? `The End of ${seasonName(w.season)}, ${seasonYear(w.season)}` : `${seasonName(next)}, Year ${seasonYear(next)}`;
   sound.play('bell');
-  const lines = waitingLines(w);
-  set({ resolving: true, selectedNation: null, overlay: null, fx: null, seasonCard: { season: next, title, message: lines[0]!, closing: false } });
+  set({ resolving: true, selectedNation: null, overlay: null, fx: null, seasonCard: { season: next, title, message: 'The five courts make their moves…', closing: false } });
 
-  let tick = 0;
-  const ticker = window.setInterval(() => {
-    const card = get().seasonCard;
-    if (card && !card.closing) set({ seasonCard: { ...card, message: lines[++tick % lines.length]! } });
-  }, 1700);
-
-  const [results] = await Promise.all([
-    Promise.all(
-      NATION_IDS.map(async (nation) => {
-        const r = await chooseAction({ nation, context: buildActionContext(w, nation) });
-        return { nation, action: r.action, target: r.target, region: r.region, reason: r.reason } satisfies NationAction;
-      }),
-    ),
-    sleep(2600),
-  ]);
-  window.clearInterval(ticker);
-
+  // Code decides everything at once; the pause is only for the bell to ring.
   const audiences = [...w.audiencesThisSeason];
-  const outcome = playSeason(w, results);
+  const outcome = playSeason(w);
+  await sleep(1600);
   const fx = buildFx(w, outcome.events);
-  set({ world: outcome.state, fx, seasonCard: { ...get().seasonCard!, message: finalSeason ? 'The last season is done.' : 'The courts have chosen.', closing: true } });
+  set({ world: outcome.state, fx, seasonCard: { ...get().seasonCard!, message: finalSeason ? 'The last season is done.' : 'The courts have moved.', closing: true } });
   if (outcome.state.tension > CONFIG.tension.drumsAbove) sound.play('drums');
 
-  // The chronicler writes while the map plays out.
+  // The chronicler and the courts' scribes write while the map plays out.
   set({ chroniclePending: 'The chronicler dips his quill…' });
-  const chroniclePromise = writeChronicle(buildChronicleRequest(outcome.state, outcome.events, w.season, audiences));
+  const flavour = writeFlavour(buildFlavourRequest(outcome.state, outcome.events, w.season, audiences));
   await sleep(1100);
   set({ seasonCard: null });
   await sleep(4600);
@@ -390,14 +353,15 @@ export async function endSeason(): Promise<void> {
   await sleep(200);
   set({ fx: null, resolving: false, summary: summariseSeason(w, outcome.state, outcome.events) });
 
-  // The chronicle inks itself in whenever the chronicler returns; the table is already yours again.
-  void chroniclePromise.then((chron) => {
-    const entry = { season: w.season, title: seasonTitle(w.season), lines: chron.lines, fromAI: !chron.fallback };
+  // The words ink themselves in whenever they return; the table is already yours again.
+  void flavour.then((f) => {
     const cur = get().world;
     if (!cur) return;
+    const entry = { season: w.season, title: seasonTitle(w.season), lines: f.chronicle, fromAI: !f.fallback };
     const chronicle = [...cur.chronicle.filter((c) => c.season !== w.season), entry].sort((x, y) => x.season - y.season);
+    const letters = cur.letters.map((l) => (f.quotes[l.id] ? { ...l, quote: f.quotes[l.id]! } : l));
     const latest = cur.history.at(-1)?.season;
-    set({ world: { ...cur, chronicle }, chronicleFresh: w.season, chroniclePending: latest === w.season ? null : get().chroniclePending });
+    set({ world: { ...cur, chronicle, letters }, chronicleFresh: w.season, chroniclePending: latest === w.season ? null : get().chroniclePending });
     sound.play('quill');
   });
 }

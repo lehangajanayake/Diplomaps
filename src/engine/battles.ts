@@ -1,7 +1,7 @@
 /** Battles are resolved by code: troops, terrain and seeded dice. */
 import { CONFIG } from './config.js';
 import type { Rng } from './rng.js';
-import { CROSSING, UNCLAIMED, type EdgeKind, type GameEvent, type NationId, type Owner, type RegionId, type WorldState } from './types.js';
+import { CROSSING, UNCLAIMED, type EdgeKind, type GameEvent, type Holder, type NationId, type Owner, type RegionId, type WorldState } from './types.js';
 
 export interface AttackOption {
   from: RegionId;
@@ -19,17 +19,26 @@ function touchesCrossing(w: WorldState, id: RegionId): boolean {
   return w.map.regions[id]!.neighbours.some((nb) => w.regions[nb]!.owner === CROSSING);
 }
 
-/** Every way `attacker` can strike `defender` this season. Marching through the Crossing needs passage. */
-export function attackOptions(w: WorldState, attacker: NationId, defender: Owner): AttackOption[] {
+/** Troops a region can send out: all but one, and all but a garrison at a capital. */
+export function available(w: WorldState, id: RegionId): number {
+  const reserve = w.map.regions[id]!.capital ? CONFIG.military.capitalGarrison : 1;
+  return Math.max(0, w.regions[id]!.troops - reserve);
+}
+
+/**
+ * Every way `attacker` can strike `defender` this season. Across a shared border always; through the
+ * Crossing only when `through` is set (the Warden let the army pass, or it forced its way).
+ */
+export function attackOptions(w: WorldState, attacker: NationId, defender: Holder, through = false): AttackOption[] {
   const out: AttackOption[] = [];
   const ids = w.map.regionIds;
-  const own = ids.filter((id) => w.regions[id]!.owner === attacker && w.regions[id]!.troops >= CONFIG.military.minAttackTroops);
+  const own = ids.filter((id) => w.regions[id]!.owner === attacker && available(w, id) >= CONFIG.military.minAttackTroops - 1);
   for (const from of own) {
     for (const nb of w.map.regions[from]!.neighbours) {
       if (w.regions[nb]!.owner === defender) out.push({ from, to: nb, viaCrossing: false, edge: edgeKind(w, from, nb) });
     }
   }
-  if (defender !== CROSSING && w.player.passage[attacker] === 'granted') {
+  if (through && defender !== CROSSING && defender !== UNCLAIMED) {
     const sources = own.filter((id) => touchesCrossing(w, id));
     const targets = ids.filter((id) => w.regions[id]!.owner === defender && touchesCrossing(w, id));
     for (const from of sources) {
@@ -53,10 +62,10 @@ export function defenceMultiplier(w: WorldState, opt: AttackOption): number {
 }
 
 /** Pick the most promising attack, preferring the region the attacker asked for. */
-export function chooseAttack(w: WorldState, attacker: NationId, defender: Owner, prefer: RegionId | null, rng: Rng): AttackOption | null {
-  const options = attackOptions(w, attacker, defender);
+export function chooseAttack(w: WorldState, attacker: NationId, defender: Owner, prefer: RegionId | null, rng: Rng, through = false): AttackOption | null {
+  const options = attackOptions(w, attacker, defender, through);
   if (options.length === 0) return null;
-  const score = (o: AttackOption) => (w.regions[o.from]!.troops - 1) - w.regions[o.to]!.troops * defenceMultiplier(w, o) + rng.next() * 0.3;
+  const score = (o: AttackOption) => available(w, o.from) - w.regions[o.to]!.troops * defenceMultiplier(w, o) + rng.next() * 0.3;
   const preferred = prefer ? options.filter((o) => o.to === prefer) : [];
   const pool = preferred.length > 0 ? preferred : options;
   return pool.reduce((best, o) => (score(o) > score(best) ? o : best));
@@ -69,7 +78,7 @@ export function fight(w: WorldState, attacker: NationId, opt: AttackOption, rng:
   const to = w.regions[opt.to]!;
   if (to.owner === UNCLAIMED) return occupy(w, attacker, opt);
   const defender = to.owner;
-  const committed = Math.max(1, from.troops - 1);
+  const committed = Math.max(1, available(w, opt.from));
   const defenders = to.troops;
   const attackScore = committed * (1 + (press ? m.pressBonus : 0)) * rng.range(1 - m.variance, 1 + m.variance);
   const defenceScore = defenders * defenceMultiplier(w, opt) * rng.range(1 - m.variance, 1 + m.variance);
@@ -123,7 +132,7 @@ export function fight(w: WorldState, attacker: NationId, opt: AttackOption, rng:
 export function occupy(w: WorldState, nation: NationId, opt: AttackOption): GameEvent[] {
   const from = w.regions[opt.from]!;
   const to = w.regions[opt.to]!;
-  const moving = Math.max(1, Math.min(from.troops - 1, 2));
+  const moving = Math.max(1, Math.min(available(w, opt.from), 2));
   from.troops = Math.max(0, from.troops - moving);
   to.owner = nation;
   to.troops = moving;

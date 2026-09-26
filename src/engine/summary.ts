@@ -41,12 +41,17 @@ export function summariseSeason(before: WorldState, after: WorldState, events: r
     you.push({ text: `${nameOf(n, 'start')} trusts you ${d > 0 ? 'more' : 'less'} (${d > 0 ? '+' : ''}${d})`, tone: d > 0 ? 'good' : 'bad' });
   }
 
+  // The realm: the fall of nations first, then wars, conquests, peace and alliances.
+  for (const e of events) if (e.kind === 'collapse') realm.push({ text: `${cap(e.nation)} has fallen to ${who(e.by)}`, tone: 'bad' });
   for (const e of events) {
-    if (e.kind === 'war') realm.push({ text: `${cap(e.nation)} declared war on ${who(e.target)}`, tone: 'bad' });
-    else if (e.kind === 'battle' && e.captured && e.defender !== CROSSING) {
+    if (e.kind === 'war') {
+      const text = e.cause === 'ally' ? `${cap(e.nation)} joined the war against ${who(e.target)}` : `${cap(e.nation)} declared war on ${who(e.target)}`;
+      realm.push({ text, tone: 'bad' });
+    } else if (e.kind === 'battle' && e.captured && e.defender !== CROSSING) {
       realm.push({ text: `${cap(e.attacker)} took ${place(e.region)} from ${who(e.defender)}`, tone: 'neutral' });
-    } else if (e.kind === 'peace') realm.push({ text: `${cap(e.a)} and ${who(e.b)} made peace`, tone: 'good' });
-    else if (e.kind === 'alliance' && e.accepted) realm.push({ text: `${cap(e.a)} and ${who(e.b)} became allies`, tone: 'neutral' });
+    } else if (e.kind === 'peace' && e.how !== 'fallen') realm.push({ text: `${cap(e.a)} and ${who(e.b)} made peace`, tone: 'good' });
+    else if (e.kind === 'stand_down') realm.push({ text: `${cap(e.nation)} called off its war on ${who(e.target)}`, tone: 'good' });
+    else if (e.kind === 'alliance') realm.push({ text: `${cap(e.a)} and ${who(e.b)} became allies`, tone: 'neutral' });
   }
   if (realm.length === 0) realm.push({ text: 'No blood was spilled this season', tone: 'good' });
 

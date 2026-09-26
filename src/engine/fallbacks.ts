@@ -26,8 +26,15 @@ export function fallbackChronicle(news: readonly News[], seasonTitle: string): s
   };
   for (const n of news) {
     switch (n.kind) {
+      case 'collapse':
+        add(`${who(n.nation)} is no more. Its capital fell to ${mid(n.by)}, and its banners were burned in the square.`);
+        break;
       case 'war':
-        add(`${who(n.nation)} declared war upon ${mid(n.target)}, and the beacons were lit along the border.`);
+        add(
+          n.cause === 'ally'
+            ? `${who(n.nation)} honoured its alliance and marched against ${mid(n.target)}.`
+            : `${who(n.nation)} declared war upon ${mid(n.target)}, and the beacons were lit along the border.`,
+        );
         break;
       case 'battle':
         add(
@@ -40,32 +47,43 @@ export function fallbackChronicle(news: readonly News[], seasonTitle: string): s
         add(`In the courts of ${list(n.by.map(mid))}, it is said the Warden spoke falsely: "${n.what}".`);
         break;
       case 'peace':
-        add(`${who(n.a)} and ${mid(n.b)} laid down their arms, for now.`);
+        if (n.how !== 'fallen') add(`${who(n.a)} and ${mid(n.b)} laid down their arms, for now.`);
+        break;
+      case 'stand_down':
+        add(`${who(n.nation)} sent its soldiers home, and ${mid(n.target)} slept a little easier.`);
         break;
       case 'alliance':
-        if (n.accepted) add(`${who(n.a)} and ${mid(n.b)} sealed an alliance with wine and hostages.`);
+        add(`${who(n.a)} and ${mid(n.b)} sealed an alliance with wine and hostages.`);
         break;
       case 'cede':
         add(`${n.region} passed from ${mid(n.nation)} to ${mid(n.target)} without a sword being drawn.`);
-        break;
-      case 'passage':
-        add(n.granted ? `The Warden opened the roads of the Crossing to the soldiers of ${mid(n.nation)}.` : `The Warden shut the passes against ${mid(n.nation)}.`);
         break;
       default:
         break;
     }
   }
-  const mobilised = news.flatMap((n) => (n.kind === 'action' && n.action === 'mobilise' ? [n.nation] : []));
-  if (mobilised.length) {
-    const names = mobilised.map((n, i) => (i === 0 ? who(n) : mid(n)));
-    add(`${list(names)} called more men to the banners.`);
-  }
-  const traders = news.flatMap((n) => (n.kind === 'action' && n.action === 'trade' ? [n.nation] : []));
-  if (traders.length) add(`Wagons from ${list(traders.map(mid))} rolled through ${CROSSING_PROFILE.capitalName}, and the toll-chests grew heavy.`);
   if (lines.length === 0) add(`${seasonTitle} passed quietly. The roads were busy, the courts were watchful, and no one trusted the silence.`);
-  if (lines.length < 2) add('In the taverns of the Crossing, travellers spoke in low voices of what the next season might bring.');
+  if (lines.length < 2) add(`In the taverns of ${CROSSING_PROFILE.capitalName}, travellers spoke in low voices of what the next season might bring.`);
   return lines;
 }
+
+/** A fallen ruler's last letter, when the AI cannot write it. */
+export const LAST_WORDS: Record<NationId, string> = {
+  varrow: 'Varrow falls as it lived: in the saddle, facing the enemy. Remember the horses, toll-keeper.',
+  kelm: 'The League is dissolved. Every debt owed to Kelm is now owed to no one. Enjoy it. Noted.',
+  sael: 'Darling, the harbour is burning and the silks with it. Wear something beautiful for me, won\u2019t you?',
+  tarn: 'The water rises over the reed-shrines. Hm. The fen was here before us. It will be here after.',
+  ostrin: 'The seventh lamp is out, child. It is written that darkness is only waiting. Wait well.',
+};
+
+/** A court that caught the Warden lying, when the AI cannot write its letter. */
+export const ANGRY_WORDS: Record<NationId, string> = {
+  varrow: 'Varrow heard what you said, and Varrow heard the truth. Varrow does not forget which came first.',
+  kelm: 'Your words have been audited, Warden. They did not balance. Noted.',
+  sael: 'Darling, you lied to me. How very rude. Only I am allowed to do that.',
+  tarn: 'The heron sees the frog lie still to hide. Hm. The fen saw you.',
+  ostrin: 'It is written: the liar builds on water. Your house is sinking, child.',
+};
 
 /** Verdicts for when the AI cannot be reached: each ruler's parting shot, by how the game went. */
 const VERDICTS: Record<NationId, { won: string; lost: string; cold: string }> = {

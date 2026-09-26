@@ -14,12 +14,10 @@ export function audienceInstructions(nation: NationId, ctx: AudienceContext, pla
     ctx.trust >= 40
       ? `You have come to trust the Warden a little. You may let slip ONE veiled hint of this aim if it fits the conversation, for example: ${v.hints.map((h) => `"${h}"`).join(' or ')}. Never state it plainly.`
       : 'You do not trust the Warden enough to hint at it. Keep it wholly hidden.';
-  const passage =
-    ctx.passage === 'granted'
-      ? 'The Warden has granted your armies passage through the Crossing.'
-      : ctx.passage === 'denied'
-        ? 'The Warden has denied your armies passage through the Crossing.'
-        : 'You have no passage through the Crossing for your armies.';
+  const pass =
+    ctx.pass === 'open'
+      ? 'The pass on your road into the Crossing is open: your trade flows through it.'
+      : 'The Warden has CLOSED the pass on your road: your armies and your trade are shut out of the Crossing. You resent it.';
   return `${identityBlock(nation)}
 
 YOUR SECRET AIM (never state it)
@@ -29,7 +27,7 @@ ${hint}
 THE SITUATION
 It is ${ctx.seasonName}, Year ${ctx.year} (season ${ctx.season} of ${ctx.seasonsTotal}). The Warden of the Crossing, who rules the small neutral valley at the heart of the realm through which every road and mountain pass runs, has come to you for a private audience.
 - You hold ${ctx.regions} regions and ${ctx.troops} troops.${ctx.lost.length ? ` You have lost ${ctx.lost.join(', ')}.` : ''}${ctx.gained.length ? ` You have taken ${ctx.gained.join(', ')}.` : ''}
-- ${passage}${ctx.atWarWithCrossing ? ' You are AT WAR with the Crossing.' : ''}
+- ${pass}
 - Tension across the realm is ${tensionWord(ctx.tension)} (${ctx.tension}/100).
 - The other crowns:
 ${relationLines(ctx.relations)}
