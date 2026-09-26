@@ -7,9 +7,11 @@ import { CONFIG, seasonName, seasonTitle, seasonYear } from '../engine/config';
 import { greetingFor, greetingToneFor } from '../engine/courtesy';
 import { addLedgerEntries, recordAudience } from '../engine/ledger';
 import { claimRuin } from '../engine/actions';
+import { callFavour } from '../engine/favours';
 import { cedableRegions, recordOffer } from '../engine/land';
 import { answerLetter } from '../engine/letters';
 import { PROFILES } from '../engine/nations';
+import { setPass } from '../engine/passes';
 import type { AudienceRequest } from '../engine/schema';
 import { openFirstSeason, playSeason } from '../engine/resolve';
 import type { AmbitionId, GameEvent, NationId, RegionId, WorldState } from '../engine/types';
@@ -181,6 +183,32 @@ export function claimRegion(region: RegionId): void {
   if (world !== w) commit(world, events);
 }
 
+/** The card for calling in a favour from a nation that trusts you. */
+export function openFavour(nation: NationId): void {
+  if (get().audience || get().resolving) return;
+  set({ overlay: { kind: 'favour', nation }, selectedNation: null });
+  sound.play('paper');
+}
+
+/** Seal the war letter: `nation` will declare war on `target` when the bell rings. */
+export function callInFavour(nation: NationId, target: NationId): void {
+  const w = get().world;
+  if (!w) return;
+  const { world, events } = callFavour(w, nation, target);
+  if (world === w) return;
+  commit(world, events);
+  sound.play('drums');
+}
+
+export function togglePass(nation: NationId): void {
+  const w = get().world;
+  if (!w) return;
+  const { world, events } = setPass(w, nation, w.player.passes[nation] === 'open' ? 'closed' : 'open');
+  if (world === w) return;
+  commit(world, events);
+  sound.play('doors');
+}
+
 export function decideLetter(id: string, answer: string): void {
   const w = get().world;
   if (!w) return;
@@ -329,14 +357,15 @@ async function closeAudience(endedByRuler: boolean, calledAway: boolean): Promis
   if (assessment.manipulation) note(`${PROFILES[a.nation].ruler.name} took your strange words as an insult.`, 'danger');
 }
 
-/** Close the doors on the audience hall. */
-export function exitAudience(): void {
+/** Close the doors on the audience hall, then do `then` (such as calling in a favour) at the table. */
+export function exitAudience(then?: () => void): void {
   const a = get().audience;
   if (!a) return;
   set({ audience: { ...a, leaving: true } });
   sound.play('doors');
   window.setTimeout(() => {
     set({ audience: null });
+    then?.();
   }, 900);
 }
 
@@ -357,6 +386,7 @@ function buildFx(before: WorldState, events: GameEvent[]): MapFx {
     conquests: [],
     trails: [],
     mobilised: [],
+    marches: [],
   };
   for (const e of events) {
     if (e.kind === 'move') fx.moves.push({ from: e.from, to: e.to, owner: e.nation, troops: e.troops });
@@ -367,6 +397,8 @@ function buildFx(before: WorldState, events: GameEvent[]): MapFx {
     else if (e.kind === 'gain') fx.conquests.push({ region: e.region, from: null, owner: 'crossing' });
     else if (e.kind === 'mobilise') fx.mobilised.push({ region: e.region, amount: e.amount });
     else if (e.kind === 'gossip') fx.trails.push({ from: e.from, to: e.to, entry: e.entry });
+    else if (e.kind === 'exposed') fx.trails.push({ from: e.nation, to: e.target, entry: 'favour' });
+    else if (e.kind === 'march') fx.marches.push({ nation: e.nation, target: e.target });
   }
   // A region taken twice in one season inks in once, in its final colour.
   fx.conquests = fx.conquests.filter((c, i) => !fx.conquests.slice(i + 1).some((later) => later.region === c.region));

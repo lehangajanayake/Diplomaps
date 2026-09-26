@@ -7,10 +7,11 @@ import { useEffect, useRef, useState } from 'react';
 import { sound } from '../../audio/sound';
 import { CONFIG } from '../../engine/config';
 import { suggestionsFor } from '../../engine/courtesy';
+import { favourBlocked } from '../../engine/favours';
 import { PROFILES } from '../../engine/nations';
 import type { Mood } from '../../engine/schema';
 import type { WorldState } from '../../engine/types';
-import { exitAudience, leaveAudience, sendAudienceMessage } from '../../store/flow';
+import { exitAudience, leaveAudience, openFavour, sendAudienceMessage } from '../../store/flow';
 import { useStore, type AudienceState } from '../../store/worldStore';
 import { Portrait } from '../common/Portrait';
 import { SealButton } from '../common/SealButton';
@@ -148,8 +149,19 @@ function Summary({ audience, world }: { audience: AudienceState; world: WorldSta
       ) : (
         <p className="mt-[0.3em] font-body italic text-ink-faded">Nothing was said, and nothing was written.</p>
       )}
-      <div className="mt-[0.8em] flex items-center justify-between">
-        <SealButton label="Leave the hall" onClick={exitAudience} colour={p.colour} emblem={p.emblem} size="2.6em" seed={4} />
+      <div className="mt-[0.8em] flex items-center justify-between gap-[1em]">
+        <SealButton label="Leave the hall" onClick={() => exitAudience()} colour={p.colour} emblem={p.emblem} size="2.6em" seed={4} />
+        {!favourBlocked(world, audience.nation) && (
+          <SealButton
+            label="Call in a favour"
+            onClick={() => exitAudience(() => openFavour(audience.nation))}
+            colour="#7c1f18"
+            emblem="swords"
+            size="2.6em"
+            seed={9}
+            hint={`${p.name} trusts you enough to go to war on your word.`}
+          />
+        )}
         <span className="font-hand text-[0.85rem] italic text-ink-faded">
           {CONFIG.audiencesPerSeason - world.audiencesThisSeason.length} audiences left this season
         </span>

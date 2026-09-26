@@ -1,12 +1,13 @@
-/** Your own realm: the Crossing. Treasury, militia, passage for every nation, and sellswords. */
+/** Your own realm: the Crossing. Treasury, land, neutrality, and the pass on every nation's road. */
 import { motion } from 'motion/react';
 import { CONFIG } from '../../engine/config';
 import { CROSSING_PROFILE } from '../../engine/nations';
-import { CROSSING, type WorldState } from '../../engine/types';
-import { regionsOf } from '../../engine/world';
+import { CROSSING, NATION_IDS, type WorldState } from '../../engine/types';
+import { isStanding, regionsOf } from '../../engine/world';
 import { closeOverlay, openLedger } from '../../store/flow';
 import { WaxSeal } from '../common/WaxSeal';
 import { neutralityWord } from '../hud/words';
+import { PassControl } from './PassControl';
 
 export function CrossingSheet({ world }: { world: WorldState }) {
   const last = world.history[world.history.length - 1];
@@ -46,6 +47,17 @@ export function CrossingSheet({ world }: { world: WorldState }) {
           {Math.round(world.player.neutrality)} · {neutralityWord(world.player.neutrality)}
         </dd>
       </dl>
+      <section className="mt-[0.9em] border-t border-ink/20 pt-[0.7em]" aria-label="Your passes" data-tutorial="passes">
+        <h3 className="font-sc text-[0.95rem] tracking-[0.08em] text-wax">Your passes</h3>
+        <p className="mt-[0.15em] font-body text-[0.84rem] leading-snug text-ink-soft">
+          A closed pass stops a nation&rsquo;s armies and caravans. You lose its toll, and it trusts you less each season.
+        </p>
+        <div className="mt-[0.45em] space-y-[0.35em]">
+          {NATION_IDS.filter((n) => isStanding(world, n)).map((n) => (
+            <PassControl key={n} world={world} nation={n} />
+          ))}
+        </div>
+      </section>
       <div className="mt-[0.9em] border-t border-ink/20 pt-[0.8em]">
         <button type="button" onClick={openLedger} className="font-sc text-[0.9rem] text-ink hover:text-wax">
           Open the ledger →

@@ -4,16 +4,18 @@
  */
 import { motion } from 'motion/react';
 import { CONFIG, seasonTitle } from '../../engine/config';
+import { favourBlocked, favourThisSeason } from '../../engine/favours';
 import { isLie } from '../../engine/ledger';
-import { PROFILES } from '../../engine/nations';
+import { nameOf, PROFILES } from '../../engine/nations';
 import type { NationId, WorldState } from '../../engine/types';
-import { allied, atWar, regionsOf, totalTroops } from '../../engine/world';
-import { canHoldAudience, openDossier, startAudience } from '../../store/flow';
+import { allied, atWar, isStanding, regionsOf, totalTroops } from '../../engine/world';
+import { canHoldAudience, openDossier, openFavour, startAudience } from '../../store/flow';
 import { InkGauge } from '../common/InkGauge';
 import { Portrait } from '../common/Portrait';
 import { SealButton } from '../common/SealButton';
 import { WaxSeal } from '../common/WaxSeal';
 import { suspicionWord, trustWord } from '../hud/words';
+import { PassControl } from './PassControl';
 
 export function Dossier({ world, nation }: { world: WorldState; nation: NationId }) {
   const p = PROFILES[nation];
@@ -111,7 +113,7 @@ export function Dossier({ world, nation }: { world: WorldState; nation: NationId
         </ul>
       </div>
 
-      <div className="border-t border-ink/20 bg-[rgb(120_80_30/0.08)] px-[1.3em] py-[0.7em]">
+      <div className="space-y-[0.55em] border-t border-ink/20 bg-[rgb(120_80_30/0.08)] px-[1.3em] py-[0.7em]">
         {blocked ? (
           <p className="font-hand text-[0.9rem] italic text-ink-faded">{blocked}</p>
         ) : (
@@ -124,7 +126,32 @@ export function Dossier({ world, nation }: { world: WorldState; nation: NationId
             hint={`A private audience: up to ${CONFIG.messagesPerAudience} messages. Everything you promise is written in your ledger.`}
           />
         )}
+        {isStanding(world, nation) && (
+          <>
+            <FavourAction world={world} nation={nation} />
+            <PassControl world={world} nation={nation} detailed />
+          </>
+        )}
       </div>
     </motion.aside>
+  );
+}
+
+/** Call in a favour from this nation, or why you cannot yet, or the favour already sealed. */
+function FavourAction({ world, nation }: { world: WorldState; nation: NationId }) {
+  const called = favourThisSeason(world);
+  if (called?.nation === nation) {
+    return (
+      <p className="font-body text-[0.9rem] text-wax">
+        <span className="font-sc">Your favour:</span> {nameOf(nation, 'start')} marches on {nameOf(called.target)} when the bell rings.
+      </p>
+    );
+  }
+  const blocked = favourBlocked(world, nation);
+  return (
+    <div className="flex items-center gap-[0.8em]">
+      <SealButton label="Call in a favour" onClick={() => openFavour(nation)} disabled={!!blocked} colour="#7c1f18" emblem="swords" size="2.2em" seed={nation.length * 5} />
+      {blocked && <span className="font-hand text-[0.82rem] italic leading-tight text-ink-faded">{blocked}</span>}
+    </div>
   );
 }

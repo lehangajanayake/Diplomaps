@@ -13,8 +13,9 @@ import { WaxSeal } from '../common/WaxSeal';
 
 export function LetterView({ world, letter }: { world: WorldState; letter: Letter }) {
   const p = PROFILES[letter.from];
-  const answers = letterAnswers(world, letter);
-  const fallback = answers.find((a) => a.id === fallbackAnswer(letter));
+  const all = letterAnswers(world, letter);
+  const answers = all.filter((a) => !a.hidden);
+  const fallback = all.find((a) => a.id === fallbackAnswer(letter));
   return (
     <motion.div className="absolute inset-0 z-40 flex items-center justify-center bg-black/55" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeOverlay}>
       <motion.article
@@ -65,7 +66,9 @@ export function LetterView({ world, letter }: { world: WorldState; letter: Lette
           })}
         </ul>
         {fallback && answers.length > 1 && (
-          <p className="mt-[0.7em] text-center font-hand text-[0.82rem] italic text-ink-faded">Left unanswered, it becomes “{fallback.label}” when the bell rings.</p>
+          <p className="mt-[0.7em] text-center font-hand text-[0.82rem] italic text-ink-faded">
+            Left unanswered, it becomes “{fallback.label}”{fallback.hidden && fallback.outcome.notes?.length ? ` (${fallback.outcome.notes.join(', ')})` : ''} when the bell rings.
+          </p>
         )}
       </motion.article>
     </motion.div>

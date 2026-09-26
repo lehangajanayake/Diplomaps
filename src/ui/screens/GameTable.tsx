@@ -21,6 +21,7 @@ import { Dossier } from '../panels/Dossier';
 import { LedgerView } from '../panels/Ledger';
 import { LedgerBook } from '../panels/LedgerBook';
 import { ClaimCard } from '../panels/ClaimCard';
+import { FavourCard } from '../panels/FavourCard';
 import { LetterView } from '../panels/LetterView';
 import { LetterStack } from '../panels/LetterStack';
 import { InkPot } from '../table/Decor';
@@ -119,6 +120,7 @@ export function GameTable() {
           {overlay?.kind === 'ledger' && <LedgerView key="ledger" world={world} />}
           {letter && <LetterView key={letter.id} world={world} letter={letter} />}
           {overlay?.kind === 'claim' && <ClaimCard key={overlay.region} world={world} region={overlay.region} />}
+          {overlay?.kind === 'favour' && <FavourCard key={`favour-${overlay.nation}`} world={world} nation={overlay.nation} />}
         </AnimatePresence>
         <Notes />
       </div>

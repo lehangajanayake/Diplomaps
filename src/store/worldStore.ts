@@ -7,7 +7,13 @@ import type { Mood } from '../engine/schema';
 import { WORLD_VERSION, type Holder, type LedgerEntry, type NationId, type Owner, type RegionId, type SeasonSummary, type WorldState } from '../engine/types';
 
 export type Phase = 'title' | 'table' | 'ending';
-export type Overlay = null | { kind: 'ledger' } | { kind: 'letter'; id: string } | { kind: 'crossing' } | { kind: 'claim'; region: RegionId };
+export type Overlay =
+  | null
+  | { kind: 'ledger' }
+  | { kind: 'letter'; id: string }
+  | { kind: 'crossing' }
+  | { kind: 'claim'; region: RegionId }
+  | { kind: 'favour'; nation: NationId };
 
 export interface AudienceTurnUI {
   role: 'player' | 'ruler';
@@ -48,6 +54,8 @@ export interface MapFx {
   conquests: { region: RegionId; from: RegionId | null; owner: Owner }[];
   trails: { from: NationId; to: NationId; entry: string }[];
   mobilised: { region: RegionId; amount: number }[];
+  /** Armies marching through the valley under their banners, down one road and out along another. */
+  marches: { nation: NationId; target: NationId }[];
 }
 
 export interface SeasonCardState {

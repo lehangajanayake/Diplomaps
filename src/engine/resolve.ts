@@ -7,9 +7,11 @@ import { composeCrisis } from './crisis.js';
 import { attackTheCrossing, recoverBurning, resolveMarches } from './crossing.js';
 import { computeIncome } from './economy.js';
 import { checkEnding } from './endings.js';
+import { honourFavours } from './favours.js';
 import { runGossip } from './gossip.js';
 import { honourOffers } from './land.js';
 import { closeLetters, deliverLetters } from './letters.js';
+import { resentClosedPasses } from './passes.js';
 import { planIntents, sparkedByWords, warHolds } from './policy.js';
 import { Rng } from './rng.js';
 import { addTension, adjustNeutrality, adjustSuspicion } from './tension.js';
@@ -49,8 +51,9 @@ export function resolveSeason(state: WorldState): { state: WorldState; events: G
   // 1. Letters still sealed take their default answer.
   closeLetters(w, events);
 
-  // 2. The nations act on what they meant to do, unless the Warden talked them out of it,
-  //    and words spoken this season may start wars nobody planned.
+  // 2. Friends go to war as the Warden asked; the nations act on what they meant to do, unless the
+  //    Warden talked them out of it; and words spoken this season may start wars nobody planned.
+  honourFavours(w, rng, events);
   for (const intent of w.intents) {
     if (intent.kind !== 'war') continue;
     if (warHolds(w, intent.nation, intent.target)) declareWar(w, intent.nation, intent.target, 'grudge', events);
@@ -73,8 +76,9 @@ export function resolveSeason(state: WorldState): { state: WorldState; events: G
   formAlliances(w, rng, events);
   wearyPeace(w, rng, events);
 
-  // 5. Rulers hand over the land they offered; tolls are paid; the realm settles.
+  // 5. Rulers hand over the land they offered; courts shut out resent it; tolls are paid; the realm settles.
   honourOffers(w, events);
+  resentClosedPasses(w);
   const income = computeIncome(w);
   w.player.gold += income.gold;
   w.player.goldEarned += income.gold;

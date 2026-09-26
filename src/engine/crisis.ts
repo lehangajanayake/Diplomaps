@@ -3,8 +3,10 @@
  * move. Written by code from what the nations mean to do, so it is always true.
  */
 import { AMBITION } from './ambitions.js';
+import { friendAgainst } from './favours.js';
 import { nameOf } from './nations.js';
 import { sealedLetters } from './letters.js';
+import { needsPassage } from './policy.js';
 import type { Crisis, NationId, WorldState } from './types.js';
 import { regionName } from './world.js';
 
@@ -20,7 +22,9 @@ export function composeCrisis(w: WorldState): Crisis {
       tone: 'danger',
       headline: `${cap(attack.nation)} marches on you`,
       line: `${cap(attack.nation)}'s army will attack ${regionName(w, attack.region)} when the season ends.`,
-      suggestion: 'Answer its letter: pay tribute, hire sellswords, or stand and fight.',
+      suggestion: friendAgainst(w, attack.nation)
+        ? 'Answer its letter: pay tribute, hire sellswords, or call in a favour from a friend.'
+        : 'Answer its letter: pay tribute, hire sellswords, or stand and fight.',
       nations: [attack.nation],
       regions: [attack.region],
     };
@@ -45,7 +49,9 @@ export function composeCrisis(w: WorldState): Crisis {
       tone: 'warning',
       headline: `${cap(march.nation)} prepares for war`,
       line: `${cap(march.nation)} means to attack ${nameOf(march.target)} when the season ends.`,
-      suggestion: `Talk to ${nameOf(march.nation)} to stop it, or let the war come and profit from it.`,
+      suggestion: needsPassage(w, march.nation, march.target)
+        ? `Its army must cross your valley: close the pass to ${nameOf(march.nation)}, or charge it for passage.`
+        : `Talk to ${nameOf(march.nation)} to stop it, or let the war come and profit from it.`,
       nations: [march.nation, march.target],
     };
   }

@@ -46,15 +46,18 @@ const LETTER_NEWS: Record<string, (nation: string, answer: string) => string> = 
       ? `The Warden paid ${nation} tribute to turn its army back.`
       : answer === 'sellswords'
         ? `The Warden hired sellswords against ${nation}'s army.`
-        : `The Warden stood to fight ${nation}'s army.`,
+        : answer === 'favour'
+          ? `The Warden called in a favour, and ${nation}'s army turned back to face a new enemy.`
+          : `The Warden stood to fight ${nation}'s army.`,
   raid: (nation, answer) => (answer === 'pay' ? `The Warden paid off ${nation}'s foragers.` : `The Warden let ${nation}'s foragers burn a region rather than pay.`),
   passage: (nation, answer) => (answer === 'refuse' ? `The Warden refused ${nation}'s army passage.` : `The Warden granted ${nation}'s army passage through the Crossing.`),
+  help: (nation, answer) => (answer === 'refuse' ? `The Warden refused ${nation}'s plea to close a pass to its enemy.` : `At ${nation}'s request, the Warden shut a pass to ${nation}'s enemy.`),
   spoils: (nation, answer) => (answer === 'land' ? `The Warden took a region from ${nation} as spoils of war.` : `The Warden took ${nation}'s gold as spoils of war.`),
   talks: (nation, answer) => (answer === 'host' ? `The Warden hosted peace talks for ${nation}.` : `The Warden declined to host ${nation}'s peace talks.`),
   trade: (nation, answer) => (answer === 'waive' ? `The Warden waived the toll on ${nation}'s caravans.` : `The Warden charged ${nation}'s caravans the full toll.`),
   last: (nation) => `The Warden received the last letter of the fallen ruler of ${nation}.`,
   angry: (nation, answer) =>
-    answer === 'apologise' ? `The Warden sent apologies and gold to ${nation} after a lie was exposed.` : `The Warden ignored ${nation}'s angry letter about a lie.`,
+    answer === 'apologise' ? `The Warden sent apologies and gold to ${nation}'s angry court.` : `The Warden ignored ${nation}'s angry letter.`,
 };
 
 export function renderNews(news: readonly News[]): string {
@@ -78,6 +81,14 @@ export function renderNews(news: readonly News[]): string {
           return n.forced
             ? `- ${who(n.nation)}'s army forced its way through the Crossing to attack ${who(n.target)}, trampling the Warden's fields.`
             : `- The Warden let ${who(n.nation)}'s army march through the Crossing to attack ${who(n.target)}.`;
+        case 'turned_back':
+          return `- The Warden's closed pass turned back ${who(n.nation)}'s army, bound for ${who(n.target)}.`;
+        case 'pass':
+          return `- The Warden ${n.state === 'closed' ? 'closed' : 'reopened'} the pass to ${who(n.nation)}.`;
+        case 'favour':
+          return `- The Warden called in a favour: ${who(n.nation)} is to declare war on ${who(n.target)} at the season's end.`;
+        case 'exposed':
+          return `- Scandal: ${who(n.target)} learned that the Warden secretly asked ${who(n.nation)} to go to war against it.`;
         case 'burn':
           return `- Foragers from ${who(n.nation)} burned ${n.region}, in the Crossing.`;
         case 'gain':

@@ -6,11 +6,13 @@
 import { CONFIG } from './config.js';
 import { assaultOdds, burn, passageWanted } from './crossing.js';
 import { isBurning } from './economy.js';
-import { ANGRY_WORDS, LAST_WORDS, LETTER_WORDS } from './fallbacks.js';
+import { ANGRY_WORDS, EXPOSED_WORDS, LAST_WORDS, LETTER_WORDS } from './fallbacks.js';
+import { favourOutcome, friendAgainst } from './favours.js';
 import { nameOf, PROFILES } from './nations.js';
 import type { Rng } from './rng.js';
 import { regionToCede, touchesCrossing } from './land.js';
 import { applyOutcome, type Outcome } from './outcome.js';
+import { passLocked, passOutcome } from './passes.js';
 import { crossRedLine } from './tension.js';
 import { CROSSING, NATION_IDS, type GameEvent, type Letter, type LetterKind, type NationId, type WorldState } from './types.js';
 import { makePeace } from './war.js';
@@ -22,6 +24,8 @@ export interface LetterAnswer {
   outcome: Outcome;
   /** Why this answer cannot be chosen right now, if it cannot. */
   blocked?: string;
+  /** Taken only by leaving the letter unanswered, when three other answers already fill it. */
+  hidden?: boolean;
 }
 
 interface LetterKindDef {
@@ -47,12 +51,19 @@ function redLinesCrossedByPassage(nation: NationId): NationId[] {
 
 const L = CONFIG.letters;
 
+/** An army marching on the valley turns back. */
+function callOffAttack(x: WorldState, nation: NationId): void {
+  x.intents = x.intents.filter((i) => !(i.kind === 'attack' && i.nation === nation));
+}
+
 const KINDS: Record<LetterKind, LetterKindDef> = {
   attack: {
     summary: (w, l) => `${cap(l.from)}'s army marches on ${regionName(w, l.region!)}.`,
     answers: (w, l) => {
       const region = regionName(w, l.region!);
       const odds = (extra: number) => `${region} ${assaultOdds(w, l.from, l.region!, extra)}`;
+      const friend = friendAgainst(w, l.from);
+      const favour = friend ? favourOutcome(friend, l.from) : null;
       return [
         {
           id: 'tribute',
@@ -62,7 +73,7 @@ const KINDS: Record<LetterKind, LetterKindDef> = {
             trust: { [l.from]: L.tributeTrust },
             notes: ['they turn back'],
             act: (x) => {
-              x.intents = x.intents.filter((i) => !(i.kind === 'attack' && i.nation === l.from));
+              callOffAttack(x, l.from);
               x.nations[l.from].grievances = 0;
             },
           },
@@ -80,7 +91,23 @@ const KINDS: Record<LetterKind, LetterKindDef> = {
           },
           blocked: afford(w, L.sellswordsCost),
         },
-        { id: 'fight', label: 'Stand and fight', outcome: { notes: [odds(0)] } },
+        ...(friend && favour
+          ? [
+              {
+                id: 'favour',
+                label: `Call in a favour from ${nameOf(friend)}`,
+                outcome: {
+                  ...favour,
+                  notes: [...(favour.notes ?? []), 'they turn back'],
+                  act: (x: WorldState, events: GameEvent[]) => {
+                    favour.act?.(x, events);
+                    callOffAttack(x, l.from);
+                  },
+                },
+              },
+            ]
+          : []),
+        { id: 'fight', label: 'Stand and fight', outcome: { notes: [odds(0)] }, hidden: friend !== null },
       ];
     },
     fallback: 'fight',
@@ -120,9 +147,10 @@ const KINDS: Record<LetterKind, LetterKindDef> = {
         },
       });
       const region = regionToCede(w, l.from);
+      const closed = w.player.passes[l.from] === 'closed' ? `Your pass is closed to ${nameOf(l.from)}.` : undefined;
       return [
-        { id: 'grant', label: 'Let them pass', outcome: letThrough({ gold: l.amount }) },
-        ...(region ? [{ id: 'land', label: `Ask for ${regionName(w, region)} instead`, outcome: letThrough({ land: { region, how: 'payment' } }) }] : []),
+        { id: 'grant', label: 'Let them pass', outcome: letThrough({ gold: l.amount }), blocked: closed },
+        ...(region ? [{ id: 'land', label: `Ask for ${regionName(w, region)} instead`, outcome: letThrough({ land: { region, how: 'payment' } }), blocked: closed }] : []),
         {
           id: 'refuse',
           label: 'Refuse',
@@ -138,6 +166,24 @@ const KINDS: Record<LetterKind, LetterKindDef> = {
     },
     fallback: 'refuse',
     quote: (l) => LETTER_WORDS.passage[l.from],
+  },
+  help: {
+    summary: (_w, l) => `${cap(l.from)} asks you to close the pass to ${nameOf(l.about!)}, whose army means to march through your valley.`,
+    answers: (w, l) => {
+      const enemy = l.about!;
+      const shut = passOutcome(enemy, 'closed');
+      const verb = w.player.passes[enemy] === 'closed' ? 'Keep it closed' : 'Close it';
+      const close = (payment: Pick<Outcome, 'gold' | 'land'>): Outcome => ({ ...payment, trust: { [l.from]: L.helpTrust }, notes: shut.notes, act: shut.act });
+      const locked = passLocked(w, enemy) ?? undefined;
+      const region = regionToCede(w, l.from);
+      return [
+        { id: 'close', label: `${verb} for ${l.amount} gold`, outcome: close({ gold: l.amount }), blocked: locked },
+        ...(region ? [{ id: 'land', label: `${verb} for ${regionName(w, region)} instead`, outcome: close({ land: { region, how: 'payment' } }), blocked: locked }] : []),
+        { id: 'refuse', label: 'Refuse', outcome: { trust: { [l.from]: L.helpRefusedTrust } } },
+      ];
+    },
+    fallback: 'refuse',
+    quote: (l) => LETTER_WORDS.help[l.from],
   },
   spoils: {
     summary: (w, l) => `${cap(l.from)} won the war you started, and offers you ${l.region ? regionName(w, l.region) : 'a share'} or ${l.amount} gold.`,
@@ -193,6 +239,8 @@ const KINDS: Record<LetterKind, LetterKindDef> = {
   },
   angry: {
     summary: (w, l) => {
+      // Without a ledger entry, the anger is over a favour: `about` is the friend who gave the Warden away.
+      if (!l.entry && l.about) return `${cap(l.from)} learned that you sent ${nameOf(l.about)} to war against it.`;
       const entry = w.player.ledger.find((e) => e.id === l.entry);
       return `${cap(l.from)} caught your lie${entry ? `: “${entry.what}”` : '.'}`;
     },
@@ -210,7 +258,7 @@ const KINDS: Record<LetterKind, LetterKindDef> = {
       { id: 'ignore', label: 'Say nothing', outcome: {} },
     ],
     fallback: 'ignore',
-    quote: (l) => ANGRY_WORDS[l.from],
+    quote: (l) => (!l.entry && l.about ? EXPOSED_WORDS[l.from] : ANGRY_WORDS[l.from]),
   },
 };
 
@@ -239,7 +287,7 @@ export function answerLetter(world: WorldState, letterId: string, answerId: stri
   const letter = w.letters.find((l) => l.id === letterId);
   if (!letter || letter.answer !== null || letter.season !== w.season) return { world, events };
   const answer = letterAnswers(w, letter).find((a) => a.id === answerId);
-  if (!answer || answer.blocked) return { world, events };
+  if (!answer || answer.blocked || answer.hidden) return { world, events };
   settle(w, letter, answer, events);
   return { world: w, events };
 }
@@ -320,6 +368,11 @@ export function deliverLetters(w: WorldState, events: readonly GameEvent[], rng:
   }
   const angry = new Set<NationId>();
   for (const e of events) {
+    if (e.kind !== 'exposed' || angry.has(e.target) || !isStanding(w, e.target)) continue;
+    angry.add(e.target);
+    sendLetter(w, { kind: 'angry', from: e.target, about: e.nation });
+  }
+  for (const e of events) {
     if (e.kind !== 'lie_caught') continue;
     const entry = w.player.ledger.find((x) => x.id === e.entry);
     const from = entry && e.by.includes(entry.to) ? entry.to : e.by[0];
@@ -355,8 +408,13 @@ export function deliverLetters(w: WorldState, events: readonly GameEvent[], rng:
     const raid = rng.pick(raids);
     send({ kind: 'raid', from: raid.nation, region: raid.region, amount: amount(L.raidCost) });
   }
+  // An army asks leave to cross the valley; the nation it would attack may ask you to shut the pass.
+  const writing = (n: NationId) => w.letters.some((l) => l.season === w.season && l.from === n);
   for (const march of passageWanted(w)) {
     if (room()) send({ kind: 'passage', from: march.nation, about: march.target, amount: amount(L.passageFee) });
+    if (room() && isStanding(w, march.target) && !writing(march.target) && rng.chance(L.helpChance)) {
+      send({ kind: 'help', from: march.target, about: march.nation, amount: amount(L.helpFee) });
+    }
   }
   const weary = w.wars.filter((war) => war.since < w.season).sort((a, b) => a.since - b.since)[0];
   if (weary && room() && rng.chance(L.talksChance)) {

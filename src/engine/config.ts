@@ -208,6 +208,29 @@ export const CONFIG = {
     talksChance: 0.6,
     talksTrust: 6,
     talksTension: -5,
+    /** A nation about to be attacked through the valley may pay you to close the pass to its enemy. */
+    helpChance: 0.6,
+    helpFee: [25, 35] as const,
+    helpTrust: 6,
+    helpRefusedTrust: -6,
+  },
+
+  /** Favours (favours.ts): a friend goes to war on the Warden's word, once a season. */
+  favours: {
+    /** How much a nation must trust the Warden before it will go to war for it. */
+    minTrust: 50,
+    /** What calling one costs: that friend's trust, and the Warden's neutrality. */
+    trustCost: -20,
+    neutralityCost: -15,
+    /** If the target learns who asked (the chance is one minus the friend's discretion). */
+    exposedSuspicion: 30,
+    exposedTrust: -15,
+  },
+
+  /** Passes (passes.ts): a closed pass stops a nation's armies, caravans and tolls. */
+  passes: {
+    /** Trust the nation loses in the Warden each season its pass stays closed. */
+    closedTrust: -6,
   },
 
   /** Land for the Crossing (land.ts): what it costs to grow, and what growing costs you. */

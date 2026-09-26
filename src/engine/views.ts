@@ -16,8 +16,14 @@ const place = (w: WorldState, id: string) => w.map.regions[id]?.name ?? id;
 
 /** How much each kind of news matters, when there is too much to tell. */
 const NEWS_RANK: Record<News['kind'], number> = {
-  collapse: 0, war: 1, battle: 2, lie_caught: 3, gain: 4, march: 5, burn: 6, peace: 7, cede: 8, stand_down: 9, red_line: 10, alliance: 11, letter: 12, audience: 13, gossip: 14,
+  collapse: 0, war: 1, exposed: 2, favour: 2, battle: 3, lie_caught: 4, gain: 5, march: 6, turned_back: 6, burn: 7, pass: 8, peace: 9, cede: 10, stand_down: 11, red_line: 12, alliance: 13, letter: 14, audience: 15, gossip: 16,
 };
+
+/** A war the Warden asked for stays secret from everyone but the friend who fought it, unless the target found out. */
+function secretFavour(w: WorldState, e: Extract<GameEvent, { kind: 'war' }>, perspective: NationId | null): boolean {
+  if (e.cause !== 'favour' || perspective === null || perspective === e.nation) return false;
+  return !w.player.favours.some((f) => f.nation === e.nation && f.target === e.target && f.exposed);
+}
 
 /** Turn engine events into structured news. `perspective` hides what that court would not know. */
 export function eventsToNews(w: WorldState, events: readonly GameEvent[], perspective: NationId | null = null): News[] {
@@ -28,7 +34,19 @@ export function eventsToNews(w: WorldState, events: readonly GameEvent[], perspe
         out.push({ kind: 'battle', attacker: e.attacker, defender: e.defender, region: place(w, e.region), captured: e.captured });
         break;
       case 'war':
-        out.push({ kind: 'war', nation: e.nation, target: e.target, cause: e.cause });
+        out.push({ kind: 'war', nation: e.nation, target: e.target, cause: secretFavour(w, e, perspective) ? 'grudge' : e.cause });
+        break;
+      case 'favour':
+        if (perspective === e.nation) out.push({ kind: 'favour', nation: e.nation, target: e.target });
+        break;
+      case 'exposed':
+        out.push({ kind: 'exposed', nation: e.nation, target: e.target });
+        break;
+      case 'turned_back':
+        out.push({ kind: 'turned_back', nation: e.nation, target: e.target });
+        break;
+      case 'pass':
+        out.push({ kind: 'pass', nation: e.nation, state: e.state });
         break;
       case 'stand_down':
         out.push({ kind: 'stand_down', nation: e.nation, target: e.target });

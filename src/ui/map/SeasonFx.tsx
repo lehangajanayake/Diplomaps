@@ -4,13 +4,46 @@
  * and rumours running along the roads.
  */
 import { motion, useReducedMotion } from 'motion/react';
-import type { MapData } from '../../engine/types';
+import { PROFILES } from '../../engine/nations';
+import type { MapData, NationId, Point } from '../../engine/types';
 import type { MapFx } from '../../store/worldStore';
 import { INK, ownerFill } from './palette';
 import { RumourTrails } from './RumourTrails';
 import { Token } from './Tokens';
 
 const SWORDS = 'M-9 -9 L7 7 M7 7 L9 5 M5 9 L7 7 M9 -9 L-7 7 M-7 7 L-9 5 M-5 9 L-7 7 M-10 -10 L-6 -8 M10 -10 L6 -8';
+
+/** Every nth point of a polyline, always keeping the last, so an animation has a few dozen keyframes. */
+function thin(points: readonly Point[], keep: number): Point[] {
+  const step = Math.max(1, Math.floor(points.length / keep));
+  const out = points.filter((_, i) => i % step === 0);
+  if (out.at(-1) !== points.at(-1)) out.push(points.at(-1)!);
+  return out;
+}
+
+/** Banners marching down one nation's road, through its pass into the valley, and out along the road to its enemy. */
+function MarchingBanners({ map, nation, target, delay, instant }: { map: MapData; nation: NationId; target: NationId; delay: number; instant: boolean }) {
+  const there = map.roads.find((r) => r.nation === nation)?.points ?? [];
+  const onward = [...(map.roads.find((r) => r.nation === target)?.points ?? [])].reverse();
+  const path = thin([...there, ...onward], 36);
+  if (path.length < 2) return null;
+  const duration = instant ? 0.01 : 3.4;
+  return (
+    <g data-march={nation}>
+      {[0, 1, 2].map((k) => (
+        <motion.g
+          key={k}
+          initial={{ x: path[0]![0], y: path[0]![1], opacity: 0 }}
+          animate={{ x: path.map((p) => p[0]), y: path.map((p) => p[1]), opacity: [0, 1, 1, 0] }}
+          transition={{ delay: delay + k * 0.3, duration, ease: 'linear', opacity: { delay: delay + k * 0.3, duration, times: [0, 0.08, 0.88, 1] } }}
+        >
+          <path d="M0 3 V-17" stroke={INK} strokeWidth={1.4} strokeLinecap="round" />
+          <path d="M0.7 -16.5 H13 L9.5 -12.5 L13 -8.5 H0.7 Z" fill={PROFILES[nation].colour} stroke="#2a1d12" strokeWidth={0.6} />
+        </motion.g>
+      ))}
+    </g>
+  );
+}
 
 export function SeasonFx({ map, fx }: { map: MapData; fx: MapFx }) {
   const reduce = useReducedMotion();
@@ -90,6 +123,10 @@ export function SeasonFx({ map, fx }: { map: MapData; fx: MapFx }) {
           </g>
         );
       })}
+
+      {fx.marches.map((m, i) => (
+        <MarchingBanners key={`march-${m.nation}`} map={map} nation={m.nation} target={m.target} delay={0.3 + i * 0.6} instant={!!reduce} />
+      ))}
 
       <RumourTrails map={map} trails={fx.trails} delay={1.2} />
     </g>

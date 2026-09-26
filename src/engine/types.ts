@@ -239,7 +239,7 @@ export interface LedgerEntry {
   broken: boolean;
 }
 
-export const LETTER_KINDS = ['attack', 'raid', 'passage', 'spoils', 'talks', 'trade', 'last', 'angry'] as const;
+export const LETTER_KINDS = ['attack', 'raid', 'passage', 'help', 'spoils', 'talks', 'trade', 'last', 'angry'] as const;
 export type LetterKind = (typeof LETTER_KINDS)[number];
 
 /** A letter on the Warden's table. What it says and what each answer does live in letters.ts. */
@@ -249,7 +249,7 @@ export interface Letter {
   from: NationId;
   /** The season the letter is on the table. */
   season: number;
-  /** The other nation the letter concerns: the enemy, the target, the one who caught you. */
+  /** The other nation the letter concerns: the enemy, the target, the friend who gave you away. */
   about: NationId | null;
   region: RegionId | null;
   /** Gold offered or asked. */
@@ -277,6 +277,17 @@ export interface PlayerState {
   claims: number;
   /** Land rulers offered in audiences, handed over when the season ends. */
   offers: LandOffer[];
+  /** Favours called in, one a season at most. */
+  favours: Favour[];
+}
+
+/** A favour the Warden called in: `nation` declares war on `target` when the season's bell rings. */
+export interface Favour {
+  nation: NationId;
+  target: NationId;
+  season: number;
+  /** Did the target learn who asked? Decided when the war is declared; null until then. */
+  exposed: boolean | null;
 }
 
 /** A ruler's offer of land, made in an audience. `region` is the one named, if any. */
@@ -319,6 +330,13 @@ export type GameEvent =
   | { kind: 'collapse'; season: number; nation: NationId; by: Owner; region: RegionId }
   /** A nation's army marched through the Crossing: let through, or forcing its way past a refusal. */
   | { kind: 'march'; season: number; nation: NationId; target: NationId; forced: boolean }
+  /** A closed pass turned back an army that meant to cross the valley. */
+  | { kind: 'turned_back'; season: number; nation: NationId; target: NationId }
+  | { kind: 'pass'; season: number; nation: NationId; state: PassState }
+  /** The Warden called in a favour: `nation` will declare war on `target` at the bell. */
+  | { kind: 'favour'; season: number; nation: NationId; target: NationId }
+  /** The target of a favour learned the Warden asked for the war. */
+  | { kind: 'exposed'; season: number; nation: NationId; target: NationId }
   | { kind: 'burn'; season: number; nation: NationId; region: RegionId }
   | { kind: 'gain'; season: number; region: RegionId; from: Holder; how: GainHow }
   | {
@@ -434,7 +452,7 @@ export interface WorldStats {
 }
 
 /** Bumped whenever the saved shape changes, so an old save is never loaded into a new game. */
-export const WORLD_VERSION = 2;
+export const WORLD_VERSION = 3;
 
 export interface WorldState {
   version: typeof WORLD_VERSION;

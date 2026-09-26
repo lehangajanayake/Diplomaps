@@ -80,6 +80,7 @@ export function createWorld(seed: number): WorldState {
       goldSpent: 0,
       neutrality: CONFIG.start.neutrality,
       passes: Object.fromEntries(NATION_IDS.map((id) => [id, 'open'])) as Record<NationId, 'open'>,
+      favours: [],
       ledger: [],
       regionsGained: [],
       claims: 0,
