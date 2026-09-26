@@ -60,6 +60,8 @@ export function Chronicle({ entries, pending }: { entries: ChronicleEntry[]; pen
                   <Line key={i} beat={b} delay={i * 0.15} animate={!reduce && entry.season === latest} />
                 ))}
               </ul>
+            ) : entry.season > 0 ? (
+              <p className="font-body text-[0.82rem] italic text-ink-soft">A quiet season: no army marched.</p>
             ) : (
               <div className="font-body text-[0.82rem] leading-snug">
                 {entry.lines.map((line, i) => (

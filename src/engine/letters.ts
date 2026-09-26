@@ -163,7 +163,7 @@ const KINDS: Record<LetterKind, LetterKindDef> = {
           label: 'Refuse',
           outcome: {
             trust: { [l.from]: L.refusedTrust },
-            notes: ['they may force their way through'],
+            notes: [closed ? 'your closed pass turns them back' : 'they may force their way through'],
             act: (x) => {
               x.nations[l.from].grievances += 1;
             },

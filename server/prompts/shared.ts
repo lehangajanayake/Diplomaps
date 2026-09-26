@@ -107,7 +107,7 @@ export function renderNews(news: readonly News[]): string {
         case 'gossip':
           return `- ${who(n.from)} passed word of the Warden's promises to ${who(n.to)}.`;
         case 'audience':
-          return `- The Warden held an audience with ${ruler(n.nation)} of ${who(n.nation)}.`;
+          return `- The Warden held an audience with ${who(n.nation)}.`;
         default:
           return '';
       }

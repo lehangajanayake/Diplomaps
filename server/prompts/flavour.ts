@@ -5,14 +5,14 @@
 import { PROFILES } from '../../src/engine/nations.js';
 import type { FlavourRequest, LetterBrief } from '../../src/engine/schema.js';
 import { VOICES } from './nations/index.js';
-import { renderNews, ruler, tensionWord, who } from './shared.js';
+import { renderNews, tensionWord, who } from './shared.js';
 
 export function flavourInstructions(): string {
   return `You write the words around events that have already happened in Diplomaps, a game of five rival crowns around the Crossing, a small neutral valley ruled by the Warden.
 Write two things:
 1. chronicle: 2 to 4 lines of "News of the Realm" for the season, in the voice of a medieval chronicle or a town crier: vivid, concrete, a little ominous. Each line at most 30 words. Report only the events listed; you may add colour (weather, market talk, omens) but never invent battles, treaties or deaths. Mention the Warden only where the events involve the Warden.
 2. letters: for each letter listed, one line of at most 25 words that its sender writes to the Warden, in that ruler's own voice and verbal habit. The line must fit what the letter is about. Witty, in character, period voice.
-No modern idiom, no lists or headings inside the lines.`;
+Call the nations by name (Varrow, Kelm, Sael, the Tarn, Ostrin); never name their rulers. No modern idiom, no lists or headings inside the lines.`;
 }
 
 const other = (n: LetterBrief['about']) => (n ? PROFILES[n].name : 'someone');
@@ -40,7 +40,7 @@ function letterLine(l: LetterBrief): string {
 }
 
 export function flavourInput(req: FlavourRequest): string {
-  const audiences = req.audiences.length ? req.audiences.map((n) => `${ruler(n)} of ${who(n)}`).join(', ') : 'no one';
+  const audiences = req.audiences.length ? req.audiences.map(who).join(', ') : 'no one';
   const letters = req.letters.length ? req.letters.map(letterLine).join('\n') : '- None.';
   return `SEASON: ${req.seasonName}, Year ${req.year} (season ${req.season} of ${req.seasonsTotal}).
 TENSION AT SEASON'S END: ${req.tension}/100, ${tensionWord(req.tension)}.

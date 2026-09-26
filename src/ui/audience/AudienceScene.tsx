@@ -173,6 +173,7 @@ function Summary({ audience, world }: { audience: AudienceState; world: WorldSta
   const r = audience.result;
   const first = p.ruler.name.split(' ')[0];
   const delta = r ? Math.round(r.trustAfter - r.trustBefore) : 0;
+  const left = CONFIG.audiencesPerSeason - world.audiencesThisSeason.length;
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="border-t border-ink/25 pt-[0.8em]">
       <h3 className="font-sc text-[1rem] tracking-[0.08em] text-wax">
@@ -234,7 +235,7 @@ function Summary({ audience, world }: { audience: AudienceState; world: WorldSta
           />
         )}
         <span className="font-hand text-[0.85rem] italic text-ink-faded">
-          {CONFIG.audiencesPerSeason - world.audiencesThisSeason.length} audiences left this season
+          {left} {left === 1 ? 'audience' : 'audiences'} left this season
         </span>
       </div>
     </motion.div>

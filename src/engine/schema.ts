@@ -366,7 +366,7 @@ export const ExtractAISchema = z.object({
         topic: z.string().describe('1 to 3 lowercase words naming the thing promised; empty for claims.'),
         about: NationIdSchema.nullable().describe('The nation the entry concerns, or null.'),
         claim_kind: z.enum(CLAIM_KINDS).nullable().describe('For claims; null for promises.'),
-        with_nation: NationIdSchema.nullable().describe('For secret_alliance claims: the other party. Otherwise null.'),
+        with_nation: NationIdSchema.nullable().describe('For secret_alliance claims: the other party. For threat, hostility or friendship aimed at a court other than the listener: that court. Otherwise null.'),
         conflicts_with: z.array(z.string()).describe('Ids of earlier ledger entries this directly contradicts.'),
       }),
     )

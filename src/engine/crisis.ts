@@ -6,8 +6,8 @@ import { AMBITION } from './ambitions.js';
 import { friendAgainst } from './favours.js';
 import { nameOf } from './nations.js';
 import { sealedLetters } from './letters.js';
-import { needsPassage } from './policy.js';
-import type { Crisis, NationId, WorldState } from './types.js';
+import { favouriteEnemy, needsPassage } from './policy.js';
+import { NATION_IDS, type Crisis, type NationId, type WorldState } from './types.js';
 import { regionName } from './world.js';
 
 export function composeCrisis(w: WorldState): Crisis {
@@ -68,23 +68,36 @@ export function composeCrisis(w: WorldState): Crisis {
     };
   }
 
-  const sealed = sealedLetters(w);
-  if (sealed.length > 0) {
+  // No army marches yet: name the grudge most likely to boil over, so the quiet still has stakes.
+  const sealed = sealedLetters(w).length;
+  const letters = sealed === 0 ? 'Talk to a ruler' : `Answer your ${sealed === 1 ? 'letter' : `${sealed} letters`}, then talk`;
+  const hot = hottestGrudge(w);
+  if (hot) {
     return {
       ...base,
       tone: 'calm',
-      headline: 'Letters are waiting',
-      line: `${sealed.length === 1 ? 'A letter waits' : `${sealed.length} letters wait`} on your table.`,
-      suggestion: 'Open them: every answer costs someone something.',
-      nations: sealed.map((l) => l.from),
+      headline: 'An uneasy quiet',
+      line: `No army marches yet, but ${nameOf(hot.nation)}'s grudge against ${nameOf(hot.target)} runs hot.`,
+      suggestion: `${letters}: a word in the right ear could start a war, or stop one.`,
+      nations: [hot.nation, hot.target],
     };
   }
   return {
     ...base,
     tone: 'calm',
     headline: 'An uneasy quiet',
-    line: 'The five nations are watching each other, and every road runs through your valley.',
-    suggestion: 'Talk to a ruler to learn what they want.',
+    line: 'The nations are watching each other, and every road runs through your valley.',
+    suggestion: `${letters} to learn what they want.`,
     nations: [],
   };
+}
+
+/** The nation that most wants war, and with whom. */
+function hottestGrudge(w: WorldState): { nation: NationId; target: NationId } | null {
+  let best: { nation: NationId; target: NationId; desire: number } | null = null;
+  for (const nation of NATION_IDS) {
+    const enemy = favouriteEnemy(w, nation);
+    if (enemy && (!best || enemy.desire > best.desire)) best = { nation, target: enemy.target, desire: enemy.desire };
+  }
+  return best;
 }

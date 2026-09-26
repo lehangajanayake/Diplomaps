@@ -39,6 +39,7 @@ It is ${ctx.seasonName}, Year ${ctx.year} (season ${ctx.season} of ${ctx.seasons
 - You hold ${ctx.regions} regions and ${ctx.troops} troops.${ctx.lost.length ? ` You have lost ${ctx.lost.join(', ')}.` : ''}${ctx.gained.length ? ` You have taken ${ctx.gained.join(', ')}.` : ''}
 - ${pass}
 - ${ctx.offerable.length ? `LAND: you could cede one of these regions beside the Crossing to the Warden: ${ctx.offerable.join(', ')}. Offer one only in return for something you truly want (a closed pass against your enemy, passage, gold, a war on your enemy), only if you are at least cordial toward the Warden, and name it plainly.` : 'You have no land you could spare the Warden.'}
+- COIN: you never pay the Warden gold, goods or soldiers in an audience, and never agree to: your coin moves only by letter and toll. If the Warden asks to be paid, refuse or put them off in character.${ctx.offerable.length ? ' Land is the one thing you may give here.' : ''}
 - Tension across the realm is ${tensionWord(ctx.tension)} (${ctx.tension}/100).
 - The other crowns:
 ${relationLines(ctx.relations)}

@@ -24,6 +24,29 @@ function troopsFacing(w: WorldState, nation: NationId, target: NationId): number
   return sum;
 }
 
+/** Claims that set a court against the nation they are about: it is arming, it hates you, it plots. */
+const PROVOKING: ReadonlySet<ClaimKind> = new Set(['military_threat', 'hostile_intent', 'secret_alliance']);
+
+type ClaimFields = Pick<LedgerEntry, 'to' | 'about' | 'claimKind' | 'withNation'>;
+
+/**
+ * The court a claim of threat, hostility or friendship is aimed at: the third court the Warden named
+ * ("Kelm means to attack Sael"), or else the listener. A secret alliance's other party is no target.
+ */
+export function claimTarget(e: ClaimFields): NationId {
+  return e.claimKind !== 'secret_alliance' && e.withNation && e.withNation !== e.about ? e.withNation : e.to;
+}
+
+/** Does this claim set its listener against the nation it is about? Only a threat aimed at the listener does. */
+export function provokes(e: LedgerEntry): boolean {
+  return e.type === 'claim' && !!e.about && !!e.claimKind && PROVOKING.has(e.claimKind) && claimTarget(e) === e.to;
+}
+
+/** Does this claim reassure its listener that the nation it is about means them no harm? */
+export function reassures(e: LedgerEntry): boolean {
+  return e.type === 'claim' && !!e.about && e.claimKind === 'friendly_intent' && claimTarget(e) === e.to;
+}
+
 /** Was a claim about `about` true when told to `to`? null when nobody could know. */
 export function evaluateClaim(
   w: WorldState,
@@ -34,24 +57,25 @@ export function evaluateClaim(
 ): boolean | null {
   if (!about || !CLAIM_KINDS.includes(kind)) return null;
   const x = w.nations[about];
+  const target = claimTarget({ to, about, claimKind: kind, withNation });
   switch (kind) {
     case 'military_threat': {
-      const aimed = w.intents.some((i) => i.kind === 'war' && i.nation === about && i.target === to);
-      return aimed || atWar(w, about, to) || x.trust[to] <= -55 || troopsFacing(w, about, to) >= 8;
+      const aimed = w.intents.some((i) => i.kind === 'war' && i.nation === about && i.target === target);
+      return aimed || atWar(w, about, target) || x.trust[target] <= -55 || troopsFacing(w, about, target) >= 8;
     }
     case 'secret_alliance':
       if (!withNation || withNation === about) return null;
       return allied(w, about, withNation) || x.trust[withNation] >= 40;
     case 'hostile_intent':
-      if (about === to) return null;
-      return x.trust[to] <= -20 || hasGrudge(about, to);
+      if (about === target) return null;
+      return x.trust[target] <= -20 || hasGrudge(about, target);
     case 'weakness': {
       const avg = NATION_IDS.reduce((s, n) => s + totalTroops(w, n), 0) / NATION_IDS.length;
       return totalTroops(w, about) < avg * 0.85 || regionsOf(w, about).length < 3;
     }
     case 'friendly_intent':
-      if (about === to) return null;
-      return x.trust[to] >= 20;
+      if (about === target) return null;
+      return x.trust[target] >= 20;
     default:
       return null;
   }

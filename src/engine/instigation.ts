@@ -3,14 +3,13 @@
  * words the Warden spoke to the aggressor about the target sparked a war nobody had planned (both
  * recorded where the war is declared).
  */
+import { provokes } from './ledger.js';
 import type { Instigation, NationId, WorldState } from './types.js';
-
-const PROVOKING_CLAIMS = new Set(['military_threat', 'hostile_intent', 'secret_alliance']);
 
 /** How the Warden's recent words to `aggressor` about `target` helped start their war, if they did. */
 export function instigationOf(w: WorldState, aggressor: NationId, target: NationId): Instigation['how'] | null {
   const recent = w.player.ledger.filter((e) => e.to === aggressor && e.about === target && e.season >= w.season - 1);
-  const claim = recent.find((e) => e.type === 'claim' && e.claimKind && PROVOKING_CLAIMS.has(e.claimKind));
+  const claim = recent.find(provokes);
   if (claim) return claim.truth === false ? 'lie' : 'word';
   if (recent.some((e) => e.promiseKind === 'support_against')) return 'promise';
   return null;

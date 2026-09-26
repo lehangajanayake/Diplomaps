@@ -106,6 +106,11 @@ export const CONFIG = {
     steepness: 3,
     /** A planned war is called off at the bell if desire has fallen below this. */
     standDown: 0.7,
+    /**
+     * A realm that has not yet seen war grows restless: in seasons 1, 2, 3... the hottest grudge boils
+     * over with at least this chance, so no game stays quiet for long.
+     */
+    firstWarFloor: [0, 0.6, 1],
     allianceTrust: 30,
     allianceChance: 0.5,
     /** Chance a nation marches into ruins beside it each season. */
