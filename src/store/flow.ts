@@ -235,7 +235,8 @@ async function closeAudience(endedByRuler: boolean, calledAway: boolean): Promis
   const turns = a.turns;
   const spoke = playerMessages(turns) > 0;
   set({ audience: { ...a, status: 'closing', endedByRuler, calledAway } });
-  if (!spoke) {
+  // Nothing was said, or the ruler was called away before a single real reply: nothing to judge or record.
+  if (!spoke || (calledAway && playerMessages(turns) <= 1)) {
     set({ audience: { ...a, status: 'closed', endedByRuler, calledAway, result: null } });
     return;
   }
@@ -436,14 +437,24 @@ export async function endSeason(): Promise<void> {
   set({ seasonCard: null });
   await sleep(4600);
   set((st) => ({ fx: st.fx ? { ...st.fx, settled: true } : null }));
-  const chron = await chroniclePromise;
-  const entry = { season: w.season, title: seasonTitle(w.season), lines: chron.lines, fromAI: !chron.fallback };
-  const cur = get().world!;
-  set({ world: { ...cur, chronicle: [...cur.chronicle, entry] }, chronicleFresh: w.season, chroniclePending: null, resolving: false, fx: null });
-  sound.play('quill');
+  await sleep(200);
+  set({ fx: null, resolving: outcome.ending !== null });
+
+  // The chronicle inks itself in whenever the chronicler returns; the table is already yours again.
+  const inkChronicle = chroniclePromise.then((chron) => {
+    const entry = { season: w.season, title: seasonTitle(w.season), lines: chron.lines, fromAI: !chron.fallback };
+    const cur = get().world;
+    if (!cur) return;
+    const chronicle = [...cur.chronicle.filter((c) => c.season !== w.season), entry].sort((x, y) => x.season - y.season);
+    const latest = cur.history.at(-1)?.season;
+    set({ world: { ...cur, chronicle }, chronicleFresh: w.season, chroniclePending: latest === w.season ? null : get().chroniclePending });
+    sound.play('quill');
+  });
 
   if (outcome.ending) {
-    await sleep(3200);
+    await Promise.race([inkChronicle, sleep(8000)]);
+    await sleep(2400);
+    set({ resolving: false });
     await finishGame();
   }
 }

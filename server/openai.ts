@@ -90,6 +90,35 @@ function describeError(err: unknown): string {
   return String(err).slice(0, 300);
 }
 
+/**
+ * A small circuit breaker: after several failures in a row (timeouts, outages), skip calls for a short
+ * while and fall back at once, so a stalled API costs the player seconds rather than minutes.
+ */
+const breaker = { failures: 0, openUntil: 0 };
+const BREAKER_THRESHOLD = 3;
+const BREAKER_COOLDOWN_MS = 45_000;
+
+function circuitOpen(label: string): boolean {
+  if (Date.now() < breaker.openUntil) {
+    console.log(`[ai] ${label.padEnd(20)} skipped: circuit open after repeated failures`);
+    return true;
+  }
+  return false;
+}
+
+function recordOutcome(ok: boolean): void {
+  if (ok) {
+    breaker.failures = 0;
+    return;
+  }
+  breaker.failures += 1;
+  if (breaker.failures >= BREAKER_THRESHOLD) {
+    breaker.openUntil = Date.now() + BREAKER_COOLDOWN_MS;
+    breaker.failures = 0;
+    console.log(`[ai] circuit opened for ${BREAKER_COOLDOWN_MS / 1000}s: the API keeps failing`);
+  }
+}
+
 /** Models that rejected the reasoning parameter; we stop sending it to them. */
 const noReasoning = new Set<string>();
 
@@ -128,12 +157,16 @@ export async function structured<T>(o: BaseOptions & { schema: ZodType<T> }): Pr
     console.log(`[ai] ${o.label.padEnd(20)} skipped: no OPENAI_API_KEY configured`);
     return null;
   }
+  if (circuitOpen(o.label)) return null;
   for (let attempt = 0; attempt < 2; attempt++) {
     const t0 = Date.now();
     try {
       const response = await c.responses.parse(params(o, attempt), { signal: AbortSignal.timeout(o.timeoutMs) });
       logUsage(o.label, o.model, response.usage, Date.now() - t0, attempt ? '(retry)' : '');
-      if (response.status === 'completed' && response.output_parsed) return response.output_parsed as T;
+      if (response.status === 'completed' && response.output_parsed) {
+        recordOutcome(true);
+        return response.output_parsed as T;
+      }
       console.log(`[ai] ${o.label} attempt ${attempt + 1}: ${response.status}${response.incomplete_details ? ` (${response.incomplete_details.reason})` : ''}`);
     } catch (err) {
       if (rejectsReasoning(err) && !noReasoning.has(o.model)) {
@@ -142,9 +175,11 @@ export async function structured<T>(o: BaseOptions & { schema: ZodType<T> }): Pr
         continue;
       }
       console.log(`[ai] ${o.label} attempt ${attempt + 1} failed after ${Date.now() - t0}ms: ${describeError(err)}`);
+      if (circuitOpen(o.label)) break;
     }
   }
   usageTotals.failures += 1;
+  recordOutcome(false);
   return null;
 }
 
@@ -160,6 +195,7 @@ export async function streamStructured<T>(
     console.log(`[ai] ${o.label.padEnd(20)} skipped: no OPENAI_API_KEY configured`);
     return { ok: false, text: '' };
   }
+  if (circuitOpen(o.label)) return { ok: false, text: '' };
   const t0 = Date.now();
   let text = '';
   let usage: Usage | null | undefined = null;
@@ -193,5 +229,6 @@ export async function streamStructured<T>(
   }
   logUsage(o.label, o.model, usage, Date.now() - t0, o.attempt ? '(retry)' : '');
   if (!ok) usageTotals.failures += 1;
+  recordOutcome(ok);
   return { ok, text };
 }

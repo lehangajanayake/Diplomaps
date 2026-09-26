@@ -1,8 +1,8 @@
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
-import { assetManifest } from './server/assetManifest';
-import { apiPlugin } from './server/vitePlugin';
+import { assetManifest } from './server/assetManifest.ts';
+import { apiPlugin } from './server/vitePlugin.ts';
 
 // One command for everything: `npm run dev` serves the game and the /api handlers together.
 export default defineConfig({

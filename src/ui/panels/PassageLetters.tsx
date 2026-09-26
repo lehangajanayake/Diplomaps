@@ -13,7 +13,7 @@ const KIND_LABEL: Record<Letter['kind'], string> = {
 export function PassageLetters({ letters, onOpen }: { letters: Letter[]; onOpen: (id: string) => void }) {
   const sealed = letters.filter((l) => l.status === 'sealed');
   return (
-    <div className="relative flex flex-col gap-[1vh]">
+    <div className={`relative flex flex-col ${sealed.length > 2 ? '[&>*+*]:-mt-[1.3vh]' : 'gap-[1vh]'}`}>
       {sealed.map((letter, i) => {
         const nation = PROFILES[letter.from];
         return (
@@ -22,7 +22,7 @@ export function PassageLetters({ letters, onOpen }: { letters: Letter[]; onOpen:
             type="button"
             initial={{ opacity: 0, y: -30, rotate: -12 }}
             animate={{ opacity: 1, y: 0, rotate: i % 2 ? 2.5 : -3 }}
-            whileHover={{ y: -4, rotate: 0, transition: { duration: 0.2 } }}
+            whileHover={{ y: -4, rotate: 0, zIndex: 5, transition: { duration: 0.2 } }}
             transition={{ delay: 0.15 * i, type: 'spring', stiffness: 120, damping: 14 }}
             onClick={() => onOpen(letter.id)}
             className="relative flex items-center gap-[0.6em] px-[0.8em] py-[0.55em] text-left text-ink"

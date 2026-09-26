@@ -30,8 +30,6 @@ import { SeasonCard } from './SeasonCard';
 
 export function GameTable() {
   const world = useStore((s) => s.world);
-  const hoverRegion = useStore((s) => s.hoverRegion);
-  const setHoverRegion = useStore((s) => s.setHoverRegion);
   const selectedNation = useStore((s) => s.selectedNation);
   const overlay = useStore((s) => s.overlay);
   const audience = useStore((s) => s.audience);
@@ -91,7 +89,7 @@ export function GameTable() {
 
         <div className="map-stage">
           <MapSheet>
-            <MapView world={world} fx={fx} hoverRegion={hoverRegion} onHover={setHoverRegion} onSelect={onSelect} interactive={!resolving} />
+            <MapView world={world} fx={fx} onSelect={onSelect} interactive={!resolving} />
           </MapSheet>
         </div>
 

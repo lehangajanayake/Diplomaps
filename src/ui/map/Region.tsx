@@ -98,7 +98,8 @@ export function RegionHover({ map, id, owner }: { map: MapData; id: RegionId; ow
   const region = map.regions[id]!;
   return (
     <g style={{ pointerEvents: 'none' }}>
-      <path d={region.d} fill="none" stroke="#000" strokeWidth={7} opacity={0.2} transform="translate(1.5 3)" filter="url(#soft-shadow)" />
+      <path d={region.d} fill="none" stroke="#000" strokeWidth={6} opacity={0.12} transform="translate(1.5 3)" strokeLinejoin="round" />
+      <path d={region.d} fill="none" stroke="#000" strokeWidth={3} opacity={0.14} transform="translate(1 2)" strokeLinejoin="round" />
       <path d={region.d} fill="#fff6dc" opacity={0.26} />
       <g transform="translate(0 -1.6)">
         <path d={region.d} fill={ownerFill(owner)} fillOpacity={0.1} stroke={ownerInk(owner)} strokeWidth={2.4} strokeLinejoin="round" />

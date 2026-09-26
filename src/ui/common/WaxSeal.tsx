@@ -1,5 +1,8 @@
 /** A pressed wax seal with an irregular rim and an embossed emblem. */
-import type { Emblem } from '../../engine/types';
+import type { Emblem, NationId } from '../../engine/types';
+import { optionalAsset } from './assets';
+
+const EMBLEM_NATION: Partial<Record<Emblem | 'crossroads', NationId>> = { horse: 'varrow', scales: 'kelm', ship: 'sael', heron: 'tarn', lamp: 'ostrin' };
 import { hash3 } from '../../engine/rng';
 import { EmblemPath } from './Emblem';
 
@@ -36,6 +39,11 @@ interface Props {
 
 export function WaxSeal({ colour = '#7c1f18', emblem = 'crossroads', size = 64, seed = 3, className, label }: Props) {
   const id = `seal-${seed}-${colour.slice(1)}`;
+  const nation = EMBLEM_NATION[emblem];
+  const image = nation ? optionalAsset(`seal-${nation}.png`) : null;
+  if (image) {
+    return <img src={image} width={size} height={size} className={className} alt={label ?? ''} aria-hidden={label ? undefined : true} draggable={false} style={{ width: size, height: size, objectFit: 'contain' }} />;
+  }
   return (
     <svg viewBox="-26 -26 52 52" width={size} height={size} className={className} role={label ? 'img' : undefined} aria-label={label} aria-hidden={label ? undefined : true}>
       <defs>

@@ -2,6 +2,9 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles/index.css';
 import { App } from './App';
+import { applyOptionalTextures } from './ui/common/assets';
+
+applyOptionalTextures();
 
 const root = document.getElementById('root');
 if (!root) throw new Error('No #root element');

@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ownerName } from '../../engine/nations';
 import type { Owner, RegionId, RegionState, WorldState } from '../../engine/types';
-import type { MapFx } from '../../store/worldStore';
+import { useStore, type MapFx } from '../../store/worldStore';
 import { SeasonFx } from './SeasonFx';
 import { Legend } from './Legend';
 import { RegionHitAreas, RegionHover } from './Region';
@@ -16,8 +16,6 @@ import { Tokens } from './Tokens';
 interface Props {
   world: WorldState;
   fx?: MapFx | null;
-  hoverRegion: RegionId | null;
-  onHover: (id: RegionId | null) => void;
   onSelect: (id: RegionId) => void;
   children?: ReactNode;
   interactive?: boolean;
@@ -32,8 +30,11 @@ interface View {
 const MIN_K = 1;
 const MAX_K = 2.6;
 
-export function MapView({ world, fx = null, hoverRegion, onHover, onSelect, children, interactive = true }: Props) {
+export function MapView({ world, fx = null, onSelect, children, interactive = true }: Props) {
   const { map } = world;
+  // Hover lives here, not in the table, so moving the mouse re-renders only the map's light layer.
+  const hoverRegion = useStore((s) => s.hoverRegion);
+  const onHover = useStore((s) => s.setHoverRegion);
   // While the season's effects play, the map shows the world as it was; then it settles into the new one.
   const shown: Record<RegionId, RegionState> = fx && !fx.settled ? fx.before : world.regions;
   const viewportRef = useRef<HTMLDivElement>(null);
