@@ -1,41 +1,41 @@
-/** Tolls: every trade route between two nations runs through the Crossing, and the Warden takes a cut. */
+/**
+ * The Warden's income. Every nation's road runs into the Crossing and pays a toll each season, unless
+ * the nation is at war (the road is broken) or its pass is closed. Each region of the valley pays a
+ * little too, unless raiders have set it alight.
+ */
 import { CONFIG } from './config.js';
-import { CROSSING, NATION_IDS, type NationId, type WorldState } from './types.js';
-import { atWar, regionsOf } from './world.js';
+import { CROSSING, NATION_IDS, type NationId, type RegionId, type WorldState } from './types.js';
+import { isStanding, regionsOf, warsOf } from './world.js';
+
+/** How a nation's road into the Crossing stands, as the map draws it. */
+export type RoadState = 'open' | 'broken' | 'closed' | 'gone';
+
+export function roadState(w: WorldState, nation: NationId): RoadState {
+  if (!isStanding(w, nation)) return 'gone';
+  if (w.player.passes[nation] === 'closed') return 'closed';
+  if (warsOf(w, nation) > 0) return 'broken';
+  return 'open';
+}
+
+export function isBurning(w: WorldState, region: RegionId): boolean {
+  return (w.burning[region] ?? 0) >= w.season;
+}
 
 export interface Income {
   gold: number;
   tolls: number;
-  fees: number;
-  trade: number;
+  land: number;
+  lost: number;
 }
 
-export function pairKey(a: NationId, b: NationId): string {
-  return a < b ? `${a}|${b}` : `${b}|${a}`;
-}
-
-export function computeIncome(w: WorldState, tradedPairs: ReadonlySet<string>, directTraders: readonly NationId[]): Income {
+export function computeIncome(w: WorldState): Income {
   const e = CONFIG.economy;
-  const inAnyWar = (n: NationId) => w.wars.some((war) => war.a === n || war.b === n);
-  let tolls = 0;
-  for (let i = 0; i < NATION_IDS.length; i++) {
-    for (let j = i + 1; j < NATION_IDS.length; j++) {
-      const a = NATION_IDS[i]!;
-      const b = NATION_IDS[j]!;
-      if (atWar(w, a, b)) continue;
-      let v: number = e.routeToll;
-      if (w.player.passage[a] === 'denied') v *= e.deniedFactor;
-      if (w.player.passage[b] === 'denied') v *= e.deniedFactor;
-      if (tradedPairs.has(pairKey(a, b))) v *= e.tradedFactor;
-      if (inAnyWar(a) || inAnyWar(b)) v *= e.warFactor;
-      if (atWar(w, a, CROSSING) || atWar(w, b, CROSSING)) v *= e.crossingWarFactor;
-      tolls += v;
-    }
-  }
-  const fees = NATION_IDS.filter((n) => w.player.passage[n] === 'granted' && !atWar(w, n, CROSSING)).length * e.passageFee;
-  const trade = directTraders.length * e.directTrade;
+  const openRoads = NATION_IDS.filter((n) => roadState(w, n) === 'open').length;
   const neutralityMult = e.neutralityFloor + (1 - e.neutralityFloor) * (w.player.neutrality / 100);
-  const heldShare = Math.min(1, regionsOf(w, CROSSING).length / CONFIG.map.crossingRegions);
-  const gold = Math.round(((tolls + trade) * neutralityMult + fees) * heldShare);
-  return { gold, tolls: Math.round(tolls), fees, trade };
+  const tolls = Math.round(openRoads * e.roadToll * neutralityMult);
+  const held = regionsOf(w, CROSSING);
+  const burning = held.filter((id) => isBurning(w, id)).length;
+  const land = (held.length - burning) * e.landTax;
+  const lost = burning * e.burnLoss;
+  return { gold: Math.max(0, tolls + land - lost), tolls, land, lost };
 }

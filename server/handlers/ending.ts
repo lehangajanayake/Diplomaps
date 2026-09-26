@@ -1,7 +1,6 @@
-/** POST /api/ending: each ruler's verdict on the Warden, and a historian's epilogue. */
-import { fallbackEpilogue, fallbackVerdict } from '../../src/engine/fallbacks.js';
+/** POST /api/ending: each ruler's one-line verdict on the Warden. */
+import { fallbackVerdict } from '../../src/engine/fallbacks.js';
 import { EndingAIOutputSchema, EndingRequestSchema, cleanText, type EndingAIResult } from '../../src/engine/schema.js';
-import { NATION_IDS } from '../../src/engine/types.js';
 import { guard, json, readJson } from '../http.js';
 import { MODELS, effortFor, structured } from '../openai.js';
 import { endingInput, endingInstructions } from '../prompts/ending.js';
@@ -22,23 +21,20 @@ export async function handleEnding(req: Request): Promise<Response> {
     input: endingInput(request),
     schema: EndingAIOutputSchema,
     schemaName: 'ending',
-    maxOutputTokens: 1800,
+    maxOutputTokens: 1400,
     timeoutMs: 20_000,
   });
+  const won = request.outcome.result === 'victory';
   const verdicts: EndingAIResult['verdicts'] = {};
   for (const v of raw?.verdicts ?? []) {
-    const line = cleanText(v.line, 260);
+    const line = cleanText(v.line, 220);
     if (line && !verdicts[v.nation]) verdicts[v.nation] = line;
   }
   let fallback = !raw;
   for (const n of request.nations) {
-    if (!verdicts[n.nation]) {
-      verdicts[n.nation] = fallbackVerdict(n.nation, n.trust, n.blame);
-      fallback = true;
-    }
+    if (verdicts[n.nation]) continue;
+    verdicts[n.nation] = fallbackVerdict(n.nation, n.trust, n.suspicion, won);
+    fallback = true;
   }
-  const epilogue = (raw && cleanText(raw.epilogue, 1100)) || fallbackEpilogue(request.ending.id);
-  const result: EndingAIResult = { verdicts, epilogue, fallback: fallback || !raw?.epilogue };
-  if (Object.keys(verdicts).length !== NATION_IDS.length) result.fallback = true;
-  return json(result);
+  return json({ verdicts, fallback } satisfies EndingAIResult);
 }

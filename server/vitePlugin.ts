@@ -8,7 +8,21 @@ import { createServer, loadEnv, type Connect, type Plugin, type ViteDevServer } 
 
 type RouterModule = { handleApi: (req: Request) => Promise<Response> };
 
-const ENV_KEYS = ['OPENAI_API_KEY', 'MODEL_FAST', 'MODEL_RICH', 'AI_REASONING', 'RATE_LIMIT_PER_MINUTE'] as const;
+const ENV_KEYS = [
+  'OPENAI_API_KEY',
+  'MODEL_FAST',
+  'MODEL_RICH',
+  'AI_REASONING',
+  'RATE_LIMIT_PER_MINUTE',
+  'ELEVENLABS_API_KEY',
+  'ELEVENLABS_MODEL',
+  'ELEVENLABS_VOICE_ID',
+  'ELEVENLABS_VOICE_VARROW',
+  'ELEVENLABS_VOICE_KELM',
+  'ELEVENLABS_VOICE_SAEL',
+  'ELEVENLABS_VOICE_TARN',
+  'ELEVENLABS_VOICE_OSTRIN',
+] as const;
 const fromShell = new Set(ENV_KEYS.filter((k) => process.env[k] !== undefined));
 
 function refreshEnv(mode: string, root: string): void {

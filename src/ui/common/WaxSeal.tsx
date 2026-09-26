@@ -1,10 +1,10 @@
-/** A pressed wax seal with an irregular rim and an embossed emblem. */
-import type { Emblem, NationId } from '../../engine/types';
-import { optionalAsset } from './assets';
-
-const EMBLEM_NATION: Partial<Record<Emblem | 'crossroads', NationId>> = { horse: 'varrow', scales: 'kelm', ship: 'sael', heron: 'tarn', lamp: 'ostrin' };
+/** A pressed wax seal with an irregular rim and an embossed emblem. A fallen nation's seal is cracked. */
 import { hash3 } from '../../engine/rng';
-import { EmblemPath } from './Emblem';
+import type { NationId } from '../../engine/types';
+import { optionalAsset } from './assets';
+import { EmblemPath, type SealEmblem } from './Emblem';
+
+const EMBLEM_NATION: Partial<Record<SealEmblem, NationId>> = { horse: 'varrow', scales: 'kelm', ship: 'sael', heron: 'tarn', lamp: 'ostrin' };
 
 function blob(seed: number, r: number): string {
   const n = 22;
@@ -30,22 +30,44 @@ function shade(hex: string, amount: number): string {
 
 interface Props {
   colour?: string;
-  emblem?: Emblem | 'crossroads';
+  emblem?: SealEmblem;
   size?: number | string;
   seed?: number;
   className?: string;
   label?: string;
+  /** The nation has fallen: the wax is split and dulled. */
+  cracked?: boolean;
 }
 
-export function WaxSeal({ colour = '#7c1f18', emblem = 'crossroads', size = 64, seed = 3, className, label }: Props) {
+/** A jagged split across the wax, from rim to rim. */
+function crack(seed: number): string {
+  let d = `M${(-20 + hash3(seed, 1, 9) * 8).toFixed(1)} -18`;
+  for (let i = 1; i <= 6; i++) {
+    const y = -18 + i * 6;
+    const x = -14 + i * 4.6 + (hash3(seed, i, 11) - 0.5) * 7;
+    d += ` L${x.toFixed(1)} ${y.toFixed(1)}`;
+  }
+  return d;
+}
+
+export function WaxSeal({ colour = '#7c1f18', emblem = 'crossroads', size = 64, seed = 3, className, label, cracked = false }: Props) {
   const id = `seal-${seed}-${colour.slice(1)}`;
   const nation = EMBLEM_NATION[emblem];
-  const image = nation ? optionalAsset(`seal-${nation}.png`) : null;
+  const image = nation && !cracked ? optionalAsset(`seal-${nation}.png`) : null;
   if (image) {
     return <img src={image} width={size} height={size} className={className} alt={label ?? ''} aria-hidden={label ? undefined : true} draggable={false} style={{ width: size, height: size, objectFit: 'contain' }} />;
   }
   return (
-    <svg viewBox="-26 -26 52 52" width={size} height={size} className={className} role={label ? 'img' : undefined} aria-label={label} aria-hidden={label ? undefined : true}>
+    <svg
+      viewBox="-26 -26 52 52"
+      width={size}
+      height={size}
+      className={className}
+      role={label ? 'img' : undefined}
+      aria-label={label}
+      aria-hidden={label ? undefined : true}
+      style={cracked ? { filter: 'saturate(0.5) brightness(0.92)' } : undefined}
+    >
       <defs>
         <radialGradient id={`${id}-g`} cx="38%" cy="32%" r="75%">
           <stop offset="0" stopColor={shade(colour, 1.55)} />
@@ -63,6 +85,12 @@ export function WaxSeal({ colour = '#7c1f18', emblem = 'crossroads', size = 64, 
         </g>
         <EmblemPath kind={emblem} fill={shade(colour, 0.5)} />
       </g>
+      {cracked && (
+        <g fill="none" strokeLinecap="round" strokeLinejoin="round">
+          <path d={crack(seed)} stroke="#0b0604" strokeWidth="2.4" />
+          <path d={crack(seed)} stroke={shade(colour, 1.8)} strokeWidth="0.6" opacity="0.5" transform="translate(0.8 0.4)" />
+        </g>
+      )}
     </svg>
   );
 }

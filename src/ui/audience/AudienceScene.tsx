@@ -4,12 +4,13 @@
  */
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
+import { sound } from '../../audio/sound';
 import { CONFIG } from '../../engine/config';
 import { suggestionsFor } from '../../engine/courtesy';
 import { PROFILES } from '../../engine/nations';
 import type { Mood } from '../../engine/schema';
 import type { WorldState } from '../../engine/types';
-import { exitAudience, leaveAudience, offerGift, sendAudienceMessage } from '../../store/flow';
+import { exitAudience, leaveAudience, sendAudienceMessage } from '../../store/flow';
 import { useStore, type AudienceState } from '../../store/worldStore';
 import { Portrait } from '../common/Portrait';
 import { SealButton } from '../common/SealButton';
@@ -173,6 +174,7 @@ export function AudienceScene() {
   useEffect(() => {
     if (status === 'awaiting') inputRef.current?.focus();
   }, [status]);
+  useEffect(() => () => sound.stopSpeech(), []);
 
   if (!audience || !world) return null;
   const p = PROFILES[audience.nation];
@@ -278,21 +280,7 @@ export function AudienceScene() {
                 <SealButton label="Speak" onClick={send} disabled={audience.status !== 'awaiting' || !draft.trim()} colour="#7c1f18" size="2.5em" seed={8} />
               </div>
               <div className="mt-[0.4em] flex flex-wrap items-center justify-between gap-2 font-body text-[0.8rem] text-ink-soft">
-                <span className="flex items-center gap-[0.5em]">
-                  <span className="font-sc text-ink">Offer a gift:</span>
-                  {[10, 25, 50].map((g) => (
-                    <button
-                      key={g}
-                      type="button"
-                      disabled={audience.status !== 'awaiting' || world.player.gold < g}
-                      onClick={() => offerGift(g)}
-                      className="underline decoration-dotted underline-offset-2 hover:text-wax disabled:opacity-40"
-                    >
-                      {g} gold
-                    </button>
-                  ))}
-                  {audience.giftGold > 0 && <span className="italic">({audience.giftGold} given)</span>}
-                </span>
+<span />
                 <button type="button" onClick={() => void leaveAudience()} disabled={audience.status !== 'awaiting'} className="font-sc text-ink-faded hover:text-wax disabled:opacity-40">
                   Take your leave
                 </button>

@@ -4,7 +4,7 @@ import { PROFILES } from '../../src/engine/nations.js';
 import type { AudienceContext } from '../../src/engine/schema.js';
 import type { NationId } from '../../src/engine/types.js';
 import { VOICES } from './nations/index.js';
-import { blameWord, identityBlock, relationLines, renderKnowledge, renderNews, tensionWord, trustWord, who } from './shared.js';
+import { suspicionWord, identityBlock, relationLines, renderKnowledge, renderNews, tensionWord, trustWord, who } from './shared.js';
 
 export function audienceInstructions(nation: NationId, ctx: AudienceContext, playerTurn: number, suspicious: boolean): string {
   const p = PROFILES[nation];
@@ -14,12 +14,10 @@ export function audienceInstructions(nation: NationId, ctx: AudienceContext, pla
     ctx.trust >= 40
       ? `You have come to trust the Warden a little. You may let slip ONE veiled hint of this aim if it fits the conversation, for example: ${v.hints.map((h) => `"${h}"`).join(' or ')}. Never state it plainly.`
       : 'You do not trust the Warden enough to hint at it. Keep it wholly hidden.';
-  const passage =
-    ctx.passage === 'granted'
-      ? 'The Warden has granted your armies passage through the Crossing.'
-      : ctx.passage === 'denied'
-        ? 'The Warden has denied your armies passage through the Crossing.'
-        : 'You have no passage through the Crossing for your armies.';
+  const pass =
+    ctx.pass === 'open'
+      ? 'The pass on your road into the Crossing is open: your trade flows through it.'
+      : 'The Warden has CLOSED the pass on your road: your armies and your trade are shut out of the Crossing. You resent it.';
   return `${identityBlock(nation)}
 
 YOUR SECRET AIM (never state it)
@@ -29,7 +27,8 @@ ${hint}
 THE SITUATION
 It is ${ctx.seasonName}, Year ${ctx.year} (season ${ctx.season} of ${ctx.seasonsTotal}). The Warden of the Crossing, who rules the small neutral valley at the heart of the realm through which every road and mountain pass runs, has come to you for a private audience.
 - You hold ${ctx.regions} regions and ${ctx.troops} troops.${ctx.lost.length ? ` You have lost ${ctx.lost.join(', ')}.` : ''}${ctx.gained.length ? ` You have taken ${ctx.gained.join(', ')}.` : ''}
-- ${passage}${ctx.atWarWithCrossing ? ' You are AT WAR with the Crossing.' : ''}
+- ${pass}
+- ${ctx.offerable.length ? `LAND: you could cede one of these regions beside the Crossing to the Warden: ${ctx.offerable.join(', ')}. Offer one only in return for something you truly want (a closed pass against your enemy, passage, gold, a war on your enemy), only if you are at least cordial toward the Warden, and name it plainly.` : 'You have no land you could spare the Warden.'}
 - Tension across the realm is ${tensionWord(ctx.tension)} (${ctx.tension}/100).
 - The other crowns:
 ${relationLines(ctx.relations)}
@@ -37,8 +36,8 @@ ${relationLines(ctx.relations)}
 ${renderNews(ctx.news)}
 
 HOW YOU REGARD THE WARDEN
-- You are ${trustWord(ctx.trust)} toward the Warden, and ${blameWord(ctx.blame)}.
-${ctx.giftGold > 0 ? `- The Warden has given you ${ctx.giftGold} gold in gifts.\n` : ''}${ctx.redLineCrossedBy.includes('crossing') ? '- The Warden recently crossed your red line. You are furious about it.\n' : ''}- What the Warden has told you before:
+- You are ${trustWord(ctx.trust)} toward the Warden, and ${suspicionWord(ctx.suspicion)}.
+${ctx.redLineCrossedBy.includes('crossing') ? '- The Warden recently crossed your red line. You are furious about it.\n' : ''}- What the Warden has told you before:
 ${renderKnowledge(ctx.told, 'Nothing yet.')}
 - What other courts whisper about the Warden's words:
 ${renderKnowledge(ctx.heard, 'Nothing.')}

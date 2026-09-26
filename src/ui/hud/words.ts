@@ -24,10 +24,10 @@ export function trustWord(t: number): string {
   return 'Implacable';
 }
 
-export function blameWord(b: number): string {
-  if (b < 15) return 'Blameless';
-  if (b < 40) return 'Suspicious';
-  if (b < 70) return 'Resentful';
-  if (b < 90) return 'Accusing';
-  return 'Certain of your guilt';
+export function suspicionWord(s: number): string {
+  if (s < 15) return 'None';
+  if (s < 40) return 'Low';
+  if (s < 70) return 'Rising';
+  if (s < 90) return 'High';
+  return 'Certain';
 }

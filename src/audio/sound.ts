@@ -5,6 +5,9 @@
  */
 import { Howl, Howler } from 'howler';
 import { audioFiles } from 'virtual:diplomaps-assets';
+import type { GreetingTone } from '../engine/courtesy';
+import { CONFIG } from '../engine/config';
+import type { NationId } from '../engine/types';
 import { synthesize, type SoundName } from './synth';
 
 const VOLUME: Record<SoundName, number> = { ambient: 0.35, paper: 0.5, quill: 0.45, bell: 0.55, drums: 0.5, doors: 0.5, coins: 0.45 };
@@ -15,6 +18,9 @@ class SoundBoard {
   private ctx: AudioContext | null = null;
   private ambientNode: AudioBufferSourceNode | null = null;
   private ambientGain: GainNode | null = null;
+  private speechHowl: Howl | null = null;
+  private greetingAudio: HTMLAudioElement | null = null;
+  private preloadedGreetings = new Map<string, HTMLAudioElement>();
   private drumsTimer: number | undefined;
   muted = false;
 
@@ -69,11 +75,12 @@ class SoundBoard {
     return b;
   }
 
-  play(name: SoundName): void {
+  play(name: SoundName, onEnded?: () => void): void {
     if (this.muted || !this.activated()) return;
     try {
       const h = this.howl(name);
       if (h) {
+        if (onEnded) h.once('end', onEnded);
         h.play();
         return;
       }
@@ -84,6 +91,7 @@ class SoundBoard {
       const gain = ctx.createGain();
       gain.gain.value = VOLUME[name];
       src.buffer = b;
+      if (onEnded) src.onended = onEnded;
       src.connect(gain).connect(ctx.destination);
       src.start();
     } catch {
@@ -137,6 +145,83 @@ class SoundBoard {
     this.ambientGain = null;
   }
 
+  playSpeech(base64: string): void {
+    if (this.muted || !CONFIG.narrationEnabled) return;
+    try {
+      if (Howler.ctx?.state === 'suspended') void Howler.ctx.resume();
+      this.speechHowl?.stop();
+      this.speechHowl = new Howl({
+        src: [`data:audio/mpeg;base64,${base64}`],
+        format: ['mp3'],
+        volume: 0.85,
+        onend: () => {
+          this.speechHowl = null;
+        },
+        onplayerror: (_id, error) => {
+          console.warn('[audio] speech playback failed', error);
+          this.speechHowl?.once('unlock', () => this.speechHowl?.play());
+        },
+        onloaderror: () => {
+          this.speechHowl = null;
+        },
+      });
+      this.speechHowl.play();
+    } catch {
+      this.speechHowl = null;
+    }
+  }
+
+  playGreeting(nation: NationId, tone: GreetingTone): void {
+    if (this.muted || !CONFIG.narrationEnabled) return;
+    try {
+      this.speechHowl?.stop();
+      this.greetingAudio?.pause();
+      const key = `${nation}-${tone}`;
+      const audio = this.preloadedGreetings.get(key) ?? new Audio(`/audio/greetings/${key}.mp3`);
+      audio.currentTime = 0;
+      audio.volume = 0.85;
+      audio.preload = 'auto';
+      audio.onended = () => {
+        if (this.greetingAudio === audio) this.greetingAudio = null;
+      };
+      audio.onerror = () => {
+        console.warn(`[audio] greeting load failed: ${nation}-${tone}`);
+        if (this.greetingAudio === audio) this.greetingAudio = null;
+      };
+      this.greetingAudio = audio;
+      void audio.play().catch((error: unknown) => {
+        console.warn('[audio] greeting playback failed', error);
+        if (this.greetingAudio === audio) this.greetingAudio = null;
+      });
+    } catch {
+      this.greetingAudio = null;
+    }
+  }
+
+  preloadGreeting(nation: NationId, tone: GreetingTone): void {
+    const key = `${nation}-${tone}`;
+    if (this.preloadedGreetings.has(key)) return;
+    try {
+      const audio = new Audio(`/audio/greetings/${key}.mp3`);
+      audio.preload = 'auto';
+      audio.load();
+      this.preloadedGreetings.set(key, audio);
+    } catch {
+      // The opening playback will retry from the URL if preloading is unavailable.
+    }
+  }
+
+  stopSpeech(): void {
+    try {
+      this.speechHowl?.stop();
+      this.greetingAudio?.pause();
+    } catch {
+      // ignore
+    }
+    this.speechHowl = null;
+    this.greetingAudio = null;
+  }
+
   /** A slow heartbeat of drums while tension is dangerously high. */
   setDrums(on: boolean): void {
     if (on && this.drumsTimer === undefined) {
@@ -152,6 +237,7 @@ class SoundBoard {
     this.muted = muted;
     try {
       Howler.mute(muted);
+      if (muted) this.stopSpeech();
       if (this.ambientGain && this.ctx) this.ambientGain.gain.value = muted ? 0 : VOLUME.ambient;
       if (muted) this.setDrums(false);
       else if (!this.ambientNode && !this.howls.get('ambient')?.playing()) this.startAmbient();

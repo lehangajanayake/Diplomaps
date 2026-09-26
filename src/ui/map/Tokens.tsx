@@ -1,12 +1,12 @@
 /** Carved wooden army tokens: a shield in the owner's colour with the troop count. */
 import { memo } from 'react';
-import type { MapData, Owner, RegionId, RegionState } from '../../engine/types';
+import type { MapData, Holder, RegionId, RegionState } from '../../engine/types';
 import { ownerFill, ownerInk } from './palette';
 
 export const SHIELD = 'M-10 -11.5 H10 V-2 C10 6 5 10.5 0 13.5 C-5 10.5 -10 6 -10 -2 Z';
 const FACE = 'M-7.6 -9 H7.6 V-2.2 C7.6 4.3 3.9 8 0 10.4 C-3.9 8 -7.6 4.3 -7.6 -2.2 Z';
 
-export function Token({ owner, troops, x, y }: { owner: Owner; troops: number; x: number; y: number }) {
+export function Token({ owner, troops, x, y }: { owner: Holder; troops: number; x: number; y: number }) {
   const crossing = owner === 'crossing';
   return (
     <g transform={`translate(${x} ${y})`}>

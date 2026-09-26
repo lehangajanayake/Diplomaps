@@ -6,12 +6,14 @@ import { Rng } from './rng.js';
 import {
   CROSSING,
   NATION_IDS,
+  type Alliance,
   type NationId,
   type NationState,
   type Owner,
   type RegionId,
   type RegionState,
   type WorldState,
+  WORLD_VERSION,
 } from './types.js';
 
 export function createWorld(seed: number): WorldState {
@@ -49,19 +51,20 @@ export function createWorld(seed: number): WorldState {
       strikes: {},
       trust,
       trustPlayer: profile.trustToPlayer,
-      blame: 0,
+      suspicion: 0,
       knowledge: [],
       redLineCrossings: [],
       learned: [],
       audiences: 0,
       lastAudienceSeason: null,
-      lastAction: null,
       startTroops: 0,
+      fallen: null,
+      grievances: 0,
     };
   }
 
   const world: WorldState = {
-    version: 1,
+    version: WORLD_VERSION,
     seed: seed >>> 0,
     rng: rng.state,
     season: 1,
@@ -71,19 +74,22 @@ export function createWorld(seed: number): WorldState {
     initialRegions: structuredCloneRegions(regions),
     nations,
     player: {
+      ambition: null,
       gold: CONFIG.start.gold,
       goldEarned: 0,
       goldSpent: 0,
       neutrality: CONFIG.start.neutrality,
-      passage: Object.fromEntries(NATION_IDS.map((id) => [id, 'none'])) as Record<NationId, 'none'>,
+      passes: Object.fromEntries(NATION_IDS.map((id) => [id, 'open'])) as Record<NationId, 'open'>,
       ledger: [],
-      ceded: [],
-      gifts: Object.fromEntries(NATION_IDS.map((id) => [id, 0])) as Record<NationId, number>,
-      sellswords: 0,
+      regionsGained: [],
+      claims: 0,
+      offers: [],
     },
     wars: [],
-    alliances: [],
+    alliances: startingAlliances(),
     letters: [],
+    burning: {},
+    intents: [],
     audiencesThisSeason: [],
     seasonLog: [],
     chronicle: [
@@ -98,8 +104,12 @@ export function createWorld(seed: number): WorldState {
       },
     ],
     history: [],
+    crisis: null,
     stats: {
       warsStarted: 0,
+      collapses: 0,
+      instigated: [],
+      peacesBrokered: 0,
       battles: 0,
       firstWarSeason: null,
       regionsChanged: 0,
@@ -110,6 +120,19 @@ export function createWorld(seed: number): WorldState {
   };
   for (const id of NATION_IDS) world.nations[id].startTroops = totalTroops(world, id);
   return world;
+}
+
+/** Old friendships are sworn alliances from the start: an attack on one brings the other. */
+function startingAlliances(): Alliance[] {
+  const out: Alliance[] = [];
+  for (const a of NATION_IDS) {
+    for (const f of PROFILES[a].friends) {
+      const b = f.with;
+      const mutual = PROFILES[b].friends.some((x) => x.with === a);
+      if (mutual && a < b) out.push({ a, b, since: 0 });
+    }
+  }
+  return out;
 }
 
 function structuredCloneRegions(regions: Record<RegionId, RegionState>): Record<RegionId, RegionState> {
@@ -131,6 +154,15 @@ export function totalTroops(world: WorldState, owner: Owner): number {
   return sum;
 }
 
+/** A nation that has not collapsed. */
+export function isStanding(world: WorldState, nation: NationId): boolean {
+  return world.nations[nation].fallen === null;
+}
+
+export function standingNations(world: WorldState): NationId[] {
+  return NATION_IDS.filter((n) => isStanding(world, n));
+}
+
 export function bordersOwner(world: WorldState, owner: Owner, other: Owner): boolean {
   return world.map.regionIds.some((id) => {
     if (world.regions[id]!.owner !== owner) return false;
@@ -142,8 +174,17 @@ export function atWar(world: WorldState, a: Owner, b: Owner): boolean {
   return world.wars.some((w) => (w.a === a && w.b === b) || (w.a === b && w.b === a));
 }
 
+/** How many wars a nation is fighting. */
+export function warsOf(world: WorldState, nation: NationId): number {
+  return world.wars.filter((w) => w.a === nation || w.b === nation).length;
+}
+
 export function allied(world: WorldState, a: Owner, b: Owner): boolean {
   return world.alliances.some((al) => (al.a === a && al.b === b) || (al.a === b && al.b === a));
+}
+
+export function alliesOf(world: WorldState, nation: NationId): NationId[] {
+  return world.alliances.flatMap((al) => (al.a === nation ? [al.b] : al.b === nation ? [al.a] : []));
 }
 
 export function regionName(world: WorldState, id: RegionId): string {
