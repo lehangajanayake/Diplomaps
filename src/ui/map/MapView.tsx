@@ -5,7 +5,9 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ownerName } from '../../engine/nations';
-import type { Owner, RegionId, WorldState } from '../../engine/types';
+import type { Owner, RegionId, RegionState, WorldState } from '../../engine/types';
+import type { MapFx } from '../../store/worldStore';
+import { SeasonFx } from './SeasonFx';
 import { Legend } from './Legend';
 import { RegionHitAreas, RegionHover } from './Region';
 import { StaticMap } from './StaticMap';
@@ -13,6 +15,7 @@ import { Tokens } from './Tokens';
 
 interface Props {
   world: WorldState;
+  fx?: MapFx | null;
   hoverRegion: RegionId | null;
   onHover: (id: RegionId | null) => void;
   onSelect: (id: RegionId) => void;
@@ -29,8 +32,10 @@ interface View {
 const MIN_K = 1;
 const MAX_K = 2.6;
 
-export function MapView({ world, hoverRegion, onHover, onSelect, children, interactive = true }: Props) {
+export function MapView({ world, fx = null, hoverRegion, onHover, onSelect, children, interactive = true }: Props) {
   const { map } = world;
+  // While the season's effects play, the map shows the world as it was; then it settles into the new one.
+  const shown: Record<RegionId, RegionState> = fx && !fx.settled ? fx.before : world.regions;
   const viewportRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>({ x: 0, y: 0, k: 1 });
@@ -39,7 +44,7 @@ export function MapView({ world, hoverRegion, onHover, onSelect, children, inter
   const drag = useRef<{ x: number; y: number; vx: number; vy: number; moved: boolean; id: number } | null>(null);
   const settleTimer = useRef<number | undefined>(undefined);
 
-  const ownersKey = map.regionIds.map((id) => world.regions[id]!.owner).join(',');
+  const ownersKey = map.regionIds.map((id) => shown[id]!.owner).join(',');
   const owners = useMemo(() => {
     const out: Record<RegionId, Owner> = {};
     ownersKey.split(',').forEach((o, i) => (out[map.regionIds[i]!] = o as Owner));
@@ -129,7 +134,7 @@ export function MapView({ world, hoverRegion, onHover, onSelect, children, inter
   );
 
   const hover = hoverRegion ? map.regions[hoverRegion] : null;
-  const hoverState = hoverRegion ? world.regions[hoverRegion] : null;
+  const hoverState = hoverRegion ? shown[hoverRegion] : null;
 
   return (
     <div
@@ -158,7 +163,8 @@ export function MapView({ world, hoverRegion, onHover, onSelect, children, inter
         <svg viewBox={`0 0 ${map.width} ${map.height}`} className="absolute inset-0 h-full w-full">
           {interactive && <RegionHitAreas map={map} onEnter={handleEnter} onLeave={handleLeave} onClick={handleClick} />}
           {hover && hoverState && <RegionHover map={map} id={hover.id} owner={hoverState.owner} />}
-          <Tokens map={map} regions={world.regions} />
+          <Tokens map={map} regions={shown} />
+          {fx && !fx.settled && <SeasonFx map={map} fx={fx} />}
           {children}
         </svg>
       </div>

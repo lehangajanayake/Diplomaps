@@ -3,7 +3,8 @@ import { AnimatePresence } from 'motion/react';
 import { useCallback, useEffect } from 'react';
 import { CONFIG } from '../../engine/config';
 import type { RegionId } from '../../engine/types';
-import { audiencesLeft, closeOverlay, openCrossing, openDossier, openLedger, openLetter } from '../../store/flow';
+import { sound } from '../../audio/sound';
+import { audiencesLeft, closeOverlay, endSeason, openCrossing, openDossier, openLedger, openLetter } from '../../store/flow';
 import { useStore } from '../../store/worldStore';
 import { AudienceScene } from '../audience/AudienceScene';
 import { EndSeasonBell } from '../hud/EndSeasonBell';
@@ -23,8 +24,9 @@ import { PassageLetters } from '../panels/PassageLetters';
 import { InkPot } from '../table/Decor';
 import { Notes } from '../table/Notes';
 import { Table } from '../table/Table';
+import { SeasonCard } from './SeasonCard';
 
-export function GameTable({ onRing }: { onRing: () => void }) {
+export function GameTable() {
   const world = useStore((s) => s.world);
   const hoverRegion = useStore((s) => s.hoverRegion);
   const setHoverRegion = useStore((s) => s.setHoverRegion);
@@ -34,6 +36,14 @@ export function GameTable({ onRing }: { onRing: () => void }) {
   const chronicleFresh = useStore((s) => s.chronicleFresh);
   const chroniclePending = useStore((s) => s.chroniclePending);
   const resolving = useStore((s) => s.resolving);
+  const fx = useStore((s) => s.fx);
+  const muted = useStore((s) => s.muted);
+  const tension = useStore((s) => s.world?.tension ?? 0);
+
+  useEffect(() => {
+    sound.setDrums(!muted && tension > CONFIG.tension.drumsAbove);
+    return () => sound.setDrums(false);
+  }, [tension, muted]);
 
   const onSelect = useCallback((id: RegionId) => {
     const owner = useStore.getState().world?.regions[id]?.owner;
@@ -76,7 +86,7 @@ export function GameTable({ onRing }: { onRing: () => void }) {
 
         <div className="map-stage">
           <MapSheet>
-            <MapView world={world} hoverRegion={hoverRegion} onHover={setHoverRegion} onSelect={onSelect} interactive={!resolving} />
+            <MapView world={world} fx={fx} hoverRegion={hoverRegion} onHover={setHoverRegion} onSelect={onSelect} interactive={!resolving} />
           </MapSheet>
         </div>
 
@@ -86,7 +96,7 @@ export function GameTable({ onRing }: { onRing: () => void }) {
           <NeutralityScale neutrality={world.player.neutrality} />
           <LedgerBook entries={ledger.length} caught={ledger.filter((e) => e.caught).length} onOpen={openLedger} />
           <EndSeasonBell
-            onRing={onRing}
+            onRing={() => void endSeason()}
             disabled={resolving || !!audience}
             note={sealed ? `${sealed} ${sealed === 1 ? 'letter' : 'letters'} unanswered` : undefined}
           />
@@ -103,6 +113,7 @@ export function GameTable({ onRing }: { onRing: () => void }) {
         <Notes />
       </div>
       <AnimatePresence>{audience && <AudienceScene key="audience" />}</AnimatePresence>
+      <SeasonCard />
     </Table>
   );
 }

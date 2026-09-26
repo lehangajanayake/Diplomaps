@@ -41,6 +41,9 @@ export interface AudienceState {
 
 export interface MapFx {
   key: number;
+  /** Region owners and troops as they were before the season resolved, shown until the effects settle. */
+  before: Record<RegionId, { owner: Owner; troops: number }>;
+  settled: boolean;
   moves: { from: RegionId; to: RegionId; owner: Owner; troops: number }[];
   battles: { region: RegionId; from: RegionId; attacker: Owner; captured: boolean }[];
   conquests: { region: RegionId; from: RegionId | null; owner: Owner }[];

@@ -14,5 +14,5 @@ export function App() {
   }, []);
 
   if (phase === 'title') return <TitleScreen />;
-  return <GameTable onRing={() => {}} />;
+  return <GameTable />;
 }

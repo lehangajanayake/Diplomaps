@@ -2,17 +2,18 @@
  * Game orchestration: everything that mixes the pure engine, the AI endpoints and the UI state.
  * Components call these functions; they read and write the Zustand store.
  */
-import { assessAudience, extractPromises, fetchHealth, streamAudience } from '../ai/client';
-import { CONFIG } from '../engine/config';
+import { assessAudience, chooseAction, extractPromises, fetchHealth, streamAudience, writeChronicle, writeEnding } from '../ai/client';
+import { CONFIG, seasonName, seasonTitle, seasonYear } from '../engine/config';
 import { greetingFor } from '../engine/courtesy';
 import { addLedgerEntries, answerLetter, changePassage, giveGift, hireSellswords, recordAudience } from '../engine/ledger';
 import { PROFILES } from '../engine/nations';
 import type { AudienceRequest } from '../engine/schema';
-import type { GameEvent, NationId, WorldState } from '../engine/types';
-import { buildAudienceContext } from '../engine/views';
+import { playSeason } from '../engine/resolve';
+import { NATION_IDS, type GameEvent, type NationAction, type NationId, type RegionId, type WorldState } from '../engine/types';
+import { buildActionContext, buildAudienceContext, buildChronicleRequest, buildEndingRequest } from '../engine/views';
 import { createWorld } from '../engine/world';
 import { sound } from '../audio/sound';
-import { clearSave, loadSave, randomSeed, useStore, type AudienceTurnUI, type Note } from './worldStore';
+import { clearSave, loadSave, randomSeed, useStore, type AudienceTurnUI, type MapFx, type Note } from './worldStore';
 
 const get = () => useStore.getState();
 const set = useStore.setState;
@@ -328,4 +329,139 @@ export function dismissTutorial(): void {
   } catch {
     // ignore
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* The end of a season                                                 */
+/* ------------------------------------------------------------------ */
+
+
+const sleep = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
+
+function waitingLines(w: WorldState): string[] {
+  const caps = NATION_IDS.map((n) => ({ nation: PROFILES[n].name, capital: w.map.capitals[n].name, ruler: PROFILES[n].ruler.name }));
+  return [
+    `A rider sets out for ${caps[0]!.capital}…`,
+    `In ${caps[1]!.capital}, clerks tally the season's tolls…`,
+    `Wax is pressed on letters in ${caps[4]!.capital}…`,
+    `${caps[2]!.ruler} reads your words by candlelight…`,
+    `Reed-boats slip out of ${caps[3]!.capital} in the mist…`,
+    `${caps[0]!.ruler} counts the spears on the border…`,
+    'The five courts take counsel…',
+  ];
+}
+
+function buildFx(before: WorldState, events: GameEvent[]): MapFx {
+  const fx: MapFx = {
+    key: Date.now(),
+    before: Object.fromEntries(before.map.regionIds.map((id) => [id, { ...before.regions[id]! }])),
+    settled: false,
+    moves: [],
+    battles: [],
+    conquests: [],
+    trails: [],
+    mobilised: [],
+  };
+  for (const e of events) {
+    if (e.kind === 'move') fx.moves.push({ from: e.from, to: e.to, owner: e.nation, troops: e.troops });
+    else if (e.kind === 'battle') {
+      fx.battles.push({ region: e.region, from: e.from, attacker: e.attacker, captured: e.captured });
+      if (e.captured) fx.conquests.push({ region: e.region, from: e.from, owner: e.attacker });
+    } else if (e.kind === 'cede') fx.conquests.push({ region: e.region, from: null, owner: e.target });
+    else if (e.kind === 'mobilise') fx.mobilised.push(e.region as RegionId);
+    else if (e.kind === 'gossip') fx.trails.push({ from: e.from, to: e.to, entry: e.entry });
+  }
+  fx.trails = fx.trails.slice(0, 8);
+  return fx;
+}
+
+function seasonNotes(w: WorldState, events: GameEvent[]): void {
+  const who = (o: string) => (o === 'crossing' ? 'the Crossing' : PROFILES[o as NationId].name);
+  for (const e of events) {
+    if (e.kind === 'war') note(`${who(e.nation)} declared war on ${who(e.target)}.`, 'danger', 9000);
+    else if (e.kind === 'battle' && e.captured) note(`${who(e.attacker)} took ${w.map.regions[e.region]?.name} from ${who(e.defender)}.`, e.defender === 'crossing' ? 'danger' : 'info', 8000);
+    else if (e.kind === 'lie_caught') {
+      const entry = w.player.ledger.find((x) => x.id === e.entry);
+      note(`${e.by.map((b) => PROFILES[b].name).join(' and ')} caught your lie${entry ? `: "${entry.what}"` : ''}.`, 'danger', 10000);
+    } else if (e.kind === 'peace') note(`${who(e.a)} and ${who(e.b)} made peace.`, 'good');
+    else if (e.kind === 'red_line' && e.by === 'crossing') note(`You crossed ${PROFILES[e.nation].name}'s red line.`, 'danger', 9000);
+  }
+  const income = events.find((e) => e.kind === 'income');
+  if (income && income.kind === 'income') note(`The tolls bring in ${income.gold} gold.`, 'good', 5000);
+  const letters = w.letters.filter((l) => l.status === 'sealed' && l.season === w.season);
+  if (letters.length) note(`${letters.length === 1 ? 'A sealed letter lies' : `${letters.length} sealed letters lie`} on the table.`, 'info', 7000);
+}
+
+export async function endSeason(): Promise<void> {
+  const s = get();
+  const w = s.world;
+  if (!w || s.resolving || s.audience || w.ending) return;
+  const finalSeason = w.season >= CONFIG.seasons;
+  const next = w.season + 1;
+  const title = finalSeason ? `The End of ${seasonName(w.season)}, ${seasonYear(w.season)}` : `${seasonName(next)}, Year ${seasonYear(next)}`;
+  sound.play('bell');
+  const lines = waitingLines(w);
+  set({ resolving: true, selectedNation: null, overlay: null, fx: null, seasonCard: { season: next, title, message: lines[0]!, closing: false } });
+  advanceTutorial(4);
+
+  let tick = 0;
+  const ticker = window.setInterval(() => {
+    const card = get().seasonCard;
+    if (card && !card.closing) set({ seasonCard: { ...card, message: lines[++tick % lines.length]! } });
+  }, 1700);
+
+  const [results] = await Promise.all([
+    Promise.all(
+      NATION_IDS.map(async (nation) => {
+        const r = await chooseAction({ nation, context: buildActionContext(w, nation) });
+        return { nation, action: r.action, target: r.target, region: r.region, reason: r.reason } satisfies NationAction;
+      }),
+    ),
+    sleep(2600),
+  ]);
+  window.clearInterval(ticker);
+
+  const audiences = [...w.audiencesThisSeason];
+  const outcome = playSeason(w, results);
+  const fx = buildFx(w, outcome.events);
+  set({ world: outcome.state, fx, seasonCard: { ...get().seasonCard!, message: finalSeason ? 'The last season is done.' : 'The courts have chosen.', closing: true } });
+  seasonNotes(outcome.state, outcome.events);
+  if (outcome.state.tension > CONFIG.tension.drumsAbove) sound.play('drums');
+
+  // The chronicler writes while the map plays out.
+  set({ chroniclePending: 'The chronicler dips his quill…' });
+  const chroniclePromise = writeChronicle(buildChronicleRequest(outcome.state, outcome.events, w.season, audiences));
+  await sleep(1100);
+  set({ seasonCard: null });
+  await sleep(4600);
+  set((st) => ({ fx: st.fx ? { ...st.fx, settled: true } : null }));
+  const chron = await chroniclePromise;
+  const entry = { season: w.season, title: seasonTitle(w.season), lines: chron.lines, fromAI: !chron.fallback };
+  const cur = get().world!;
+  set({ world: { ...cur, chronicle: [...cur.chronicle, entry] }, chronicleFresh: w.season, chroniclePending: null, resolving: false, fx: null });
+  sound.play('quill');
+
+  if (outcome.ending) {
+    await sleep(3200);
+    await finishGame();
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* The ending                                                          */
+/* ------------------------------------------------------------------ */
+
+export async function finishGame(): Promise<void> {
+  const w = get().world;
+  if (!w?.ending) return;
+  set({ phase: 'ending', ending: { verdicts: {}, epilogue: '', loading: true, fallback: false }, selectedNation: null, overlay: null });
+  sound.setDrums(false);
+  const result = await writeEnding(buildEndingRequest(w));
+  set({ ending: { verdicts: result.verdicts, epilogue: result.epilogue, loading: false, fallback: result.fallback } });
+}
+
+export function playAgain(): void {
+  clearSave();
+  set({ phase: 'table', ending: null, chronicleFresh: null, tutorialStep: 0 });
+  beginGame(randomSeed());
 }
