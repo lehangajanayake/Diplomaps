@@ -31,7 +31,7 @@ export const CONFIG = {
   start: {
     gold: 100,
     neutrality: 80,
-    tension: 24,
+    tension: 30,
     troopsCapital: 4,
     troopsBorder: 3,
     troopsOther: 2,
@@ -56,7 +56,16 @@ export const CONFIG = {
     cede: -8,
     wait: -1,
     request_passage: 1,
-    decay: 4,
+    decay: 3,
+    /** Old grudges fester: tension added each season per pair of nations that mutually distrust. */
+    grudgePressure: 0.5,
+    /** Above this, war-weariness drains extra tension each season. */
+    exhaustionAbove: 75,
+    exhaustionRate: 0.15,
+    /** A warm audience (trust gained at least this much) calms the realm a little. */
+    warmAudience: 6,
+    warmAudienceCalm: -2,
+    grudgeTrust: -30,
     lieCaught: 3,
     passageGranted: 3,
     redLine: 3,
@@ -100,7 +109,7 @@ export const CONFIG = {
     brokenPromise: -18,
     tradeWithCrossing: 5,
     /** Minimum mutual trust for two nations to gossip without a formal alliance. */
-    gossipFriends: 25,
+    gossipFriends: 20,
     /** Minimum trust for a nation to know an ally's intentions (and catch lies about it). */
     confidant: 40,
   },
@@ -158,18 +167,23 @@ export const CONFIG = {
     crossingWarTrust: -30,
     crossingWarBlame: 60,
     redLineMemory: 2,
+    /** A 'threat' red line breaks on the second threat or demand from the same court. */
+    threatStrikes: 2,
+    /** A 'border_troops' red line breaks when a neighbour masses at least this many troops at the border. */
+    borderTroops: 7,
   },
 
   endings: {
     grandPeaceTrust: 60,
     grandPeaceTension: 15,
-    spiderGold: 190,
+    spiderGold: 300,
     spiderBlame: 30,
+    spiderLies: 1,
     spiderWeakened: 0.85,
     kingmakerTrust: 45,
     kingmakerLead: 1.4,
     peacemakerTrust: 30,
-    merchantGold: 280,
+    merchantGold: 400,
     merchantMaxWars: 1,
   },
 } as const;

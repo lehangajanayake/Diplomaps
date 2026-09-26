@@ -46,6 +46,7 @@ export function createWorld(seed: number): WorldState {
     }
     nations[id] = {
       id,
+      strikes: {},
       trust,
       trustPlayer: profile.trustToPlayer,
       blame: 0,
@@ -146,4 +147,15 @@ export function allied(world: WorldState, a: Owner, b: Owner): boolean {
 
 export function regionName(world: WorldState, id: RegionId): string {
   return world.map.regions[id]?.name ?? id;
+}
+
+/** Copy a world for mutation. The map never changes, so it is shared rather than cloned. */
+export function cloneWorld(w: WorldState): WorldState {
+  const { map, ...rest } = w;
+  const copy = structuredClone(rest) as Omit<WorldState, 'map'>;
+  return { ...copy, map };
+}
+
+export function hasGrudge(nation: NationId, against: NationId): boolean {
+  return PROFILES[nation].grudges.some((g) => g.against === against);
 }

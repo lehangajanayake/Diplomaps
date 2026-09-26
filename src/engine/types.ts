@@ -178,6 +178,8 @@ export interface RedLineCrossing {
 
 export interface NationState {
   id: NationId;
+  /** Threats and demands received, by who made them (for two-strike red lines). */
+  strikes: Partial<Record<Owner, number>>;
   trust: Record<NationId, number>;
   trustPlayer: number;
   blame: number;
