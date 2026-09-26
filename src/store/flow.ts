@@ -2,11 +2,12 @@
  * Game orchestration: everything that mixes the pure engine, the AI endpoints and the UI state.
  * Components call these functions; they read and write the Zustand store.
  */
-import { assessAudience, extractPromises, fetchHealth, streamAudience, writeEnding, writeFlavour } from '../ai/client';
+import { extractPromises, fetchHealth, streamAudience, writeEnding, writeFlavour } from '../ai/client';
 import { CONFIG, seasonName } from '../engine/config';
 import { greetingFor, greetingToneFor } from '../engine/courtesy';
-import { addLedgerEntries, recordAudience } from '../engine/ledger';
+import { addLedgerEntries, recordAudience, recordExchange } from '../engine/ledger';
 import { claimRuin } from '../engine/actions';
+import { echoedPromise, patienceFor, trustStep } from '../engine/audience';
 import { biggest, MONTAGE_MAX, type Beat } from '../engine/beats';
 import { callFavour } from '../engine/favours';
 import { cedableRegions, recordOffer } from '../engine/land';
@@ -243,17 +244,23 @@ export function canHoldAudience(w: WorldState, nation: NationId): string | null 
 export function startAudience(nation: NationId): void {
   const w = get().world;
   if (!w || canHoldAudience(w, nation)) return;
-  const greeting = greetingFor(w, nation);
+  const trust = w.nations[nation].trustPlayer;
+  const patience = patienceFor(trust);
   set({
     selectedNation: null,
     overlay: null,
     audience: {
       nation,
-      turns: [{ role: 'ruler', text: greeting }],
+      turns: [{ role: 'ruler', text: greetingFor(w, nation) }],
       status: 'awaiting',
       streamText: '',
-      mood: w.nations[nation].trustPlayer >= 25 ? 'warm' : w.nations[nation].trustPlayer <= -20 ? 'wary' : 'neutral',
+      mood: trust >= 25 ? 'pleased' : trust <= -35 ? 'angry' : 'wary',
       moodTick: 0,
+      patience,
+      patienceMax: patience,
+      trustChange: 0,
+      warning: null,
+      insolent: false,
       endedByRuler: false,
       calledAway: false,
       result: null,
@@ -270,18 +277,22 @@ function playerMessages(turns: AudienceTurnUI[]): number {
   return turns.filter((t) => t.role === 'player').length;
 }
 
+/**
+ * One exchange: the Warden speaks, the ruler replies and judges the words. Trust moves at once (within the
+ * audience's cap) and patience burns down; when it is gone, the ruler ends the audience.
+ */
 export async function sendAudienceMessage(raw: string): Promise<void> {
   const state = get();
   const a = state.audience;
   const w = state.world;
   const text = raw.trim().slice(0, 600);
-  if (!a || !w || a.status !== 'awaiting' || !text) return;
-  if (playerMessages(a.turns) >= CONFIG.messagesPerAudience) return;
+  if (!a || !w || a.status !== 'awaiting' || !text || a.patience <= 0) return;
   const turns: AudienceTurnUI[] = [...a.turns, { role: 'player', text }];
-  set({ audience: { ...a, turns, status: 'speaking', streamText: '' } });
+  const warning = echoedPromise(w, a.nation, text)?.warning ?? null;
+  set({ audience: { ...a, turns, status: 'speaking', streamText: '', warning } });
   sound.play('quill');
 
-  const req: AudienceRequest = { mode: 'reply', nation: a.nation, turns, context: buildAudienceContext(w, a.nation), endedByRuler: false };
+  const req: AudienceRequest = { nation: a.nation, turns, context: buildAudienceContext(w, a.nation), patience: a.patience };
   const result = await streamAudience(req, (e) => {
     const cur = get().audience;
     if (!cur) return;
@@ -290,15 +301,31 @@ export async function sendAudienceMessage(raw: string): Promise<void> {
     else if (e.t === 'audio') sound.playSpeech(e.data);
   });
   const cur = get().audience;
-  if (!cur) return;
-  const finalTurns: AudienceTurnUI[] = [...cur.turns, { role: 'ruler', text: result.reply }];
-  const count = playerMessages(finalTurns);
-  const over = result.ends || count >= CONFIG.messagesPerAudience;
-  set({ audience: { ...cur, turns: finalTurns, streamText: '', mood: result.mood, status: over ? 'closing' : 'awaiting', calledAway: result.fallback } });
-  if (over) await closeAudience(result.ends && count < CONFIG.messagesPerAudience && !result.fallback, result.fallback);
+  const world = get().world;
+  if (!cur || !world) return;
+  const step = result.fallback ? 0 : trustStep(cur.trustChange, result.trustDelta);
+  if (step !== 0) set({ world: recordExchange(world, cur.nation, step) });
+  const patience = Math.max(0, cur.patience - result.patienceCost);
+  const over = result.ends || patience <= 0;
+  set({
+    audience: {
+      ...cur,
+      turns: [...cur.turns, { role: 'ruler', text: result.reply }],
+      streamText: '',
+      mood: result.mood,
+      moodTick: cur.moodTick + 1,
+      patience,
+      trustChange: cur.trustChange + step,
+      insolent: cur.insolent || result.insolent,
+      status: over ? 'closing' : 'awaiting',
+      calledAway: result.fallback,
+    },
+  });
+  if (result.insolent) note(`${PROFILES[cur.nation].ruler.name} took your strange words as an insult.`, 'danger');
+  if (over) await closeAudience(!result.fallback, result.fallback);
 }
 
-/** The player takes their leave before the fourth message. */
+/** The Warden takes their leave. */
 export async function leaveAudience(): Promise<void> {
   const a = get().audience;
   if (!a || a.status !== 'awaiting') return;
@@ -306,32 +333,25 @@ export async function leaveAudience(): Promise<void> {
   await closeAudience(false, false);
 }
 
+/** After the audience: the clerk writes the Warden's promises and claims into the ledger, and notes what was learned. */
 async function closeAudience(endedByRuler: boolean, calledAway: boolean): Promise<void> {
   const a = get().audience;
   const w0 = get().world;
   if (!a || !w0) return;
   const turns = a.turns;
-  const spoke = playerMessages(turns) > 0;
   set({ audience: { ...a, status: 'closing', endedByRuler, calledAway } });
-  // Nothing was said, or the ruler was called away before a single real reply: nothing to judge or record.
-  if (!spoke || (calledAway && playerMessages(turns) <= 1)) {
+  // Nothing was said, or the ruler was called away before a single real reply: nothing to record, and it costs no audience.
+  if (playerMessages(turns) === 0 || (calledAway && playerMessages(turns) <= 1)) {
     set({ audience: { ...a, status: 'closed', endedByRuler, calledAway, result: null } });
     return;
   }
-  const context = buildAudienceContext(w0, a.nation);
   const prior = w0.player.ledger
     .filter((e) => e.to !== a.nation)
     .slice(-40)
     .map((e) => ({ id: e.id, to: e.to, type: e.type, what: e.what, promiseKind: e.promiseKind, topic: e.topic, about: e.about }));
   const offerable = cedableRegions(w0, a.nation).map((id) => w0.map.regions[id]!.name);
-  const [assessment, extraction] = await Promise.all([
-    assessAudience({ mode: 'assess', nation: a.nation, turns, context, endedByRuler }),
-    extractPromises({ nation: a.nation, season: w0.season, turns, prior, offerable }),
-  ]);
-  // A ruler called away by a failed connection does not cost the player an audience.
-  const held = !(calledAway && playerMessages(turns) <= 1);
-  const trustBefore = get().world!.nations[a.nation].trustPlayer;
-  let { world } = recordAudience(get().world!, a.nation, assessment.trustDelta, assessment.learned, held);
+  const extraction = await extractPromises({ nation: a.nation, season: w0.season, turns, prior, offerable });
+  let world = recordAudience(get().world!, a.nation, a.trustChange, extraction.learned, true);
   const added = addLedgerEntries(world, a.nation, extraction.entries);
   world = added.world;
   if (extraction.landOffer) {
@@ -341,7 +361,6 @@ async function closeAudience(endedByRuler: boolean, calledAway: boolean): Promis
     note(`${PROFILES[a.nation].name} offered you ${where}. It is yours when the season ends, if they still trust you.`, 'good', 9000);
   }
   commit(world, added.events);
-  const caught = added.events.flatMap((e) => (e.kind === 'lie_caught' ? [e.how] : []));
   const cur = get().audience;
   if (!cur) return;
   set({
@@ -349,18 +368,15 @@ async function closeAudience(endedByRuler: boolean, calledAway: boolean): Promis
       ...cur,
       status: 'closed',
       result: {
-        trustBefore,
+        trustBefore: w0.nations[a.nation].trustPlayer - a.trustChange,
         trustAfter: world.nations[a.nation].trustPlayer,
-        trustDelta: world.nations[a.nation].trustPlayer - trustBefore,
-        learned: assessment.learned,
+        learned: extraction.learned,
         entries: added.added,
-        caught,
-        manipulation: assessment.manipulation,
-        fallback: assessment.fallback,
+        caught: added.events.flatMap((e) => (e.kind === 'lie_caught' ? [e.how] : [])),
+        fallback: extraction.fallback,
       },
     },
   });
-  if (assessment.manipulation) note(`${PROFILES[a.nation].ruler.name} took your strange words as an insult.`, 'danger');
 }
 
 /** Close the doors on the audience hall, then do `then` (such as calling in a favour) at the table. */

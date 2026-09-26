@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { CLAIM_KINDS, CROSSING, NATION_IDS, type ClaimKind, type GameEvent, type LedgerEntry, type NationId, type WorldState } from './types.js';
 import type { ExtractedEntry } from './schema.js';
-import { addTension, adjustNeutrality, adjustSuspicion, adjustTrustPlayer, clamp, crossRedLine, strike } from './tension.js';
+import { addTension, adjustNeutrality, adjustSuspicion, adjustTrustPlayer, crossRedLine, strike } from './tension.js';
 import { PROFILES } from './nations.js';
 import { allied, atWar, cloneWorld, hasGrudge, regionsOf, totalTroops } from './world.js';
 
@@ -228,13 +228,16 @@ export function addLedgerEntries(
 /* Audiences                                                            */
 /* ------------------------------------------------------------------ */
 
-export function recordAudience(
-  world: WorldState,
-  nation: NationId,
-  trustDelta: number,
-  learned: string,
-  held: boolean,
-): { world: WorldState; events: GameEvent[] } {
+/** One exchange of an audience: the ruler's trust moves (the caller keeps the audience within its cap). */
+export function recordExchange(world: WorldState, nation: NationId, trustDelta: number): WorldState {
+  if (trustDelta === 0) return world;
+  const w = cloneWorld(world);
+  adjustTrustPlayer(w, nation, trustDelta);
+  return w;
+}
+
+/** The audience is over: count it, let a warm one calm the realm, and remember what the Warden learned. */
+export function recordAudience(world: WorldState, nation: NationId, trustChange: number, learned: string, held: boolean): WorldState {
   const w = cloneWorld(world);
   if (held && !w.audiencesThisSeason.includes(nation)) {
     w.audiencesThisSeason.push(nation);
@@ -242,9 +245,8 @@ export function recordAudience(
     w.nations[nation].lastAudienceSeason = w.season;
     w.stats.audiencesHeld += 1;
   }
-  adjustTrustPlayer(w, nation, clamp(trustDelta, -15, 15));
-  if (held && trustDelta >= CONFIG.tension.warmAudience) addTension(w, CONFIG.tension.warmAudienceCalm);
+  if (held && trustChange >= CONFIG.tension.warmAudience) addTension(w, CONFIG.tension.warmAudienceCalm);
   if (learned) w.nations[nation].learned.push({ season: w.season, text: learned });
-  return { world: w, events: [] };
+  return w;
 }
 

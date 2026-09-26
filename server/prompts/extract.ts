@@ -29,6 +29,8 @@ For each entry:
 
 LAND OFFER: separately, record whether ${PROFILES[nation].ruler.name} (the ruler, not the Warden) firmly offered to give the Crossing one of their regions, or clearly agreed when the Warden asked for one. Vague hints, conditions still under discussion or refusals do not count. ${offerable.length ? `The regions ${PROFILES[nation].name} could give: ${offerable.join(', ')}.` : `${PROFILES[nation].name} has no region it could give; land_offer.offered must be false.`}
 
+LEARNED: in at most 20 words, what the Warden learned of the ruler's wishes, fears or intentions from the ruler's own words (e.g. "Wants the salt road kept open; fears Varrow's riders"). Empty string if nothing.
+
 Nation ids: ${ids}.
 
 EARLIER LEDGER (promises and claims to other rulers):

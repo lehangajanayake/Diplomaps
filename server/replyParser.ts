@@ -1,7 +1,8 @@
 /**
- * Incremental reader for the streamed audience JSON: {"mood": "...", "ends_audience": bool, "reply": "..."}.
- * Pulls out mood and ends_audience as soon as they appear and decodes the reply string as it grows,
- * so the ruler's words can be shown while they are still being written.
+ * Incremental reader for the streamed audience JSON: {"mood": "...", "trust_delta": n, ..., "ends_audience": bool,
+ * "reply": "..."}. Pulls out mood and ends_audience as soon as they appear and decodes the reply string as it
+ * grows, so the ruler's words can be shown while they are still being written. The rest of the judgement is read
+ * from the whole reply once it is complete.
  */
 import { MOODS, type Mood } from '../src/engine/schema.js';
 

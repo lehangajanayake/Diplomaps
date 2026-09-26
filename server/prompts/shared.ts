@@ -1,4 +1,5 @@
 /** Rendering structured game data into prompt text. All text here is built by the server. */
+import { seasonName } from '../../src/engine/config.js';
 import { PROFILES } from '../../src/engine/nations.js';
 import type { KnowledgeItem, News } from '../../src/engine/schema.js';
 import type { NationId, Owner } from '../../src/engine/types.js';
@@ -115,14 +116,15 @@ export function renderNews(news: readonly News[]): string {
     .join('\n');
 }
 
-export function renderKnowledge(items: readonly KnowledgeItem[], empty: string): string {
+/** The Warden's words as `listener` knows them, dated by season: "In Spring the Warden promised you: ...". */
+export function renderKnowledge(items: readonly KnowledgeItem[], listener: NationId, empty: string): string {
   if (items.length === 0) return `- ${empty}`;
   return items
     .map((k) => {
-      const source = k.heardFrom ? ` (heard from ${PROFILES[k.heardFrom].name})` : '';
-      const to = ` to ${PROFILES[k.to].name}`;
-      const caught = k.caught ? ' [KNOWN TO BE A LIE]' : '';
-      return `- Season ${k.season}: the Warden ${k.type === 'promise' ? 'promised' : 'claimed'}${to}: "${k.what}"${source}${caught}`;
+      const source = k.heardFrom ? ` (you heard it from ${PROFILES[k.heardFrom].name})` : '';
+      const to = k.to === listener ? 'you' : PROFILES[k.to].name;
+      const caught = k.caught ? ' [YOU KNOW IT WAS A LIE]' : '';
+      return `- In ${seasonName(k.season)} the Warden ${k.type === 'promise' ? 'promised' : 'told'} ${to}: "${k.what}"${source}${caught}`;
     })
     .join('\n');
 }
@@ -140,6 +142,8 @@ ${v.voice}
 
 HOW YOU SPEAK
 - ${p.speechStyle}
+- Your signature habit: ${v.habit}
+- Your sense of humour: ${v.humour}
 - For example: ${v.examples.map((e) => `"${e}"`).join(' / ')}
 - Things that please you: ${v.pleases.join('; ')}.
 - Things that offend you: ${v.offends.join('; ')}.

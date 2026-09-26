@@ -9,7 +9,24 @@ export const CONFIG = {
   startYear: 614,
   seasonNames: ['Spring', 'Summer', 'Autumn', 'Winter'] as const,
   audiencesPerSeason: 2,
-  messagesPerAudience: 4,
+
+  /** Audiences (audience.ts): a ruler listens while their patience lasts. */
+  audience: {
+    /** Starting patience, in exchanges: trust at or below each mark gives that many; above the last, `patienceMax`. */
+    patience: [
+      { trustAtMost: -30, exchanges: 3 },
+      { trustAtMost: 0, exchanges: 4 },
+      { trustAtMost: 39, exchanges: 5 },
+    ],
+    patienceMax: 6,
+    /** An exchange costs 1 patience; repetition, empty flattery, pushing a refused point or insolence cost up to this. */
+    maxCost: 3,
+    /** How far one exchange, and one whole audience, can move a ruler's trust. */
+    exchangeTrust: 6,
+    audienceTrust: 15,
+    /** A hard stop, whatever the ruler's patience. */
+    maxExchanges: 8,
+  },
 
   map: {
     width: 1000,
@@ -227,9 +244,12 @@ export const CONFIG = {
     exposedTrust: -15,
   },
 
-  /** The relations view: two nations whose mutual trust is at or below this are drawn as hostile. */
   relations: {
+    /** The relations view draws two nations whose mutual trust is at or below this as hostile. */
     hostileBelow: -25,
+    /** A nation counts another a friend when it trusts it this much, an enemy when it distrusts it this much. */
+    friendAbove: 30,
+    enemyBelow: -30,
   },
 
   /** Passes (passes.ts): a closed pass stops a nation's armies, caravans and tolls. */

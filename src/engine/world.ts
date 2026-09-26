@@ -201,6 +201,17 @@ export function relationBetween(world: WorldState, a: NationId, b: NationId): Re
   return mutual <= CONFIG.relations.hostileBelow ? 'hostile' : 'neutral';
 }
 
+/** Whom `nation` counts as friends (allies, or warmly trusted) and as enemies (at war, or bitterly distrusted). */
+export function friendsAndEnemies(world: WorldState, nation: NationId): { friends: NationId[]; enemies: NationId[] } {
+  const r = CONFIG.relations;
+  const others = NATION_IDS.filter((o) => o !== nation);
+  const trust = world.nations[nation].trust;
+  return {
+    friends: others.filter((o) => allied(world, nation, o) || (trust[o] >= r.friendAbove && !atWar(world, nation, o))),
+    enemies: others.filter((o) => atWar(world, nation, o) || trust[o] <= r.enemyBelow),
+  };
+}
+
 export function alliesOf(world: WorldState, nation: NationId): NationId[] {
   return world.alliances.flatMap((al) => (al.a === nation ? [al.b] : al.b === nation ? [al.a] : []));
 }

@@ -5,37 +5,20 @@
  */
 import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
-import { CONFIG, seasonTitle } from '../../engine/config';
+import { seasonTitle } from '../../engine/config';
 import { favourBlocked, favourThisSeason } from '../../engine/favours';
 import { isLie } from '../../engine/ledger';
 import { nameOf, PROFILES } from '../../engine/nations';
-import { NATION_IDS, type NationId, type WorldState } from '../../engine/types';
-import { allied, atWar, isStanding, regionsOf, totalTroops } from '../../engine/world';
+import type { NationId, WorldState } from '../../engine/types';
+import { atWar, friendsAndEnemies, isStanding, regionsOf, totalTroops } from '../../engine/world';
 import { canHoldAudience, openDossier, openFavour, startAudience } from '../../store/flow';
 import { InkGauge } from '../common/InkGauge';
 import { Portrait } from '../common/Portrait';
 import { SealButton } from '../common/SealButton';
+import { SealList } from '../common/SealList';
 import { WaxSeal } from '../common/WaxSeal';
 import { suspicionWord, trustWord } from '../hud/words';
 import { PassControl } from './PassControl';
-
-/** How warmly one nation must regard another to count it a friend, or coldly to count it an enemy. */
-const FRIEND = 30;
-
-function SealList({ nations, world, swords }: { nations: NationId[]; world: WorldState; swords?: (n: NationId) => boolean }) {
-  if (nations.length === 0) return <span className="italic text-ink-faded">none</span>;
-  return (
-    <span className="flex flex-wrap gap-x-[0.7em] gap-y-[0.2em]">
-      {nations.map((n) => (
-        <button key={n} type="button" onClick={() => openDossier(n)} className="inline-flex items-center gap-[0.3em] hover:text-wax" title={`${PROFILES[n].name}'s dossier`}>
-          <WaxSeal colour={PROFILES[n].colour} emblem={PROFILES[n].emblem} size="1.35em" seed={n.length * 7} cracked={!isStanding(world, n)} />
-          <span className="font-sc text-[0.84rem]">{PROFILES[n].name}</span>
-          {swords?.(n) && <span className="font-sc text-[0.72rem] text-ink-red">at war</span>}
-        </button>
-      ))}
-    </span>
-  );
-}
 
 function FullDossier({ world, nation }: { world: WorldState; nation: NationId }) {
   const p = PROFILES[nation];
@@ -106,9 +89,7 @@ export function Dossier({ world, nation }: { world: WorldState; nation: NationId
   const n = world.nations[nation];
   const standing = isStanding(world, nation);
   const blocked = canHoldAudience(world, nation);
-  const others = NATION_IDS.filter((o) => o !== nation);
-  const friends = others.filter((o) => allied(world, nation, o) || (n.trust[o] >= FRIEND && !atWar(world, nation, o)));
-  const enemies = others.filter((o) => atWar(world, nation, o) || n.trust[o] <= -FRIEND);
+  const { friends, enemies } = friendsAndEnemies(world, nation);
 
   return (
     <motion.aside
@@ -150,7 +131,7 @@ export function Dossier({ world, nation }: { world: WorldState; nation: NationId
           </dd>
           <dt className="font-sc text-ink-soft">Enemies</dt>
           <dd>
-            <SealList nations={enemies} world={world} swords={(o) => atWar(world, nation, o)} />
+            <SealList nations={enemies} world={world} atWar={(o) => atWar(world, nation, o)} />
           </dd>
         </dl>
 
@@ -170,7 +151,7 @@ export function Dossier({ world, nation }: { world: WorldState; nation: NationId
             colour={p.colour}
             emblem={p.emblem}
             seed={nation.length * 3}
-            hint={`A private audience: up to ${CONFIG.messagesPerAudience} messages. Everything you promise is written in your ledger.`}
+            hint="A private audience: the ruler listens while their patience lasts. Everything you promise is written in your ledger."
           />
         )}
         {standing && (

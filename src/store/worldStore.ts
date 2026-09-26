@@ -25,11 +25,9 @@ export interface AudienceTurnUI {
 export interface AudienceResult {
   trustBefore: number;
   trustAfter: number;
-  trustDelta: number;
   learned: string;
   entries: LedgerEntry[];
   caught: string[];
-  manipulation: boolean;
   fallback: boolean;
 }
 
@@ -40,6 +38,15 @@ export interface AudienceState {
   streamText: string;
   mood: Mood;
   moodTick: number;
+  /** Exchanges the ruler will still sit through, and how many they began with. */
+  patience: number;
+  patienceMax: number;
+  /** Trust the audience has moved so far (kept within ±15). */
+  trustChange: number;
+  /** The spymaster's warning when the Warden's latest words echo a promise made to another court. */
+  warning: string | null;
+  /** The Warden spoke insolence or madness at least once. */
+  insolent: boolean;
   endedByRuler: boolean;
   calledAway: boolean;
   result: AudienceResult | null;
