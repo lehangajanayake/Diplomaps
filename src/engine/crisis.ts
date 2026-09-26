@@ -2,6 +2,7 @@
  * The crisis card that opens each season: one plain sentence of what is at stake and one suggested
  * move. Written by code from the state of the world, so it is always true.
  */
+import { AMBITION } from './ambitions.js';
 import { CONFIG } from './config.js';
 import { nameOf } from './nations.js';
 import { CROSSING, NATION_IDS, type Crisis, type NationId, type WorldState } from './types.js';
@@ -30,7 +31,8 @@ function mostHostilePair(w: WorldState): [NationId, NationId] | null {
 }
 
 export function composeCrisis(w: WorldState): Crisis {
-  const base = { season: w.season, regions: [] };
+  const ambitionNote = w.player.ambition ? AMBITION[w.player.ambition].note(w) : null;
+  const base = { season: w.season, regions: [], ambitionNote };
   const wars = nationWars(w);
   if (wars.length > 0) {
     const [a, b] = wars[0]!;

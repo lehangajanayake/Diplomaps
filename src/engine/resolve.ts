@@ -8,6 +8,7 @@ import { computeIncome, pairKey } from './economy.js';
 import { composeCrisis } from './crisis.js';
 import { checkEnding } from './endings.js';
 import { runGossip } from './gossip.js';
+import { instigationOf, recordInstigation } from './instigation.js';
 import { setPassage } from './ledger.js';
 import { PROFILES } from './nations.js';
 import { Rng } from './rng.js';
@@ -330,6 +331,7 @@ export function resolveSeason(state: WorldState, rawActions: readonly NationActi
     w.stats.firstWarSeason ??= season;
     w.alliances = w.alliances.filter((al) => !((al.a === a.nation && al.b === t) || (al.b === a.nation && al.a === t)));
     if (isNation(t)) {
+      recordInstigation(w, a.nation, t, instigationOf(w, a.nation, t));
       adjustTrust(w, t, a.nation, CONFIG.trust.warDeclared);
       for (const al of w.alliances) {
         const ally = al.a === t ? al.b : al.b === t ? al.a : null;

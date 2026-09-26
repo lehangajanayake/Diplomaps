@@ -1,6 +1,6 @@
 /** Map inks. Muted, warm, hand-mixed: nothing bright or saturated. */
 import { CROSSING_PROFILE, PROFILES } from '../../engine/nations';
-import { CROSSING, type Owner } from '../../engine/types';
+import { CROSSING, UNCLAIMED, type Holder } from '../../engine/types';
 
 export const INK = '#2a1d12';
 export const INK_SOFT = '#4b3624';
@@ -14,10 +14,15 @@ export const GOLD = '#c9a24a';
 export const GOLD_DEEP = '#8a6a26';
 export const HALO = '#efe3c3';
 
-export function ownerFill(owner: Owner): string {
+export const RUIN = '#b9ab8a';
+export const RUIN_INK = '#7a6d55';
+
+export function ownerFill(owner: Holder): string {
+  if (owner === UNCLAIMED) return RUIN;
   return owner === CROSSING ? CROSSING_PROFILE.colour : PROFILES[owner].colour;
 }
 
-export function ownerInk(owner: Owner): string {
+export function ownerInk(owner: Holder): string {
+  if (owner === UNCLAIMED) return RUIN_INK;
   return owner === CROSSING ? GOLD_DEEP : PROFILES[owner].colourDark;
 }

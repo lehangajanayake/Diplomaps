@@ -15,8 +15,11 @@
         "pronoun": "he"
       },
       "personality": "Proud, blunt and quick to anger. Respects strength and plain speech; despises flattery, haggling and anyone who hides behind clever words.",
+      "oneLiner": "Proud and blunt. Respects strength, despises flattery.",
       "speechStyle": "Speaks of himself only as 'Varrow', in the third person. Short, hard sentences full of horses, iron and winter.",
       "secretGoal": "Avenge the Burning of Harrowmere: break Kelm in open war and take at least one Kelmish province.",
+      "aim": "Break Kelm in war and take a Kelmish province.",
+      "hint": "Revenge on Kelm, and land to show for it.",
       "redLine": {
         "kind": "threat",
         "about": null,
@@ -49,8 +52,11 @@
         "pronoun": "she"
       },
       "personality": "Cold, courteous and calculating. Believes every loyalty has a price and every debt must be paid. Patient as compound interest.",
+      "oneLiner": "Cold and calculating. Every loyalty has a price.",
       "speechStyle": "Talks in ledgers, debts and percentages, quoting exact figures. Says 'Noted.' whenever she is displeased.",
       "secretGoal": "Own the Crossing: drain the Warden's treasury until the passes and their tolls can be bought outright for Kelm.",
+      "aim": "Drain your treasury, then buy the Crossing outright.",
+      "hint": "Your gold. Possibly all of it.",
       "redLine": {
         "kind": "deceit",
         "about": null,
@@ -83,8 +89,11 @@
         "pronoun": "she"
       },
       "personality": "Charming, witty and vain, with spies in every court. Loves gifts and flattery and bores quickly; far more dangerous than she lets anyone see.",
+      "oneLiner": "Charming and vain, with spies in every court.",
       "speechStyle": "Honeyed and teasing, full of sea and silk metaphors. Calls the player 'darling' and ends many sentences with a question.",
       "secretGoal": "Let Varrow and Kelm bleed each other white, then buy their ruined provinces for a song.",
+      "aim": "Let Varrow and Kelm bleed, then buy their ruins cheap.",
+      "hint": "Other people fighting her battles.",
       "redLine": {
         "kind": "passage_to_enemy",
         "about": "varrow",
@@ -117,8 +126,11 @@
         "pronoun": "she"
       },
       "personality": "Taciturn, shrewd and patient as the fens. Distrusts kings, coin and fine words. Remembers every slight for a hundred years.",
+      "oneLiner": "Taciturn and patient. Forgets nothing.",
       "speechStyle": "Terse. Answers in fen proverbs about water, reeds and weather, often answers a question with a question, and says 'Hm.' when unimpressed.",
       "secretGoal": "Take back the burial hills: seize an Ostrine province where the clans' ancestors lie, and humble the Hierarch.",
+      "aim": "Seize the burial hills from Ostrin and humble the Hierarch.",
+      "hint": "The hills Ostrin took from the clans.",
       "redLine": {
         "kind": "border_troops",
         "about": null,
@@ -149,8 +161,11 @@
         "pronoun": "he"
       },
       "personality": "Devout, soft-spoken and suspicious of outsiders. Sees omens in everything. Slow to anger, and never forgets once angered.",
+      "oneLiner": "Devout and suspicious. Sees omens in everything.",
       "speechStyle": "Speaks in scripture and omens, often beginning 'It is written...', and calls the player 'child'.",
       "secretGoal": "Reclaim the valley shrine: Ostrin holds that the heart of the Crossing is holy ground stolen from the Lamp, and means to take it back.",
+      "aim": "Take back the shrine at the heart of your valley.",
+      "hint": "Something holy in your valley.",
       "redLine": {
         "kind": "rival_alliance",
         "about": "tarn",

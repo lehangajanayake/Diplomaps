@@ -1,14 +1,14 @@
 /** A button pressed like a wax seal. Used for weighty choices: Begin, Request an audience, Grant, Refuse. */
 import { motion } from 'motion/react';
 import type { ReactNode } from 'react';
-import type { Emblem } from '../../engine/types';
+import type { SealEmblem } from './Emblem';
 import { WaxSeal } from './WaxSeal';
 
 interface Props {
   label: ReactNode;
   onClick: () => void;
   colour?: string;
-  emblem?: Emblem | 'crossroads';
+  emblem?: SealEmblem;
   disabled?: boolean;
   size?: string;
   hint?: string;

@@ -25,6 +25,8 @@ import { InkPot } from '../table/Decor';
 import { Notes } from '../table/Notes';
 import { Snuffer } from '../hud/Snuffer';
 import { Table } from '../table/Table';
+import { AmbitionCard } from '../hud/AmbitionCard';
+import { AmbitionChoice } from './AmbitionChoice';
 import { CrisisCard } from './CrisisCard';
 import { SeasonCard } from './SeasonCard';
 import { WhatChanged } from './WhatChanged';
@@ -48,7 +50,7 @@ export function GameTable() {
 
   const onSelect = useCallback((id: RegionId) => {
     const owner = useStore.getState().world?.regions[id]?.owner;
-    if (!owner) return;
+    if (!owner || owner === 'unclaimed') return;
     if (owner === 'crossing') openCrossing();
     else openDossier(owner);
   }, []);
@@ -80,6 +82,7 @@ export function GameTable() {
         <SeasonStrip season={world.season} audiencesLeft={audiencesLeft(world)} />
 
         <aside className="absolute bottom-[var(--bottom)] left-[1.1vw] top-[calc(var(--top)+1vh)] z-20 flex w-[var(--left-col)] flex-col gap-[2vh]">
+          <AmbitionCard world={world} />
           <div className="min-h-0 flex-[1_1_64%]">
             <Chronicle entries={world.chronicle} freshSeason={chronicleFresh} pending={chroniclePending} />
           </div>
@@ -120,6 +123,7 @@ export function GameTable() {
       <SeasonCard />
       <WhatChanged />
       <CrisisCard />
+      <AmbitionChoice />
     </Table>
   );
 }

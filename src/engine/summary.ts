@@ -3,14 +3,14 @@
  * At most four short lines each, most important first.
  */
 import { nameOf } from './nations.js';
-import { CROSSING, NATION_IDS, type GameEvent, type Owner, type SeasonSummary, type SummaryLine, type WorldState } from './types.js';
+import { CROSSING, NATION_IDS, type GameEvent, type Holder, type SeasonSummary, type SummaryLine, type WorldState } from './types.js';
 import { regionsOf } from './world.js';
 
 const MAX_LINES = 4;
 const TRUST_SHIFT = 8;
 
-const who = (o: Owner) => nameOf(o);
-const cap = (o: Owner) => nameOf(o, 'start');
+const who = (o: Holder) => nameOf(o);
+const cap = (o: Holder) => nameOf(o, 'start');
 
 export function summariseSeason(before: WorldState, after: WorldState, events: readonly GameEvent[]): SeasonSummary {
   const you: SummaryLine[] = [];

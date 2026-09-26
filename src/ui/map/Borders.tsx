@@ -1,9 +1,9 @@
 /** Inked borders, recomputed from current ownership: dotted inside a realm, solid between realms. */
 import { memo } from 'react';
-import type { MapData, Owner, RegionId } from '../../engine/types';
+import type { MapData, Holder, RegionId } from '../../engine/types';
 import { GOLD, INK } from './palette';
 
-export const Borders = memo(function Borders({ map, owners }: { map: MapData; owners: Record<RegionId, Owner> }) {
+export const Borders = memo(function Borders({ map, owners }: { map: MapData; owners: Record<RegionId, Holder> }) {
   const inner: string[] = [];
   const realm: string[] = [];
   const crossing: string[] = [];

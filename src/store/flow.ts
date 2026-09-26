@@ -5,11 +5,12 @@
 import { assessAudience, chooseAction, extractPromises, fetchHealth, streamAudience, writeChronicle, writeEnding } from '../ai/client';
 import { CONFIG, seasonName, seasonTitle, seasonYear } from '../engine/config';
 import { greetingFor } from '../engine/courtesy';
+import { composeCrisis } from '../engine/crisis';
 import { addLedgerEntries, answerLetter, changePassage, recordAudience } from '../engine/ledger';
 import { PROFILES } from '../engine/nations';
 import type { AudienceRequest } from '../engine/schema';
 import { playSeason } from '../engine/resolve';
-import { NATION_IDS, type GameEvent, type NationAction, type NationId, type RegionId, type WorldState } from '../engine/types';
+import { NATION_IDS, type AmbitionId, type GameEvent, type NationAction, type NationId, type RegionId, type WorldState } from '../engine/types';
 import { summariseSeason } from '../engine/summary';
 import { buildActionContext, buildAudienceContext, buildChronicleRequest, buildEndingRequest } from '../engine/views';
 import { createWorld } from '../engine/world';
@@ -81,6 +82,16 @@ export function beginGame(seed?: number): void {
     crisisOpen: true,
   });
   sound.startAmbient();
+}
+
+/** The player picks the ambition they will win or lose on; the first season's crisis follows. */
+export function chooseAmbition(ambition: AmbitionId): void {
+  const w = get().world;
+  if (!w || w.player.ambition) return;
+  const world: WorldState = { ...w, player: { ...w.player, ambition } };
+  world.crisis = composeCrisis(world);
+  set({ world, crisisOpen: true });
+  sound.play('quill');
 }
 
 export function resumeGame(): boolean {
@@ -398,10 +409,10 @@ export async function endSeason(): Promise<void> {
 export async function finishGame(): Promise<void> {
   const w = get().world;
   if (!w?.ending) return;
-  set({ phase: 'ending', ending: { verdicts: {}, epilogue: '', loading: true, fallback: false }, selectedNation: null, overlay: null });
+  set({ phase: 'ending', ending: { verdicts: {}, loading: true, fallback: false }, selectedNation: null, overlay: null });
   sound.setDrums(false);
   const result = await writeEnding(buildEndingRequest(w));
-  set({ ending: { verdicts: result.verdicts, epilogue: result.epilogue, loading: false, fallback: result.fallback } });
+  set({ ending: { verdicts: result.verdicts, loading: false, fallback: result.fallback } });
 }
 
 export function playAgain(): void {

@@ -1,65 +1,123 @@
-/** Endings are chosen by code from the final state. */
-import { CONFIG } from './config.js';
+/**
+ * How the game ends. Ashes (Wayhold falls) and Unmasked (too many courts certain of your lies) end it
+ * early in defeat; otherwise, after the last season, you win or lose on your ambition. Code picks the one
+ * or two moments that decided it and one tip for next time.
+ */
+import { AMBITION } from './ambitions.js';
+import { CONFIG, seasonTitle } from './config.js';
 import { isLie } from './ledger.js';
-import { PROFILES } from './nations.js';
-import { CROSSING, NATION_IDS, type Ending, type EndingId, type NationId, type WorldState } from './types.js';
-import { regionsOf, totalTroops } from './world.js';
+import { nameOf } from './nations.js';
+import { CROSSING, NATION_IDS, type AmbitionId, type Ending, type EndingReason, type GameEvent, type WorldState } from './types.js';
 
-export const ENDING_TEXT: Record<EndingId, { title: string; subtitle: string }> = {
-  spider: { title: 'The Spider', subtitle: 'Your neighbours bled; you counted the tolls. No one ever saw the threads.' },
-  peacemaker: { title: 'The Peacemaker', subtitle: 'Six seasons, and not one war. The bards will find it dull. The widows will not.' },
-  kingmaker: { title: 'The Kingmaker', subtitle: 'One crown now stands above the rest, and it remembers who opened the gates.' },
-  merchant: { title: 'The Merchant Prince', subtitle: 'Every road still runs through your valley, and every coin still pays its toll.' },
-  puppet: { title: 'The Puppet', subtitle: 'The peace held. The price was your land, and your name.' },
-  survivor: { title: 'The Survivor', subtitle: 'The Crossing endures: neither triumphant nor ruined. It endures.' },
-  ashes: { title: 'Ashes', subtitle: 'Wayhold burns. The Crossing is a province now.' },
-  unmasked: { title: 'Unmasked', subtitle: 'Every court knows your lies. The Crossing stands alone, and not for long.' },
-  grand_peace: { title: 'The Grand Peace', subtitle: 'The five crowns sign at your table. History will call it a miracle.' },
+const HOW_WORDS: Record<string, string> = {
+  favour: 'your favour',
+  passage: 'the passage you granted',
+  lie: 'your lie',
+  word: 'your warning',
+  promise: 'your promise of support',
 };
 
-function make(w: WorldState, id: EndingId, early: boolean, nation: NationId | null = null): Ending {
-  const text = ENDING_TEXT[id];
-  const subtitle = id === 'kingmaker' && nation ? `${PROFILES[nation].name} stands above the rest, and remembers who opened the gates.` : text.subtitle;
-  return { id, title: text.title, subtitle, early, season: w.season, nation };
+function allEvents(w: WorldState): GameEvent[] {
+  return w.history.flatMap((h) => h.events);
 }
 
-export function nationStrength(w: WorldState, n: NationId): number {
-  return regionsOf(w, n).length * 3 + totalTroops(w, n);
+function decidingMoments(w: WorldState, ambition: AmbitionId, reason: EndingReason): string[] {
+  const events = allEvents(w);
+  const place = (id: string) => w.map.regions[id]?.name ?? id;
+  if (reason === 'ashes') {
+    const fall = events.find((e) => e.kind === 'battle' && e.captured && e.region === w.map.capitals.crossing.region);
+    return fall && fall.kind === 'battle' ? [`${nameOf(fall.attacker, 'start')} took Wayhold in ${seasonTitle(fall.season)}.`] : ['Wayhold fell.'];
+  }
+  if (reason === 'unmasked') {
+    const certain = NATION_IDS.filter((n) => w.nations[n].suspicion >= CONFIG.endings.unmaskedSuspicion);
+    return [`${certain.map((n, i) => nameOf(n, i === 0 ? 'start' : 'mid')).join(', ')} all became certain you were lying.`];
+  }
+  switch (ambition) {
+    case 'merchant': {
+      const seasons = w.history.map((h) => ({ season: h.season, delta: h.goldEnd - h.goldStart }));
+      const best = [...seasons].sort((a, b) => b.delta - a.delta)[0];
+      const worst = [...seasons].sort((a, b) => a.delta - b.delta)[0];
+      const out: string[] = [];
+      if (best && best.delta > 0) out.push(`Your best season was ${seasonTitle(best.season)}: +${best.delta} gold.`);
+      if (worst && worst !== best && worst.delta < best!.delta) out.push(`${seasonTitle(worst.season)} brought only ${worst.delta >= 0 ? `+${worst.delta}` : worst.delta} gold.`);
+      return out.slice(0, 2);
+    }
+    case 'kingdom': {
+      const out: string[] = [];
+      for (const e of events) {
+        if (e.kind === 'battle' && e.captured && e.defender === CROSSING) out.push(`${nameOf(e.attacker, 'start')} took ${place(e.region)} from you.`);
+        if (e.kind === 'cede' && e.nation === CROSSING) out.push(`You gave ${place(e.region)} to ${nameOf(e.target)}.`);
+      }
+      const gained = w.player.regionsGained.map((id) => `You won ${place(id)}.`);
+      return [...gained, ...out].slice(0, 2);
+    }
+    case 'spider': {
+      const out = w.stats.instigated.map(
+        (x) => `${HOW_WORDS[x.how] ?? 'Your hand'} sent ${nameOf(x.a)} to war with ${nameOf(x.b)} in ${seasonTitle(x.season)}.`.replace(/^./, (c) => c.toUpperCase()),
+      );
+      for (const e of events) {
+        if (e.kind === 'lie_caught') out.push(`${nameOf(e.by[0]!, 'start')} caught one of your lies in ${seasonTitle(e.season)}.`);
+      }
+      return out.slice(0, 2);
+    }
+    case 'peacemaker': {
+      const out: string[] = [];
+      for (const e of events) if (e.kind === 'peace') out.push(`${nameOf(e.a, 'start')} and ${nameOf(e.b)} made peace in ${seasonTitle(e.season)}.`);
+      for (const war of w.wars) out.push(`${nameOf(war.a, 'start')} and ${nameOf(war.b)} were still at war at the end.`);
+      return out.slice(-2);
+    }
+    default:
+      return [];
+  }
+}
+
+function make(w: WorldState, reason: EndingReason, final: boolean): Ending {
+  const ambition = w.player.ambition ?? 'merchant';
+  const def = AMBITION[ambition];
+  const won = reason === 'ambition' && def.achieved(w);
+  const title = reason === 'ashes' ? 'Ashes' : reason === 'unmasked' ? 'Unmasked' : won ? 'Victory' : 'Defeat';
+  const subtitle =
+    reason === 'ashes'
+      ? 'Wayhold has fallen. The Crossing is a province now.'
+      : reason === 'unmasked'
+        ? 'Every court knows your lies. No road runs through a liar’s valley.'
+        : won
+          ? `${def.title}: ambition achieved.`
+          : `${def.title}: ambition not achieved.`;
+  const tip =
+    reason === 'ashes'
+      ? 'When an army marches on you, answer its letter: pay, hire sellswords or call in a favour.'
+      : reason === 'unmasked'
+        ? 'Every lie can travel. Never promise the same thing to two courts.'
+        : won
+          ? 'Next time, try a different ambition.'
+          : def.tip(w);
+  return {
+    result: won ? 'victory' : 'defeat',
+    reason,
+    ambition,
+    season: w.season,
+    early: !final,
+    title,
+    subtitle,
+    progress: def.progress(w),
+    moments: decidingMoments(w, ambition, reason),
+    tip,
+  };
+}
+
+export function isUnmasked(w: WorldState): boolean {
+  return NATION_IDS.filter((n) => w.nations[n].suspicion >= CONFIG.endings.unmaskedSuspicion).length >= CONFIG.endings.unmaskedCount;
 }
 
 export function checkEnding(w: WorldState, final: boolean): Ending | null {
-  const e = CONFIG.endings;
-  const capital = w.map.capitals.crossing.region;
-  const occupier = w.regions[capital]!.owner;
-  if (occupier !== CROSSING) return make(w, 'ashes', !final, occupier);
-  if (NATION_IDS.filter((n) => w.nations[n].suspicion >= CONFIG.suspicion.unmasked).length >= CONFIG.suspicion.unmaskedCount) {
-    return make(w, 'unmasked', !final);
-  }
-  if (NATION_IDS.every((n) => w.nations[n].trustPlayer >= e.grandPeaceTrust) && w.tension <= e.grandPeaceTension) {
-    return make(w, 'grand_peace', !final);
-  }
+  if (w.regions[w.map.capitals.crossing.region]!.owner !== CROSSING) return make(w, 'ashes', final);
+  if (isUnmasked(w)) return make(w, 'unmasked', final);
   if (!final) return null;
+  return make(w, 'ambition', true);
+}
 
-  const crossingWar = w.wars.some((war) => war.a === CROSSING || war.b === CROSSING);
-  if (w.player.ceded.length > 0 && !crossingWar) return make(w, 'puppet', false);
-
-  const ranked = [...NATION_IDS].sort((a, b) => nationStrength(w, b) - nationStrength(w, a));
-  const top = ranked[0]!;
-  const second = ranked[1]!;
-  if (nationStrength(w, top) >= e.kingmakerLead * nationStrength(w, second) && w.nations[top].trustPlayer >= e.kingmakerTrust) {
-    return make(w, 'kingmaker', false, top);
-  }
-
-  const start = NATION_IDS.reduce((s, n) => s + w.nations[n].startTroops, 0);
-  const now = NATION_IDS.reduce((s, n) => s + totalTroops(w, n), 0);
-  const avgSuspicion = NATION_IDS.reduce((s, n) => s + w.nations[n].suspicion, 0) / NATION_IDS.length;
-  const avgTrust = NATION_IDS.reduce((s, n) => s + w.nations[n].trustPlayer, 0) / NATION_IDS.length;
-  const weakened = now <= start * e.spiderWeakened || w.stats.battles >= 3;
-  const liesWorked = w.player.ledger.filter((x) => isLie(x) && !x.caught).length;
-  if (weakened && liesWorked >= e.spiderLies && w.player.gold >= e.spiderGold && avgSuspicion <= e.spiderSuspicion && !w.stats.crossingAttacked) {
-    return make(w, 'spider', false);
-  }
-  if (w.stats.warsStarted === 0 && avgTrust >= e.peacemakerTrust) return make(w, 'peacemaker', false);
-  if (w.player.gold >= e.merchantGold && w.stats.warsStarted <= e.merchantMaxWars) return make(w, 'merchant', false);
-  return make(w, 'survivor', false);
+export function liesOf(w: WorldState) {
+  const lies = w.player.ledger.filter(isLie);
+  return { worked: lies.filter((e) => !e.caught), caught: lies.filter((e) => e.caught) };
 }

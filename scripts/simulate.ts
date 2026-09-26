@@ -11,7 +11,7 @@ import { PROFILES } from '../src/engine/nations.js';
 import { playSeason } from '../src/engine/resolve.js';
 import { Rng } from '../src/engine/rng.js';
 import { warTargets } from '../src/engine/tension.js';
-import { ACTIONS, CROSSING, NATION_IDS, type ActionKind, type NationAction, type NationId, type WorldState } from '../src/engine/types.js';
+import { ACTIONS, AMBITIONS, CROSSING, NATION_IDS, type ActionKind, type NationAction, type NationId, type WorldState } from '../src/engine/types.js';
 import { createWorld } from '../src/engine/world.js';
 
 function pickWeighted<T>(rng: Rng, items: readonly T[], weight: (t: T) => number): T {
@@ -77,6 +77,7 @@ function run(games: number) {
   for (let g = 0; g < games; g++) {
     let world = createWorld(1000 + g * 7919);
     const rng = new Rng(0xabc + g);
+    world.player.ambition = AMBITIONS[g % AMBITIONS.length]!;
     while (!world.ending) {
       const actions = NATION_IDS.map((n) => randomAction(world, n, rng));
       const season = world.season;
@@ -85,7 +86,8 @@ function run(games: number) {
       seasonsPlayed++;
     }
     const ending = world.ending!;
-    endings[ending.id] = (endings[ending.id] ?? 0) + 1;
+    const key = `${ending.ambition} ${ending.reason === 'ambition' ? ending.result : ending.reason}`;
+    endings[key] = (endings[key] ?? 0) + 1;
     const fw = world.stats.firstWarSeason;
     if (fw === null) noWar++;
     else firstWar.push(fw);
@@ -113,7 +115,7 @@ function run(games: number) {
   console.log(`Average seasons played:              ${(seasonsPlayed / games).toFixed(2)} of ${CONFIG.seasons}`);
   console.log('\nEnding distribution:');
   for (const [id, n] of Object.entries(endings).sort((a, b) => b[1] - a[1])) {
-    console.log(`  ${id.padEnd(12)} ${String(n).padStart(4)}  ${'#'.repeat(Math.round((n / games) * 50))} ${pct(n)}`);
+    console.log(`  ${id.padEnd(22)} ${String(n).padStart(4)}  ${'#'.repeat(Math.round((n / games) * 50))} ${pct(n)}`);
   }
   const inTarget = firstWar.filter((s) => s >= 4 && s <= 5).length;
   console.log(`\nFirst war in seasons 4-5: ${pct(inTarget)} of games.`);

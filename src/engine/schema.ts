@@ -9,7 +9,7 @@
  * the `sanitize*` helpers and the request schemas.
  */
 import { z } from 'zod';
-import { ACTIONS, CLAIM_KINDS, NATION_IDS, PROMISE_KINDS } from './types.js';
+import { ACTIONS, AMBITIONS, CLAIM_KINDS, NATION_IDS, PROMISE_KINDS } from './types.js';
 
 export const NationIdSchema = z.enum(NATION_IDS);
 export const OwnerSchema = z.enum([...NATION_IDS, 'crossing']);
@@ -52,8 +52,11 @@ export const NationProfileSchema = z.object({
     pronoun: z.enum(['he', 'she', 'they']),
   }),
   personality: z.string().min(10),
+  oneLiner: z.string().min(10).max(70),
   speechStyle: z.string().min(10),
   secretGoal: z.string().min(10),
+  aim: z.string().min(10).max(70),
+  hint: z.string().min(5).max(60),
   redLine: RedLineSchema,
   grudges: z.array(z.object({ against: NationIdSchema, reason: z.string().min(5) })),
   friends: z.array(z.object({ with: NationIdSchema, reason: z.string().min(5) })),
@@ -318,9 +321,11 @@ export interface ChronicleResult {
 /* ------------------------------------------------------------------ */
 
 export const EndingRequestSchema = z.object({
-  ending: z.object({
-    id: z.enum(['spider', 'peacemaker', 'kingmaker', 'merchant', 'puppet', 'survivor', 'ashes', 'unmasked', 'grand_peace']),
-    title: safeText(60),
+  outcome: z.object({
+    result: z.enum(['victory', 'defeat']),
+    reason: z.enum(['ambition', 'ashes', 'unmasked']),
+    ambition: z.enum(AMBITIONS),
+    progress: z.object({ value: z.number().int().min(-99999).max(99999), target: z.number().int().min(0).max(99999) }),
     season: z.number().int().min(1).max(12),
   }),
   nations: z
@@ -331,6 +336,7 @@ export const EndingRequestSchema = z.object({
         suspicion: z.number().min(0).max(100),
         regionsStart: z.number().int().min(0).max(40),
         regionsEnd: z.number().int().min(0).max(40),
+        fallen: z.boolean(),
         atWarWithCrossing: z.boolean(),
         liesTold: z.number().int().min(0).max(99),
         liesCaught: z.number().int().min(0).max(99),
@@ -339,23 +345,35 @@ export const EndingRequestSchema = z.object({
       }),
     )
     .length(5),
-  stats: z.object({
+  /** What the Warden did, as plain facts. */
+  deeds: z.object({
     gold: z.number().int().min(-9999).max(99999),
     goldEarned: z.number().int().min(0).max(99999),
-    warsStarted: z.number().int().min(0).max(99),
-    battles: z.number().int().min(0).max(999),
-    liesTold: z.number().int().min(0).max(99),
-    liesCaught: z.number().int().min(0).max(99),
-    regionsLost: z.number().int().min(0).max(10),
+    regionsStart: z.number().int().min(0).max(40),
+    regionsEnd: z.number().int().min(0).max(40),
+    warsInstigated: z.number().int().min(0).max(20),
+    peacesBrokered: z.number().int().min(0).max(20),
     tension: z.number().min(0).max(100),
   }),
+  /** The Warden's most telling promises and claims, from the ledger. */
+  words: z
+    .array(
+      z.object({
+        to: NationIdSchema,
+        type: z.enum(['promise', 'claim']),
+        what: safeText(140),
+        lie: z.boolean(),
+        caught: z.boolean(),
+      }),
+    )
+    .max(12),
   highlights: z.array(NewsSchema).max(30),
 });
 export type EndingRequest = z.input<typeof EndingRequestSchema>;
 
 export interface EndingAIResult {
+  /** One roast per ruler, keyed by nation. */
   verdicts: Partial<Record<(typeof NATION_IDS)[number], string>>;
-  epilogue: string;
   fallback: boolean;
 }
 
@@ -414,8 +432,7 @@ export const ChronicleAISchema = z.object({
 export const EndingAIOutputSchema = z.object({
   verdicts: z
     .array(z.object({ nation: NationIdSchema, line: z.string() }))
-    .describe("One verdict per ruler, in that ruler's own voice, at most 30 words."),
-  epilogue: z.string().describe('The historian\'s epilogue, 3 to 5 sentences.'),
+    .describe("One verdict per ruler: a witty, specific light roast of the Warden in that ruler's own voice, at most 25 words."),
 });
 
 /* ------------------------------------------------------------------ */

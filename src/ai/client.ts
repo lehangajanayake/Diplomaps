@@ -3,7 +3,7 @@
  * sends prompt text: only structured game data. Every call has its own safety timeout and falls back
  * to the same in-world defaults as the server, so the game can never hang on the network.
  */
-import { fallbackAudienceReply, fallbackChronicle, fallbackEpilogue, fallbackVerdict } from '../engine/fallbacks';
+import { fallbackAudienceReply, fallbackChronicle, fallbackVerdict } from '../engine/fallbacks';
 import { seasonTitle } from '../engine/config';
 import type {
   ActionRequest,
@@ -154,8 +154,7 @@ export function writeChronicle(req: ChronicleRequest): Promise<ChronicleResult> 
 
 export function writeEnding(req: EndingRequest): Promise<EndingAIResult> {
   return postJson<EndingAIResult>('/api/ending', req, 50_000, () => ({
-    verdicts: Object.fromEntries(req.nations.map((n) => [n.nation, fallbackVerdict(n.nation, n.trust, n.suspicion)])),
-    epilogue: fallbackEpilogue(req.ending.id),
+    verdicts: Object.fromEntries(req.nations.map((n) => [n.nation, fallbackVerdict(n.nation, n.trust, n.suspicion, req.outcome.result === 'victory')])),
     fallback: true,
   }));
 }

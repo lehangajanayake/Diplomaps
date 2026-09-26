@@ -1,6 +1,5 @@
 /** Creating a new world, plus small read-only queries used across the engine and UI. */
 import { CONFIG } from './config.js';
-import { composeCrisis } from './crisis.js';
 import { generateMap } from './mapgen.js';
 import { PROFILES } from './nations.js';
 import { Rng } from './rng.js';
@@ -13,6 +12,7 @@ import {
   type RegionId,
   type RegionState,
   type WorldState,
+  WORLD_VERSION,
 } from './types.js';
 
 export function createWorld(seed: number): WorldState {
@@ -62,7 +62,7 @@ export function createWorld(seed: number): WorldState {
   }
 
   const world: WorldState = {
-    version: 1,
+    version: WORLD_VERSION,
     seed: seed >>> 0,
     rng: rng.state,
     season: 1,
@@ -72,6 +72,7 @@ export function createWorld(seed: number): WorldState {
     initialRegions: structuredCloneRegions(regions),
     nations,
     player: {
+      ambition: null,
       gold: CONFIG.start.gold,
       goldEarned: 0,
       goldSpent: 0,
@@ -79,6 +80,7 @@ export function createWorld(seed: number): WorldState {
       passage: Object.fromEntries(NATION_IDS.map((id) => [id, 'none'])) as Record<NationId, 'none'>,
       ledger: [],
       ceded: [],
+      regionsGained: [],
     },
     wars: [],
     alliances: [],
@@ -100,6 +102,8 @@ export function createWorld(seed: number): WorldState {
     crisis: null,
     stats: {
       warsStarted: 0,
+      instigated: [],
+      peacesBrokered: 0,
       battles: 0,
       firstWarSeason: null,
       regionsChanged: 0,
@@ -109,7 +113,6 @@ export function createWorld(seed: number): WorldState {
     ending: null,
   };
   for (const id of NATION_IDS) world.nations[id].startTroops = totalTroops(world, id);
-  world.crisis = composeCrisis(world);
   return world;
 }
 

@@ -3,7 +3,7 @@
  * tokens and effects (in the dynamic layer) never force the heavy map to repaint.
  */
 import { memo } from 'react';
-import type { MapData, Owner, RegionId } from '../../engine/types';
+import type { MapData, Holder, RegionId } from '../../engine/types';
 import { Borders } from './Borders';
 import { Compass, Frame } from './Compass';
 import { Capitals, NationLabels, RegionLabels, SeaLabels } from './Labels';
@@ -16,7 +16,7 @@ import { TokenDefs } from './Tokens';
 
 interface Props {
   map: MapData;
-  owners: Record<RegionId, Owner>;
+  owners: Record<RegionId, Holder>;
 }
 
 export const StaticMap = memo(function StaticMap({ map, owners }: Props) {

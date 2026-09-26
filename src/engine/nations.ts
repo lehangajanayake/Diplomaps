@@ -1,7 +1,7 @@
 /** Loads and validates the hand-written nation data. */
 import nationsFile from '../data/nations.json' with { type: 'json' };
 import { NationsFileSchema } from './schema.js';
-import { CROSSING, NATION_IDS, type NationId, type NationProfile, type Owner } from './types.js';
+import { CROSSING, NATION_IDS, UNCLAIMED, type Holder, type NationId, type NationProfile, type Owner } from './types.js';
 
 const parsed = NationsFileSchema.parse(nationsFile);
 
@@ -21,7 +21,8 @@ export function ownerName(owner: Owner): string {
  * A nation's name for use in a sentence: "The Tarn" at the start, "the Tarn" anywhere else.
  * The Crossing is "the Crossing" (or "The Crossing") in the same way.
  */
-export function nameOf(owner: Owner, at: 'start' | 'mid' = 'mid'): string {
+export function nameOf(owner: Holder, at: 'start' | 'mid' = 'mid'): string {
+  if (owner === UNCLAIMED) return at === 'start' ? 'No one' : 'no one';
   const name = ownerName(owner);
   if (at === 'start') return name.charAt(0).toUpperCase() + name.slice(1);
   return name.startsWith('The ') ? `the ${name.slice(4)}` : name;

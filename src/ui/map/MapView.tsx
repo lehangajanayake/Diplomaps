@@ -4,8 +4,8 @@
  * tokens, effects), then screen-space cloud shadows. Only the dynamic layer re-renders often.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { ownerName } from '../../engine/nations';
-import type { Owner, RegionId, RegionState, WorldState } from '../../engine/types';
+import { nameOf } from '../../engine/nations';
+import type { Holder, RegionId, RegionState, WorldState } from '../../engine/types';
 import { useStore, type MapFx } from '../../store/worldStore';
 import { SeasonFx } from './SeasonFx';
 import { Legend } from './Legend';
@@ -47,8 +47,8 @@ export function MapView({ world, fx = null, onSelect, children, interactive = tr
 
   const ownersKey = map.regionIds.map((id) => shown[id]!.owner).join(',');
   const owners = useMemo(() => {
-    const out: Record<RegionId, Owner> = {};
-    ownersKey.split(',').forEach((o, i) => (out[map.regionIds[i]!] = o as Owner));
+    const out: Record<RegionId, Holder> = {};
+    ownersKey.split(',').forEach((o, i) => (out[map.regionIds[i]!] = o as Holder));
     return out;
   }, [ownersKey, map.regionIds]);
 
@@ -189,7 +189,7 @@ export function MapView({ world, fx = null, onSelect, children, interactive = tr
             <span className="font-sc text-[0.95rem]">{hover.name}</span>
             <span className="text-ink-faded">
               {' '}
-              · {ownerName(hoverState.owner)}
+              · {hoverState.owner === 'unclaimed' ? 'unclaimed ruins' : nameOf(hoverState.owner, 'start')}
               {hoverState.troops > 0 ? ` · ${hoverState.troops} ${hoverState.owner === 'crossing' ? 'militia' : 'troops'}` : ''}
               {hover.pass ? ' · a pass' : ''}
             </span>

@@ -1,7 +1,7 @@
 /** Battles are resolved by code: troops, terrain and seeded dice. */
 import { CONFIG } from './config.js';
 import type { Rng } from './rng.js';
-import { CROSSING, type EdgeKind, type GameEvent, type NationId, type Owner, type RegionId, type WorldState } from './types.js';
+import { CROSSING, UNCLAIMED, type EdgeKind, type GameEvent, type NationId, type Owner, type RegionId, type WorldState } from './types.js';
 
 export interface AttackOption {
   from: RegionId;
@@ -67,6 +67,7 @@ export function fight(w: WorldState, attacker: NationId, opt: AttackOption, rng:
   const m = CONFIG.military;
   const from = w.regions[opt.from]!;
   const to = w.regions[opt.to]!;
+  if (to.owner === UNCLAIMED) return occupy(w, attacker, opt);
   const defender = to.owner;
   const committed = Math.max(1, from.troops - 1);
   const defenders = to.troops;
@@ -116,4 +117,16 @@ export function fight(w: WorldState, attacker: NationId, opt: AttackOption, rng:
     to.troops = Math.max(0, to.troops - defenderLosses);
   }
   return events;
+}
+
+/** Marching into land nobody holds: no battle, the troops simply move in. */
+export function occupy(w: WorldState, nation: NationId, opt: AttackOption): GameEvent[] {
+  const from = w.regions[opt.from]!;
+  const to = w.regions[opt.to]!;
+  const moving = Math.max(1, Math.min(from.troops - 1, 2));
+  from.troops = Math.max(0, from.troops - moving);
+  to.owner = nation;
+  to.troops = moving;
+  w.stats.regionsChanged += 1;
+  return [{ kind: 'move', season: w.season, nation, from: opt.from, to: opt.to, troops: moving }];
 }

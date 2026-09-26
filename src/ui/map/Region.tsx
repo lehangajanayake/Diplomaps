@@ -1,9 +1,9 @@
 /** Region fills, the coloured border bands of an old political map, hit areas and the hover lift. */
 import { memo } from 'react';
-import type { MapData, Owner, RegionId } from '../../engine/types';
+import type { MapData, Holder, RegionId } from '../../engine/types';
 import { INK, ownerFill, ownerInk } from './palette';
 
-type Owners = Record<RegionId, Owner>;
+type Owners = Record<RegionId, Holder>;
 
 export const RegionFills = memo(function RegionFills({ map, owners }: { map: MapData; owners: Owners }) {
   return (
@@ -94,7 +94,7 @@ export const RegionHitAreas = memo(function RegionHitAreas({ map, onEnter, onLea
   );
 });
 
-export function RegionHover({ map, id, owner }: { map: MapData; id: RegionId; owner: Owner }) {
+export function RegionHover({ map, id, owner }: { map: MapData; id: RegionId; owner: Holder }) {
   const region = map.regions[id]!;
   return (
     <g style={{ pointerEvents: 'none' }}>

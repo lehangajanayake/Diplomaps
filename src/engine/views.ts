@@ -15,7 +15,7 @@ import type {
   News,
 } from './schema.js';
 import { redLineCrossedRecently, warTargets } from './tension.js';
-import { CROSSING, NATION_IDS, type GameEvent, type NationId, type Owner, type WorldState } from './types.js';
+import { CROSSING, NATION_IDS, UNCLAIMED, type GameEvent, type LedgerEntry, type NationId, type Owner, type WorldState } from './types.js';
 import { allied, atWar, bordersOwner, regionsOf, totalTroops } from './world.js';
 
 const place = (w: WorldState, id: string) => w.map.regions[id]?.name ?? id;
@@ -182,7 +182,7 @@ export function buildActionContext(w: WorldState, nation: NationId): ActionConte
     const borders = new Set<Owner>();
     for (const nb of w.map.regions[id]!.neighbours) {
       const o = w.regions[nb]!.owner;
-      if (o !== nation) borders.add(o);
+      if (o !== nation && o !== UNCLAIMED) borders.add(o);
     }
     return { id, name: place(w, id), troops: w.regions[id]!.troops, capital: w.map.regions[id]!.capital, borders: [...borders].slice(0, 6) };
   });
@@ -236,35 +236,52 @@ export function buildChronicleRequest(
   };
 }
 
+/** The Warden's most telling words for the verdicts: lies first, then broken promises, then the rest. */
+function tellingWords(w: WorldState): EndingRequest['words'] {
+  const weight = (e: LedgerEntry) => (isLie(e) ? (e.caught ? 0 : 1) : e.broken ? 2 : e.type === 'promise' ? 3 : 4);
+  return [...w.player.ledger]
+    .sort((a, b) => weight(a) - weight(b) || b.season - a.season)
+    .slice(0, 12)
+    .map((e) => ({ to: e.to, type: e.type, what: e.what, lie: isLie(e), caught: e.caught }));
+}
+
 export function buildEndingRequest(w: WorldState): EndingRequest {
   const ending = w.ending!;
   const lies = w.player.ledger.filter(isLie);
   const allEvents = w.history.flatMap((h) => h.events);
   const highlights = eventsToNews(w, allEvents.filter((e) => ['war', 'battle', 'peace', 'cede', 'lie_caught', 'alliance'].includes(e.kind)), null).slice(0, 30);
+  const startRegions = (owner: Owner) => w.map.regionIds.filter((r) => w.initialRegions[r]!.owner === owner).length;
   return {
-    ending: { id: ending.id, title: ending.title, season: ending.season },
+    outcome: {
+      result: ending.result,
+      reason: ending.reason,
+      ambition: ending.ambition,
+      progress: { value: Math.round(ending.progress.value), target: Math.round(ending.progress.target) },
+      season: ending.season,
+    },
     nations: NATION_IDS.map((id) => ({
       nation: id,
       trust: w.nations[id].trustPlayer,
       suspicion: w.nations[id].suspicion,
-      regionsStart: w.map.regionIds.filter((r) => w.initialRegions[r]!.owner === id).length,
+      regionsStart: startRegions(id),
       regionsEnd: regionsOf(w, id).length,
+      fallen: regionsOf(w, id).length === 0,
       atWarWithCrossing: atWar(w, id, CROSSING),
       liesTold: lies.filter((e) => e.to === id).length,
       liesCaught: lies.filter((e) => e.caughtBy.includes(id)).length,
       promises: w.player.ledger.filter((e) => e.to === id && e.type === 'promise').length,
       audiences: w.nations[id].audiences,
     })),
-    stats: {
+    deeds: {
       gold: w.player.gold,
       goldEarned: w.player.goldEarned,
-      warsStarted: w.stats.warsStarted,
-      battles: w.stats.battles,
-      liesTold: lies.length,
-      liesCaught: lies.filter((e) => e.caught).length,
-      regionsLost: w.map.regionIds.filter((r) => w.initialRegions[r]!.owner === CROSSING && w.regions[r]!.owner !== CROSSING).length,
+      regionsStart: startRegions(CROSSING),
+      regionsEnd: regionsOf(w, CROSSING).length,
+      warsInstigated: w.stats.instigated.length,
+      peacesBrokered: w.stats.peacesBrokered,
       tension: Math.round(w.tension),
     },
+    words: tellingWords(w),
     highlights,
   };
 }

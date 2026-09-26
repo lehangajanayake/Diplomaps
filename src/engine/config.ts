@@ -119,8 +119,6 @@ export const CONFIG = {
     passageToEnemy: 6,
     redLine: 10,
     decay: 3,
-    unmasked: 90,
-    unmaskedCount: 3,
   },
 
   neutrality: {
@@ -168,18 +166,17 @@ export const CONFIG = {
     borderTroops: 7,
   },
 
+  ambitions: {
+    merchantGold: 300,
+    kingdomRegions: 7,
+    spiderSuspicion: 50,
+    peacemakerTension: 30,
+  },
+
   endings: {
-    grandPeaceTrust: 60,
-    grandPeaceTension: 15,
-    spiderGold: 300,
-    spiderSuspicion: 30,
-    spiderLies: 1,
-    spiderWeakened: 0.85,
-    kingmakerTrust: 45,
-    kingmakerLead: 1.4,
-    peacemakerTrust: 30,
-    merchantGold: 400,
-    merchantMaxWars: 1,
+    /** Unmasked: this many nations at or above this suspicion ends the game. */
+    unmaskedSuspicion: 90,
+    unmaskedCount: 3,
   },
 } as const;
 

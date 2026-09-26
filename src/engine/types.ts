@@ -13,6 +13,11 @@ export type Crossing = typeof CROSSING;
 export type Owner = NationId | Crossing;
 export const OWNERS: readonly Owner[] = [...NATION_IDS, CROSSING];
 
+/** Land nobody holds: the ruins of a collapsed nation, free to claim. */
+export const UNCLAIMED = 'unclaimed' as const;
+export type Unclaimed = typeof UNCLAIMED;
+export type Holder = Owner | Unclaimed;
+
 export type Point = [number, number];
 export type RegionId = string;
 
@@ -34,8 +39,14 @@ export interface NationProfile {
   capitalName: string;
   ruler: { name: string; title: string; pronoun: 'he' | 'she' | 'they' };
   personality: string;
+  /** The personality in one short line, for the dossier. */
+  oneLiner: string;
   speechStyle: string;
   secretGoal: string;
+  /** The secret goal in one short line, revealed at the end. */
+  aim: string;
+  /** What the nation seems to want: a hint, shown in the dossier. */
+  hint: string;
   redLine: { kind: RedLineKind; about: NationId | null; text: string };
   grudges: { against: NationId; reason: string }[];
   friends: { with: NationId; reason: string }[];
@@ -129,7 +140,7 @@ export interface MapData {
 /* ------------------------------------------------------------------ */
 
 export interface RegionState {
-  owner: Owner;
+  owner: Holder;
   troops: number;
 }
 
@@ -254,6 +265,8 @@ export interface Letter {
 }
 
 export interface PlayerState {
+  /** Chosen before the first season; the game is won or lost on it. */
+  ambition: AmbitionId | null;
   gold: number;
   goldEarned: number;
   goldSpent: number;
@@ -261,6 +274,8 @@ export interface PlayerState {
   passage: Record<NationId, PassageStatus>;
   ledger: LedgerEntry[];
   ceded: RegionId[];
+  /** Regions the Crossing has won, in order. */
+  regionsGained: RegionId[];
 }
 
 export interface War {
@@ -332,25 +347,41 @@ export interface SeasonRecord {
   goldEnd: number;
 }
 
-export type EndingId =
-  | 'spider'
-  | 'peacemaker'
-  | 'kingmaker'
-  | 'merchant'
-  | 'puppet'
-  | 'survivor'
-  | 'ashes'
-  | 'unmasked'
-  | 'grand_peace';
+export const AMBITIONS = ['merchant', 'kingdom', 'spider', 'peacemaker'] as const;
+export type AmbitionId = (typeof AMBITIONS)[number];
 
+export interface AmbitionProgress {
+  value: number;
+  target: number;
+  /** 0 to 1, for the meter. */
+  ratio: number;
+  label: string;
+}
+
+export type EndingReason = 'ambition' | 'ashes' | 'unmasked';
+
+/** How the game ended: won or lost on the chosen ambition, or cut short. */
 export interface Ending {
-  id: EndingId;
+  result: 'victory' | 'defeat';
+  reason: EndingReason;
+  ambition: AmbitionId;
+  season: number;
+  early: boolean;
   title: string;
   subtitle: string;
-  early: boolean;
+  progress: AmbitionProgress;
+  /** The one or two moments that decided the game. */
+  moments: string[];
+  /** One short tip for next time. */
+  tip: string;
+}
+
+/** A war the Warden had a hand in starting, and how. */
+export interface Instigation {
+  a: NationId;
+  b: NationId;
   season: number;
-  /** For kingmaker: the dominant nation. */
-  nation: NationId | null;
+  how: 'favour' | 'passage' | 'lie' | 'word' | 'promise';
 }
 
 /** The card that opens each season: what is at stake, in one plain sentence, and a suggested move. */
@@ -360,6 +391,8 @@ export interface Crisis {
   headline: string;
   line: string;
   suggestion: string;
+  /** How the crisis bears on the player's ambition, when it does. */
+  ambitionNote: string | null;
   nations: NationId[];
   regions: RegionId[];
 }
@@ -378,6 +411,8 @@ export interface SeasonSummary {
 
 export interface WorldStats {
   warsStarted: number;
+  instigated: Instigation[];
+  peacesBrokered: number;
   battles: number;
   firstWarSeason: number | null;
   regionsChanged: number;
@@ -385,8 +420,11 @@ export interface WorldStats {
   crossingAttacked: boolean;
 }
 
+/** Bumped whenever the saved shape changes, so an old save is never loaded into a new game. */
+export const WORLD_VERSION = 2;
+
 export interface WorldState {
-  version: 1;
+  version: typeof WORLD_VERSION;
   seed: number;
   rng: number;
   /** Current season, 1-based. */

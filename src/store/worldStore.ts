@@ -4,7 +4,7 @@
  */
 import { create } from 'zustand';
 import type { Mood } from '../engine/schema';
-import type { LedgerEntry, NationId, Owner, RegionId, SeasonSummary, WorldState } from '../engine/types';
+import { WORLD_VERSION, type Holder, type LedgerEntry, type NationId, type Owner, type RegionId, type SeasonSummary, type WorldState } from '../engine/types';
 
 export type Phase = 'title' | 'table' | 'ending';
 export type Overlay = null | { kind: 'ledger' } | { kind: 'letter'; id: string } | { kind: 'crossing' };
@@ -41,7 +41,7 @@ export interface AudienceState {
 export interface MapFx {
   key: number;
   /** Region owners and troops as they were before the season resolved, shown until the effects settle. */
-  before: Record<RegionId, { owner: Owner; troops: number }>;
+  before: Record<RegionId, { owner: Holder; troops: number }>;
   settled: boolean;
   moves: { from: RegionId; to: RegionId; owner: Owner; troops: number }[];
   battles: { region: RegionId; from: RegionId; attacker: Owner; captured: boolean }[];
@@ -59,7 +59,6 @@ export interface SeasonCardState {
 
 export interface EndingState {
   verdicts: Partial<Record<NationId, string>>;
-  epilogue: string;
   loading: boolean;
   fallback: boolean;
 }
@@ -124,14 +123,14 @@ export function randomSeed(): number {
 /* Saving: the world is plain JSON, so a refresh never loses a game.     */
 /* ------------------------------------------------------------------ */
 
-const SAVE_KEY = 'diplomaps.save.v1';
+const SAVE_KEY = `diplomaps.save.v${WORLD_VERSION}`;
 
 export function loadSave(): WorldState | null {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return null;
     const world = JSON.parse(raw) as WorldState;
-    if (world.version !== 1 || !world.map || world.ending) return null;
+    if (world.version !== WORLD_VERSION || !world.map || world.ending) return null;
     return world;
   } catch {
     return null;
