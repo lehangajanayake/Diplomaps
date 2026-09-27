@@ -44,8 +44,8 @@ export const STRING: Record<Relation, { colour: string; width: number; dash?: st
   neutral: { colour: '#8a8272', width: 1.2, dash: '1.5 5', label: 'neutral' },
 };
 
-/** The four relations in the order a legend lists them. */
-export const RELATION_ORDER: readonly Relation[] = ['war', 'hostile', 'ally', 'neutral'];
+/** The visible relations in the order a legend lists them. */
+export const RELATION_ORDER: readonly Relation[] = ['war', 'hostile', 'ally'];
 
 /** Crossed swords, drawn around (0, 0): the mark of a war. */
 export const SWORDS = 'M-4 -4 L4 4 M4 -4 L-4 4 M-4.6 2.2 L-2.2 4.6 M4.6 2.2 L2.2 4.6';
