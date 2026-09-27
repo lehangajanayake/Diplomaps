@@ -478,8 +478,8 @@
 }
 
 @keyframes string-pulse {
-  0%, 100% { opacity: 0.95; stroke-width: 2.6px; }
-  50% { opacity: 0.45; stroke-width: 4.2px; }
+  0%, 100% { opacity: 0.95; }
+  50% { opacity: 0.5; }
 }
 
 @keyframes front-march {
@@ -521,7 +521,7 @@
   }
 
   .string-war {
-    animation: string-pulse 1.3s ease-in-out infinite;
+    animation: string-pulse 2.4s ease-in-out infinite;
   }
 
   /* A war front: the border between two nations at war, drawn in marching red dashes. */

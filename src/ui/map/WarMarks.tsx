@@ -1,5 +1,6 @@
 /**
- * What the wars and the Warden's choices are doing to the Crossing, drawn on the map: broken roads
+ * What the wars and the Warden's choices are doing to the Crossing, drawn on the map: the front of every
+ * war (a solid red border with crossed swords at its middle), broken roads
  * where a nation is at war, greyed roads and a barrier where its pass is closed, faded roads where it
  * has fallen, smoke over burning fields, a red marker wherever an army means to strike the valley,
  * and a banner at the pass of a friend sent to war by the Warden's favour.
@@ -10,7 +11,8 @@ import { favourThisSeason } from '../../engine/favours';
 import { PROFILES } from '../../engine/nations';
 import type { MapData, MapRoad, NationId, Point, RegionId, WorldState } from '../../engine/types';
 import { NATION_IDS } from '../../engine/types';
-import { INK, INK_RED, LAND } from './palette';
+import { INK, INK_RED, LAND, STRING } from './palette';
+import { RelationMark } from './RelationMarks';
 
 function along(points: readonly Point[], t: number): Point {
   const i = Math.min(points.length - 1, Math.max(0, Math.round(t * (points.length - 1))));
@@ -110,6 +112,30 @@ function FavourBanner({ map, nation }: { map: MapData; nation: NationId }) {
   );
 }
 
+/** The border between two nations at war, as a solid red line with crossed swords at its middle edge. */
+function Front({ world, a, b }: { world: WorldState; a: NationId; b: NationId }) {
+  const owner = (id: RegionId) => world.regions[id]!.owner;
+  const edges = world.map.edges.filter((e) => (owner(e.a) === a && owner(e.b) === b) || (owner(e.a) === b && owner(e.b) === a));
+  if (edges.length === 0) return null;
+  const longest = edges.reduce((best, e) => (e.length > best.length ? e : best));
+  const [x, y] = middleOf(longest.d);
+  return (
+    <g data-front={`${a}-${b}`}>
+      {edges.map((e) => (
+        <path key={`${e.a}-${e.b}`} d={e.d} fill="none" stroke={STRING.war.colour} strokeWidth={2.8} strokeLinecap="round" opacity={0.85} />
+      ))}
+      <RelationMark kind="war" x={x} y={y} scale={1.2} />
+    </g>
+  );
+}
+
+/** The middle vertex of a border's polyline path. */
+function middleOf(d: string): Point {
+  const nums = d.match(/-?\d+(\.\d+)?/g)?.map(Number) ?? [0, 0];
+  const i = Math.floor(nums.length / 4) * 2;
+  return [nums[i] ?? 0, nums[i + 1] ?? 0];
+}
+
 export const WarMarks = memo(function WarMarks({ world }: { world: WorldState }) {
   const { map } = world;
   const burning = Object.keys(world.burning).filter((id) => (world.burning[id] ?? 0) >= world.season);
@@ -117,6 +143,9 @@ export const WarMarks = memo(function WarMarks({ world }: { world: WorldState })
   const favour = favourThisSeason(world);
   return (
     <g style={{ pointerEvents: 'none' }}>
+      {world.wars.map((war) => (
+        <Front key={`${war.a}-${war.b}`} world={world} a={war.a} b={war.b} />
+      ))}
       {NATION_IDS.map((n) => (
         <BrokenRoad key={n} map={map} nation={n} state={roadState(world, n)} />
       ))}

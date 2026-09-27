@@ -12,8 +12,9 @@ import { skipMontage } from '../../store/flow';
 import { useStore } from '../../store/worldStore';
 import { TrustNeedle } from '../common/TrustNeedle';
 import { WaxSeal } from '../common/WaxSeal';
-import { STRING } from '../map/palette';
+import { RELATION_ORDER, STRING } from '../map/palette';
 import { BecauseLine } from '../common/YourDoing';
+import { RelationSample } from '../map/RelationMarks';
 
 function SealOf({ holder, size }: { holder: Holder; size: string }) {
   if (holder === CROSSING) return <WaxSeal colour={CROSSING_PROFILE.colour} emblem="crossroads" size={size} seed={2} />;
@@ -91,9 +92,9 @@ export function MontageCaption() {
           >
             <p className="font-body text-[1.2rem] font-medium leading-snug">Friends and foes, as they stand now</p>
             <p className="mt-[0.15em] flex justify-center gap-x-[0.8em] font-body text-[0.85rem]">
-              {(['ally', 'neutral', 'hostile', 'war'] as const).map((k) => (
+              {RELATION_ORDER.map((k) => (
                 <span key={k} className="inline-flex items-center gap-[0.3em]">
-                  <span className="inline-block h-[3px] w-[1.1em]" style={{ background: STRING[k].colour }} />
+                  <RelationSample kind={k} />
                   {STRING[k].label}
                 </span>
               ))}
