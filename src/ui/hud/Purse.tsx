@@ -1,7 +1,8 @@
 /** The treasury and the land: a leather coin purse with coins spilling out as it fills, and the valley's regions. */
 import { FloatingDelta } from '../common/FloatingDelta';
 
-export function Purse({ gold, land, onClick }: { gold: number; land: number; onClick?: () => void }) {
+/** `promised`: gold set aside for letters answered this season, paid when the bell rings. */
+export function Purse({ gold, land, promised = 0, onClick }: { gold: number; land: number; promised?: number; onClick?: () => void }) {
   const coins = Math.max(1, Math.min(6, Math.round(gold / 60)));
   const spill: [number, number, number][] = [
     [92, 84, -12],
@@ -45,6 +46,11 @@ export function Purse({ gold, land, onClick }: { gold: number; land: number; onC
         <FloatingDelta value={gold} className="-top-[1.1em] left-1/2" />
         {gold} <span className="font-body text-[0.8rem] font-normal italic text-parchment-200/80">gold</span>
       </div>
+      {promised > 0 && (
+        <div className="font-body text-[0.72rem] italic leading-tight text-[#f0b48a]" title="Gold your letter answers will cost when the bell rings.">
+          −{promised} promised in letters
+        </div>
+      )}
       <div className="relative font-display text-[0.92rem] font-semibold leading-tight text-parchment-100 candle-text">
         <FloatingDelta value={land} className="-top-[0.2em] left-[108%]" />
         {land} <span className="font-body text-[0.78rem] font-normal italic text-parchment-200/80">{land === 1 ? 'region' : 'regions'}</span>

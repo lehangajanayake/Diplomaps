@@ -12,11 +12,12 @@ import { nameOf, PROFILES } from './nations.js';
 import type { Rng } from './rng.js';
 import { regionToCede, touchesCrossing } from './land.js';
 import { applyOutcome, type Outcome } from './outcome.js';
-import { passLocked, passOutcome } from './passes.js';
+import { closedByLetter, passLocked, passOutcome } from './passes.js';
+import { wordBrokenBy } from './promises.js';
 import { crossRedLine } from './tension.js';
 import { CROSSING, NATION_IDS, type GameEvent, type Letter, type LetterKind, type NationId, type WorldState } from './types.js';
 import { makePeace } from './war.js';
-import { atWar, bordersOwner, cloneWorld, isStanding, regionName, warsOf } from './world.js';
+import { atWar, bordersOwner, cloneWorld, isStanding, regionName, spareGold, warsOf } from './world.js';
 
 export interface LetterAnswer {
   id: string;
@@ -40,8 +41,10 @@ interface LetterKindDef {
 
 const cap = (n: NationId) => nameOf(n, 'start');
 
-function afford(w: WorldState, cost: number): string | undefined {
-  return w.player.gold >= cost ? undefined : `You have only ${w.player.gold} gold.`;
+function afford(w: WorldState, l: Letter, cost: number): string | undefined {
+  const spare = spareGold(w, l);
+  if (spare >= cost) return undefined;
+  return spare < w.player.gold ? `You have only ${spare} gold not already promised.` : `You have only ${spare} gold.`;
 }
 
 /** Why `nation` will not pay in land, if it will not: it must trust the Warden first. */
@@ -59,6 +62,14 @@ const L = CONFIG.letters;
 /** An army marching on the valley turns back. */
 function callOffAttack(x: WorldState, nation: NationId): void {
   x.intents = x.intents.filter((i) => !(i.kind === 'attack' && i.nation === nation));
+}
+
+/** An army massed at the valley's border goes home, and the season's record says why. */
+function sendHome(x: WorldState, nation: NationId, why: string, events: GameEvent[]): void {
+  const threat = x.intents.find((i) => i.kind === 'threat' && i.nation === nation);
+  if (!threat || threat.kind !== 'threat') return;
+  x.intents = x.intents.filter((i) => i !== threat);
+  events.push({ kind: 'threat', season: x.season, nation, region: threat.region, outcome: 'lifted', because: { why, yours: true } });
 }
 
 const KINDS: Record<LetterKind, LetterKindDef> = {
@@ -82,7 +93,7 @@ const KINDS: Record<LetterKind, LetterKindDef> = {
               x.nations[l.from].grievances = 0;
             },
           },
-          blocked: afford(w, l.amount),
+          blocked: afford(w, l, l.amount),
         },
         {
           id: 'sellswords',
@@ -94,7 +105,7 @@ const KINDS: Record<LetterKind, LetterKindDef> = {
               x.regions[l.region!]!.troops += L.sellswordsTroops;
             },
           },
-          blocked: afford(w, L.sellswordsCost),
+          blocked: afford(w, l, L.sellswordsCost),
         },
         ...(friend && favour
           ? [
@@ -118,15 +129,71 @@ const KINDS: Record<LetterKind, LetterKindDef> = {
     fallback: 'fight',
     quote: (l) => LETTER_WORDS.attack[l.from],
   },
+  threat: {
+    summary: (w, l) => `${cap(l.from)}'s army masses at your border. It will strike ${regionName(w, l.region!)} next season unless you act.`,
+    answers: (w, l) => {
+      const region = regionName(w, l.region!);
+      const friend = friendAgainst(w, l.from);
+      const favour = friend ? favourOutcome(friend, l.from) : null;
+      return [
+        {
+          id: 'pay',
+          label: `Pay ${l.amount} gold to send them home`,
+          outcome: {
+            gold: -l.amount,
+            trust: { [l.from]: L.tributeTrust },
+            notes: ['their army goes home'],
+            act: (x, events) => {
+              x.nations[l.from].grievances = 0;
+              sendHome(x, l.from, `you paid ${nameOf(l.from)} ${l.amount} gold to go home`, events);
+            },
+          },
+          blocked: afford(w, l, l.amount),
+        },
+        {
+          id: 'sellswords',
+          label: `Hire sellswords for ${L.sellswordsCost} gold`,
+          outcome: {
+            gold: -L.sellswordsCost,
+            notes: [`+${L.sellswordsTroops} soldiers in ${region}`, `${region} ${assaultOdds(w, l.from, l.region!, L.sellswordsTroops)}`],
+            act: (x) => {
+              x.regions[l.region!]!.troops += L.sellswordsTroops;
+            },
+          },
+          blocked: afford(w, l, L.sellswordsCost),
+        },
+        ...(friend && favour
+          ? [
+              {
+                id: 'favour',
+                label: `Call in a favour from ${nameOf(friend)}`,
+                outcome: {
+                  ...favour,
+                  notes: [...(favour.notes ?? []), 'their army goes home'],
+                  act: (x: WorldState, events: GameEvent[]) => {
+                    favour.act?.(x, events);
+                    sendHome(x, l.from, `you sent ${nameOf(friend)} to war against ${nameOf(l.from)}`, events);
+                  },
+                },
+              },
+            ]
+          : []),
+        { id: 'wait', label: 'Wait and see', outcome: { notes: [`talk ${nameOf(l.from)} down, or it strikes ${region} next season`] } },
+      ];
+    },
+    fallback: 'wait',
+    quote: (l) => LETTER_WORDS.threat[l.from],
+  },
   raid: {
     summary: (w, l) => `${cap(l.from)}'s foragers threaten to burn ${regionName(w, l.region!)}.`,
     answers: (w, l) => [
-      { id: 'pay', label: `Pay them ${l.amount} gold to ride on`, outcome: { gold: -l.amount }, blocked: afford(w, l.amount) },
+      { id: 'pay', label: `Pay them ${l.amount} gold to ride on`, outcome: { gold: -l.amount }, blocked: afford(w, l, l.amount) },
       {
         id: 'burn',
         label: 'Let it burn',
         outcome: {
-          notes: [`${regionName(w, l.region!)} burns: −${CONFIG.economy.burnLoss} gold a season, for ${CONFIG.economy.burnSeasons} seasons`],
+          perSeason: { gold: -CONFIG.economy.burnLoss, seasons: CONFIG.economy.burnSeasons },
+          notes: [`${regionName(w, l.region!)} burns`],
           act: (x, events) => burn(x, l.from, l.region!, events),
         },
       },
@@ -139,11 +206,18 @@ const KINDS: Record<LetterKind, LetterKindDef> = {
     answers: (w, l) => {
       const enemy = l.about!;
       const angered = redLinesCrossedByPassage(l.from);
+      // A promise this answer would break is named on it, so the Warden never breaks their word unawares.
+      const keepOut = wordBrokenBy(w, l.from, true);
+      const letIn = wordBrokenBy(w, l.from, false);
       const letThrough = (payment: Pick<Outcome, 'gold' | 'land'>): Outcome => ({
         ...payment,
         trust: { [l.from]: L.passageTrust, [enemy]: L.passageEnemyTrust },
         neutrality: L.passageNeutrality,
-        notes: ['their army marches through', ...angered.map((n) => `crosses ${nameOf(n)}'s red line`)],
+        notes: [
+          'their army marches through',
+          ...(keepOut ? [`breaks your word to ${nameOf(keepOut.to)}`] : []),
+          ...angered.map((n) => `crosses ${nameOf(n)}'s red line`),
+        ],
         act: (x, events) => {
           for (const n of angered) {
             const e = crossRedLine(x, n, CROSSING, `the Warden let ${nameOf(l.from)}'s army through`);
@@ -152,7 +226,13 @@ const KINDS: Record<LetterKind, LetterKindDef> = {
         },
       });
       const region = regionToCede(w, l.from);
-      const closed = w.player.passes[l.from] === 'closed' ? `Your pass is closed to ${nameOf(l.from)}.` : undefined;
+      const promisedShut = closedByLetter(w, l.from, l);
+      const closed =
+        w.player.passes[l.from] === 'closed'
+          ? `Your pass is closed to ${nameOf(l.from)}.`
+          : promisedShut
+            ? `You promised ${nameOf(promisedShut.from)} to keep the pass closed to ${nameOf(l.from)}.`
+            : undefined;
       return [
         { id: 'grant', label: 'Let them pass', outcome: letThrough({ gold: l.amount }), blocked: closed },
         ...(region
@@ -163,7 +243,7 @@ const KINDS: Record<LetterKind, LetterKindDef> = {
           label: 'Refuse',
           outcome: {
             trust: { [l.from]: L.refusedTrust },
-            notes: [closed ? 'your closed pass turns them back' : 'they may force their way through'],
+            notes: [closed ? 'your closed pass turns them back' : 'they may force their way through', ...(letIn ? [`breaks your word to ${nameOf(letIn.to)}`] : [])],
             act: (x) => {
               x.nations[l.from].grievances += 1;
             },
@@ -180,8 +260,8 @@ const KINDS: Record<LetterKind, LetterKindDef> = {
       const enemy = l.about!;
       const shut = passOutcome(enemy, 'closed');
       const verb = w.player.passes[enemy] === 'closed' ? 'Keep it closed' : 'Close it';
-      const close = (payment: Pick<Outcome, 'gold' | 'land'>): Outcome => ({ ...payment, trust: { [l.from]: L.helpTrust }, notes: shut.notes, act: shut.act });
-      const locked = passLocked(w, enemy) ?? undefined;
+      const close = (payment: Pick<Outcome, 'gold' | 'land'>): Outcome => ({ ...payment, trust: { [l.from]: L.helpTrust }, perSeason: shut.perSeason, notes: shut.notes, act: shut.act });
+      const locked = passLocked(w, enemy, l) ?? undefined;
       const region = regionToCede(w, l.from);
       return [
         { id: 'close', label: `${verb} for ${l.amount} gold`, outcome: close({ gold: l.amount }), blocked: locked },
@@ -222,7 +302,7 @@ const KINDS: Record<LetterKind, LetterKindDef> = {
             x.stats.peacesBrokered += 1;
           },
         },
-        blocked: afford(w, l.amount),
+        blocked: afford(w, l, l.amount),
       },
       { id: 'decline', label: 'Decline', outcome: { notes: ['the war goes on'] } },
     ],
@@ -260,7 +340,7 @@ const KINDS: Record<LetterKind, LetterKindDef> = {
           trust: { [l.from]: CONFIG.letters.apologyTrust },
           suspicion: { [l.from]: -CONFIG.letters.apologySuspicion },
         },
-        blocked: afford(w, CONFIG.letters.apologyGold),
+        blocked: afford(w, l, CONFIG.letters.apologyGold),
       },
       { id: 'ignore', label: 'Say nothing', outcome: {} },
     ],
@@ -284,35 +364,54 @@ export function fallbackAnswer(l: Letter): string {
 function settle(w: WorldState, letter: Letter, answer: LetterAnswer, events: GameEvent[]): void {
   applyOutcome(w, answer.outcome, events);
   letter.answer = answer.id;
+  letter.choice = answer.id;
+  letter.pledge = 0;
   events.push({ kind: 'letter', season: w.season, letter: letter.id, nation: letter.from, letterKind: letter.kind, answer: answer.id });
 }
 
-/** The Warden answers a letter. Unknown letters and blocked answers change nothing. */
-export function answerLetter(world: WorldState, letterId: string, answerId: string): { world: WorldState; events: GameEvent[] } {
+/**
+ * The Warden chooses an answer. Nothing happens until the bell rings, so the choice can change until
+ * then; its gold is set aside meanwhile. Unknown letters and blocked answers change nothing.
+ */
+export function chooseAnswer(world: WorldState, letterId: string, answerId: string): WorldState {
+  const letter = world.letters.find((l) => l.id === letterId);
+  if (!letter || letter.answer !== null || letter.season !== world.season || letter.choice === answerId) return world;
+  const answer = letterAnswers(world, letter).find((a) => a.id === answerId);
+  if (!answer || answer.blocked || answer.hidden) return world;
   const w = cloneWorld(world);
-  const events: GameEvent[] = [];
-  const letter = w.letters.find((l) => l.id === letterId);
-  if (!letter || letter.answer !== null || letter.season !== w.season) return { world, events };
-  const answer = letterAnswers(w, letter).find((a) => a.id === answerId);
-  if (!answer || answer.blocked || answer.hidden) return { world, events };
-  settle(w, letter, answer, events);
-  return { world: w, events };
+  const mine = w.letters.find((l) => l.id === letterId)!;
+  mine.choice = answer.id;
+  mine.pledge = Math.max(0, -(answer.outcome.gold ?? 0));
+  return w;
 }
 
-/** At the bell, every letter still sealed takes its default answer. */
+/** The answer a letter is given now: the one chosen, or, if none, what it becomes at the bell. */
+export function answerFor(w: WorldState, letter: Letter): LetterAnswer | null {
+  const answers = letterAnswers(w, letter);
+  const chosen = answers.find((a) => a.id === letter.choice && !a.blocked);
+  return chosen ?? answers.find((a) => a.id === fallbackAnswer(letter) && !a.blocked) ?? answers.find((a) => !a.blocked) ?? null;
+}
+
+/** At the bell, every letter this season is settled: the chosen answer, or the default if none. */
 export function closeLetters(w: WorldState, events: GameEvent[]): void {
   for (const letter of w.letters) {
     if (letter.answer !== null || letter.season > w.season) continue;
-    const answers = letterAnswers(w, letter);
-    const answer = answers.find((a) => a.id === fallbackAnswer(letter) && !a.blocked) ?? answers.find((a) => !a.blocked);
+    // What it would cost is no longer set aside: the answer pays for itself now, or falls back.
+    letter.pledge = 0;
+    const answer = answerFor(w, letter);
     if (answer) settle(w, letter, answer, events);
     else letter.answer = fallbackAnswer(letter);
   }
 }
 
-/** Letters on the table this season, still waiting for an answer. */
-export function sealedLetters(w: WorldState): Letter[] {
+/** Letters on the table this season, answered or not: all of them can still change until the bell. */
+export function seasonLetters(w: WorldState): Letter[] {
   return w.letters.filter((l) => l.season === w.season && l.answer === null);
+}
+
+/** Letters on the table this season that the Warden has not answered yet. */
+export function sealedLetters(w: WorldState): Letter[] {
+  return seasonLetters(w).filter((l) => l.choice === null);
 }
 
 /** Write a letter for the season about to open. */
@@ -328,6 +427,8 @@ export function sendLetter(w: WorldState, fields: Pick<Letter, 'kind' | 'from'> 
     about: fields.about ?? null,
     region: fields.region ?? null,
     amount: fields.amount ?? 0,
+    choice: null,
+    pledge: 0,
     answer: null,
     quote: '',
     entry: fields.entry ?? null,
@@ -409,7 +510,7 @@ export function deliverLetters(w: WorldState, events: readonly GameEvent[], rng:
   const amount = (range: readonly [number, number]) => rng.int(range[0], range[1]);
 
   for (const intent of w.intents) {
-    if (intent.kind === 'attack' && room()) send({ kind: 'attack', from: intent.nation, region: intent.region, amount: amount(L.tribute) });
+    if ((intent.kind === 'attack' || intent.kind === 'threat') && room()) send({ kind: intent.kind, from: intent.nation, region: intent.region, amount: amount(L.tribute) });
   }
   const raids = raidTargets(w);
   if (raids.length > 0 && room() && rng.chance(L.raidChance)) {

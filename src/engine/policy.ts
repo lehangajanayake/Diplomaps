@@ -4,6 +4,7 @@
  * mind. Words the Warden spoke can also start wars nobody planned. Code decides every event: the AI
  * only writes the words around them.
  */
+import { attackReasons } from './causes.js';
 import { CONFIG } from './config.js';
 import { provokes, reassures } from './ledger.js';
 import { PROFILES } from './nations.js';
@@ -94,16 +95,22 @@ export function needsPassage(w: WorldState, nation: NationId, target: NationId):
   return !bordersOwner(w, nation, target);
 }
 
-/** How much `nation` wants to march on the Crossing itself: hatred, grievances, and a valley grown fat. */
+/**
+ * How much `nation` wants to march on the Crossing itself: a warlike court's appetite, coldness toward the
+ * Warden, hatred, grievances (passages refused, passes shut), suspicion of the Warden's lies, and a valley
+ * grown fat.
+ */
 export function attackMotive(w: WorldState, nation: NationId): number {
   if (!isStanding(w, nation) || !bordersOwner(w, nation, CROSSING)) return 0;
   const a = CONFIG.attack;
   const n = w.nations[nation];
-  let motive = 0;
+  let motive = PROFILES[nation].aggression * a.appetiteWeight;
+  motive += (Math.max(0, a.coldTrust - n.trustPlayer) / 100) * a.coldWeight;
   if (n.trustPlayer <= a.hostileTrust) motive += a.hostileWeight + (a.hostileTrust - n.trustPlayer) / 100;
   motive += n.grievances * a.grievanceWeight;
   motive += Math.max(0, regionsOf(w, CROSSING).length - a.largeFrom) * a.largeWeight;
   if (w.player.neutrality < a.lowNeutrality) motive += a.lowNeutralityWeight;
+  motive += n.suspicion * a.suspicionWeight;
   return motive - warsOf(w, nation) * a.busyPenalty;
 }
 
@@ -121,20 +128,48 @@ export function attackTarget(w: WorldState, nation: NationId): RegionId | null {
   return pool.reduce((best, id) => (w.regions[id]!.troops < w.regions[best]!.troops ? id : best));
 }
 
-/** At most one army a season marches on the Crossing, chosen by how badly each wants to. */
-function planAttack(w: WorldState, rng: Rng, busy: readonly NationId[]): Intent[] {
-  const candidates = NATION_IDS.filter((n) => !busy.includes(n)).map((nation) => ({ nation, chance: attackChance(attackMotive(w, nation)) }));
+/**
+ * An army masses at the valley's border, a season before it strikes, so the Warden always has a season
+ * to answer it. At most one army threatens the valley at a time, chosen by how badly each wants to, and
+ * none in the last season (it could never strike).
+ */
+function planThreat(w: WorldState, rng: Rng, busy: readonly NationId[]): Intent[] {
+  if (w.season >= CONFIG.seasons) return [];
+  const candidates = NATION_IDS.filter((n) => !busy.includes(n) && !justDone(w, n)).map((nation) => ({ nation, chance: attackChance(attackMotive(w, nation)) }));
   const willing = candidates.filter((c) => c.chance > 0);
   if (willing.length === 0) return [];
   const pick = rng.weighted(willing, willing.map((c) => c.chance));
   const region = attackTarget(w, pick.nation);
-  return region && rng.chance(pick.chance) ? [{ kind: 'attack', nation: pick.nation, region }] : [];
+  return region && rng.chance(pick.chance) ? [{ kind: 'threat', nation: pick.nation, region, because: attackReasons(w, pick.nation) }] : [];
+}
+
+/** An army paid to go home, or one that has just struck the valley, rests a season before it masses again. */
+function justDone(w: WorldState, nation: NationId): boolean {
+  return (w.history.at(-1)?.events ?? []).some(
+    (e) => (e.kind === 'threat' && e.nation === nation && e.outcome === 'lifted') || (e.kind === 'battle' && e.attacker === nation && e.defender === CROSSING),
+  );
+}
+
+/** Armies that massed last season and stayed at the bell march on the valley now. */
+function strikes(w: WorldState): Intent[] {
+  return w.intents.flatMap((i): Intent[] => {
+    if (i.kind !== 'threat' || !i.held || !isStanding(w, i.nation)) return [];
+    const region = w.regions[i.region]?.owner === CROSSING ? i.region : attackTarget(w, i.nation);
+    return region ? [{ kind: 'attack', nation: i.nation, region, because: i.because }] : [];
+  });
+}
+
+/** Does an army massed at the border stay, now the Warden has had a season to answer it? */
+export function threatHolds(w: WorldState, nation: NationId): boolean {
+  return attackMotive(w, nation) >= CONFIG.attack.holdMotive && attackTarget(w, nation) !== null;
 }
 
 /** When a season opens: what the nations mean to do before the bell rings again. */
 export function planIntents(w: WorldState, rng: Rng): Intent[] {
-  const wars = planWar(w, rng);
-  return [...wars, ...planAttack(w, rng, wars.map((i) => i.nation))];
+  const striking = strikes(w);
+  const wars = planWar(w, rng).filter((i) => !striking.some((s) => s.nation === i.nation));
+  const threats = striking.length ? [] : planThreat(w, rng, wars.map((i) => i.nation));
+  return [...wars, ...striking, ...threats];
 }
 
 /**

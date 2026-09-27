@@ -3,12 +3,12 @@
  * early in defeat; otherwise, after the last season, you win or lose on your ambition. Code picks the one
  * or two moments that decided it and one tip for next time.
  */
-import { AMBITION } from './ambitions.js';
+import { AMBITION, bestInstigation } from './ambitions.js';
 import { CONFIG, seasonTitle } from './config.js';
 import { isLie } from './ledger.js';
 import { letterAnswers } from './letters.js';
 import { nameOf } from './nations.js';
-import { CROSSING, NATION_IDS, type AmbitionId, type Ending, type EndingReason, type GainHow, type GameEvent, type Holder, type Letter, type WorldState } from './types.js';
+import { CROSSING, NATION_IDS, type AmbitionId, type Because, type Ending, type EndingReason, type GainHow, type GameEvent, type Holder, type Letter, type WorldState } from './types.js';
 
 const HOW_WORDS: Record<string, string> = {
   favour: 'your favour',
@@ -32,6 +32,11 @@ const NEXT_AMBITION: Record<AmbitionId, string> = {
   spider: 'Now try the Kingdom: grow your valley without an army.',
   peacemaker: 'Now try the Merchant: grow rich while the realm burns.',
 };
+
+/** A moment with its cause: "Varrow took Wayhold in Autumn, because you refused its army passage." */
+function withWhy(text: string, because: Because | undefined): string {
+  return because ? `${text.replace(/\.$/, '')}, because ${because.why}.` : text;
+}
 
 function allEvents(w: WorldState): GameEvent[] {
   return w.history.flatMap((h) => h.events);
@@ -81,7 +86,7 @@ function decidingMoments(w: WorldState, ambition: AmbitionId, reason: EndingReas
   const place = (id: string) => w.map.regions[id]?.name ?? id;
   if (reason === 'ashes') {
     const fall = events.find((e) => e.kind === 'battle' && e.captured && e.region === w.map.capitals.crossing.region);
-    return fall && fall.kind === 'battle' ? [`${nameOf(fall.attacker, 'start')} took Wayhold in ${seasonTitle(fall.season)}.`] : ['Wayhold fell.'];
+    return fall && fall.kind === 'battle' ? [withWhy(`${nameOf(fall.attacker, 'start')} took Wayhold in ${seasonTitle(fall.season)}.`, fall.because)] : ['Wayhold fell.'];
   }
   if (reason === 'unmasked') {
     const certain = NATION_IDS.filter((n) => w.nations[n].suspicion >= CONFIG.endings.unmaskedSuspicion);
@@ -94,7 +99,7 @@ function decidingMoments(w: WorldState, ambition: AmbitionId, reason: EndingReas
       const lost: string[] = [];
       const gained: string[] = [];
       for (const e of events) {
-        if (e.kind === 'battle' && e.captured && e.defender === CROSSING) lost.push(`${nameOf(e.attacker, 'start')} took ${place(e.region)} from you.`);
+        if (e.kind === 'battle' && e.captured && e.defender === CROSSING) lost.push(withWhy(`${nameOf(e.attacker, 'start')} took ${place(e.region)} from you.`, e.because));
         if (e.kind === 'cede' && e.nation === CROSSING) lost.push(`You gave ${place(e.region)} to ${nameOf(e.target)}.`);
         if (e.kind === 'gain') gained.push(GAIN_WORDS[e.how](e.from, place(e.region)));
       }
@@ -106,15 +111,22 @@ function decidingMoments(w: WorldState, ambition: AmbitionId, reason: EndingReas
       const out = w.stats.instigated.map(
         (x) => `${HOW_WORDS[x.how] ?? 'Your hand'} sent ${nameOf(x.a)} to war with ${nameOf(x.b)} in ${seasonTitle(x.season)}.`.replace(/^./, (c) => c.toUpperCase()),
       );
+      // A loss with a war to show for it was decided by the suspicion that stayed too high.
+      const best = bestInstigation(w);
+      if (!won && best) {
+        const n = w.nations[best.war.a].suspicion >= best.worst ? best.war.a : best.war.b;
+        out.unshift(`${nameOf(n, 'start')}'s suspicion of you ended at ${best.worst}; it needed to be below ${CONFIG.ambitions.spiderSuspicion}.`);
+      }
+      if (w.stats.instigated.length === 0) out.push('No war you started broke out: every war came from old grudges.');
       for (const e of events) {
-        if (e.kind === 'lie_caught') out.push(`${nameOf(e.by[0]!, 'start')} caught one of your lies in ${seasonTitle(e.season)}.`);
+        if (e.kind === 'lie_caught') out.push(withWhy(`${nameOf(e.by[0]!, 'start')} caught one of your lies in ${seasonTitle(e.season)}.`, e.because));
       }
       return out.slice(0, 2);
     }
     case 'peacemaker': {
       const out: string[] = [];
       for (const e of events) if (e.kind === 'peace') out.push(`${nameOf(e.a, 'start')} and ${nameOf(e.b)} made peace in ${seasonTitle(e.season)}.`);
-      for (const war of w.wars) out.push(`${nameOf(war.a, 'start')} and ${nameOf(war.b)} were still at war at the end.`);
+      for (const war of w.wars) out.push(withWhy(`${nameOf(war.a, 'start')} and ${nameOf(war.b)} were still at war at the end.`, war.because));
       return out.slice(-2);
     }
     default:

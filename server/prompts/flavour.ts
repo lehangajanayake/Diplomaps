@@ -12,7 +12,7 @@ export function flavourInstructions(): string {
 Write two things:
 1. chronicle: 2 to 4 lines of "News of the Realm" for the season, in the voice of a medieval chronicle or a town crier: vivid, concrete, a little ominous. Each line at most 30 words. Report only the events listed; you may add colour (weather, market talk, omens) but never invent battles, treaties or deaths. Mention the Warden only where the events involve the Warden.
 2. letters: for each letter listed, one line of at most 25 words that its sender writes to the Warden, in that ruler's own voice and verbal habit. The line must fit what the letter is about. Witty, in character, period voice.
-Call the nations by name (Varrow, Kelm, Sael, the Tarn, Ostrin); never name their rulers. No modern idiom, no lists or headings inside the lines.`;
+Use only the numbers given here; never invent odds, troop counts or sums. Call the nations by name (Varrow, Kelm, Sael, the Tarn, Ostrin); never name their rulers. No modern idiom, no lists or headings inside the lines.`;
 }
 
 const other = (n: LetterBrief['about']) => (n ? PROFILES[n].name : 'someone');
@@ -20,6 +20,7 @@ const other = (n: LetterBrief['about']) => (n ? PROFILES[n].name : 'someone');
 /** What each kind of letter is about, for the scribe who writes its one line. */
 const LETTER_WORDS: Record<LetterBrief['kind'], (l: LetterBrief) => string> = {
   attack: (l) => `their army is marching on the Crossing's region of ${l.region ?? 'the valley'}; they demand ${l.amount} gold in tribute to turn back`,
+  threat: (l) => `their army is massed at the Crossing's border and will strike ${l.region ?? 'the valley'} next season; they would go home for ${l.amount} gold`,
   raid: (l) => `their foragers threaten to burn ${l.region ?? 'a region'} of the Crossing unless paid ${l.amount} gold`,
   passage: (l) => `they ask leave to march their army through the Crossing to attack ${other(l.about)}, offering ${l.amount} gold`,
   help: (l) => `${other(l.about)} means to march an army through the Crossing to attack them; they offer ${l.amount} gold if the Warden closes the pass to ${other(l.about)}`,

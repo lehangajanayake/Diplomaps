@@ -7,21 +7,27 @@ import { CONFIG } from './config.js';
 import { instigationOf, recordInstigation } from './instigation.js';
 import type { Rng } from './rng.js';
 import { addTension, adjustTrust } from './tension.js';
-import { NATION_IDS, UNCLAIMED, type GameEvent, type NationId, type War, type WarCause, type WorldState } from './types.js';
+import { allyCause, warCause } from './causes.js';
+import { NATION_IDS, UNCLAIMED, type Because, type GameEvent, type NationId, type War, type WarCause, type WorldState } from './types.js';
 import { allied, alliesOf, atWar, isStanding, regionsOf, standingNations } from './world.js';
 
 const involves = (war: War, n: NationId) => war.a === n || war.b === n;
 
-/** `nation` declares war on `target`. When the target is attacked (not joining an ally), its allies answer. */
-export function declareWar(w: WorldState, nation: NationId, target: NationId, cause: WarCause, events: GameEvent[]): void {
+/**
+ * `nation` declares war on `target`, and why is recorded now, while the reasons still stand. When the
+ * target is attacked (not joining an ally), its allies answer. `given`: the cause, when the caller knows it
+ * better (an ally joining a war).
+ */
+export function declareWar(w: WorldState, nation: NationId, target: NationId, cause: WarCause, events: GameEvent[], given?: Because): void {
   if (nation === target || atWar(w, nation, target) || !isStanding(w, nation) || !isStanding(w, target)) return;
-  w.wars.push({ a: nation, b: target, aggressor: nation, cause, since: w.season, quiet: 0 });
+  const because = given ?? warCause(w, nation, target, cause === 'ally' ? 'grudge' : cause);
+  w.wars.push({ a: nation, b: target, aggressor: nation, cause, because, since: w.season, quiet: 0 });
   w.alliances = w.alliances.filter((al) => !((al.a === nation && al.b === target) || (al.a === target && al.b === nation)));
   w.stats.warsStarted += 1;
   w.stats.firstWarSeason ??= w.season;
   adjustTrust(w, target, nation, CONFIG.trust.warDeclared);
   addTension(w, CONFIG.tension.warDeclared);
-  events.push({ kind: 'war', season: w.season, nation, target, cause });
+  events.push({ kind: 'war', season: w.season, nation, target, cause, because });
   // The Warden started this war only if a favour or the Warden's words set it off; a war planned
   // before they spoke would have come anyway.
   if (cause === 'favour') recordInstigation(w, nation, target, 'favour');
@@ -30,7 +36,7 @@ export function declareWar(w: WorldState, nation: NationId, target: NationId, ca
   for (const ally of alliesOf(w, target)) {
     if (ally === nation || allied(w, ally, nation)) continue;
     adjustTrust(w, ally, nation, CONFIG.trust.warDeclaredOnAlly);
-    declareWar(w, ally, nation, 'ally', events);
+    declareWar(w, ally, nation, 'ally', events, allyCause(ally, target, because));
   }
 }
 

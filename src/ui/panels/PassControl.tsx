@@ -1,6 +1,6 @@
 /** The pass on a nation's road into the valley: open or closed, what switching it would do, and the switch. */
 import { nameOf } from '../../engine/nations';
-import { effectsOf } from '../../engine/outcome';
+import { effectsOf, effectText } from '../../engine/outcome';
 import { passLocked, passOutcome } from '../../engine/passes';
 import type { NationId, WorldState } from '../../engine/types';
 import { togglePass } from '../../store/flow';
@@ -39,7 +39,7 @@ export function PassControl({ world, nation, detailed = false }: Props) {
           type="button"
           onClick={() => togglePass(nation)}
           disabled={!!locked}
-          title={locked ?? effects.map((e) => e.text).join(' · ')}
+          title={locked ?? effects.map(effectText).join(' · ')}
           className="ml-auto font-sc text-[0.9rem] text-wax underline decoration-wax/40 underline-offset-2 hover:decoration-wax disabled:cursor-not-allowed disabled:text-ink-faded disabled:no-underline"
         >
           {state === 'open' ? 'Close it' : 'Open it'}

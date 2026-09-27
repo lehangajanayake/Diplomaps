@@ -71,7 +71,8 @@ export function evaluateClaim(
       return x.trust[target] <= -20 || hasGrudge(about, target);
     case 'weakness': {
       const avg = NATION_IDS.reduce((s, n) => s + totalTroops(w, n), 0) / NATION_IDS.length;
-      return totalTroops(w, about) < avg * 0.85 || regionsOf(w, about).length < 3;
+      const fronts = w.wars.filter((war) => war.a === about || war.b === about).length;
+      return totalTroops(w, about) < avg * 0.85 || regionsOf(w, about).length < 3 || fronts >= 2;
     }
     case 'friendly_intent':
       if (about === target) return null;
@@ -219,7 +220,9 @@ export function addLedgerEntries(
       caughtBy: [],
       caughtSeason: null,
       caughtHow: null,
+      kept: false,
       broken: false,
+      dismissed: false,
     };
     if (entry.type === 'claim' && entry.claimKind) {
       entry.truth = evaluateClaim(w, nation, entry.about, entry.claimKind, entry.withNation);

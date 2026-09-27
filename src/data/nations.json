@@ -21,6 +21,7 @@
       "secretGoal": "Avenge the Burning of Harrowmere: break Kelm in open war and take at least one Kelmish province.",
       "aim": "Break Kelm in war and take a Kelmish province.",
       "hint": "Revenge on Kelm, and land to show for it.",
+      "want": "Varrow's horse-lords want revenge on Kelm, and land to show for it.",
       "redLine": {
         "kind": "threat",
         "about": null,
@@ -59,6 +60,7 @@
       "secretGoal": "Own the Crossing: drain the Warden's treasury until the passes and their tolls can be bought outright for Kelm.",
       "aim": "Drain your treasury, then buy the Crossing outright.",
       "hint": "Your gold. Possibly all of it.",
+      "want": "Kelm's bankers want your gold. Possibly all of it.",
       "redLine": {
         "kind": "deceit",
         "about": null,
@@ -97,6 +99,7 @@
       "secretGoal": "Let Varrow and Kelm bleed each other white, then buy their ruined provinces for a song.",
       "aim": "Let Varrow and Kelm bleed, then buy their ruins cheap.",
       "hint": "Other people fighting her battles.",
+      "want": "Sael's duchess wants other people to fight her battles.",
       "redLine": {
         "kind": "passage_to_enemy",
         "about": "varrow",
@@ -135,6 +138,7 @@
       "secretGoal": "Take back the burial hills: seize an Ostrine province where the clans' ancestors lie, and humble the Hierarch.",
       "aim": "Seize the burial hills from Ostrin and humble the Hierarch.",
       "hint": "The hills Ostrin took from the clans.",
+      "want": "The Tarn's fen clans want back the hills Ostrin took.",
       "redLine": {
         "kind": "border_troops",
         "about": null,
@@ -171,6 +175,7 @@
       "secretGoal": "Reclaim the valley shrine: Ostrin holds that the heart of the Crossing is holy ground stolen from the Lamp, and means to take it back.",
       "aim": "Take back the shrine at the heart of your valley.",
       "hint": "Something holy in your valley.",
+      "want": "Ostrin's priests want something holy that lies in your valley.",
       "redLine": {
         "kind": "rival_alliance",
         "about": "tarn",

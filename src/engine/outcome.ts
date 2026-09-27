@@ -17,6 +17,11 @@ export interface Outcome {
   tension?: number;
   /** A region the Crossing gains, and how. Growing costs neutrality and neighbours' trust too. */
   land?: { region: RegionId; how: GainHow };
+  /**
+   * What keeps happening every season afterwards (shown only: `act` makes it happen). `seasons` limits it;
+   * without it, it lasts while things stay as they are.
+   */
+  perSeason?: { gold?: number; trust?: Partial<Record<NationId, number>>; seasons?: number };
   /** Consequences beyond the numbers, a few plain words each: "their army marches through". */
   notes?: string[];
   /** Makes those consequences happen. */
@@ -31,6 +36,8 @@ export interface Effect {
   text: string;
   tone: 'good' | 'bad' | 'neutral';
   nation?: NationId;
+  /** For an effect that repeats: "each season", or "each season, for 2 seasons". */
+  ongoing?: string;
 }
 
 const sign = (n: number) => (n > 0 ? '+' : '−');
@@ -52,8 +59,39 @@ export function effectsOf(w: WorldState, o: Outcome): Effect[] {
   const neutrality = (o.neutrality ?? 0) + growth.neutrality;
   if (neutrality) out.push({ kind: 'neutrality', text: `${sign(neutrality)} neutrality`, tone: neutrality > 0 ? 'good' : 'bad' });
   if (o.tension) out.push({ kind: 'tension', text: `${sign(o.tension)} tension`, tone: o.tension > 0 ? 'bad' : 'good' });
+  if (o.perSeason) {
+    const { gold, trust, seasons } = o.perSeason;
+    const ongoing = seasons ? `each season, for ${seasons} seasons` : 'each season';
+    if (gold) out.push({ kind: 'gold', text: `${sign(gold)}${Math.abs(gold)} gold`, tone: gold > 0 ? 'good' : 'bad', ongoing });
+    for (const n of NATION_IDS) {
+      const t = trust?.[n];
+      if (t) out.push({ kind: 'trust', text: `${sign(t)} ${nameOf(n, 'start')} trust`, tone: t > 0 ? 'good' : 'bad', nation: n, ongoing });
+    }
+  }
   for (const note of o.notes ?? []) out.push({ kind: 'note', text: note, tone: 'neutral' });
   return out;
+}
+
+/** The whole effect in words, for tooltips and screen readers: "−10 gold each season". */
+export function effectText(effect: Effect): string {
+  return effect.ongoing ? `${effect.text} ${effect.ongoing}` : effect.text;
+}
+
+/** How much an effect matters at a glance: gold and land first, then what happens, then the trust at stake. */
+function weight(e: Effect, focus: NationId | undefined): number {
+  if (e.kind === 'gold' || e.kind === 'land') return 0;
+  if (e.kind === 'note') return 1;
+  if (e.nation && e.nation === focus) return 2;
+  return 3;
+}
+
+/**
+ * Split effects into the few shown on a choice and the rest (behind "+N more"), most important first.
+ * `focus` is the nation whose trust matters most here, usually the letter's sender.
+ */
+export function keyEffects(effects: readonly Effect[], focus?: NationId, shown = 3): { key: Effect[]; more: Effect[] } {
+  const ranked = effects.map((e, i) => ({ e, w: weight(e, focus), i })).sort((a, b) => a.w - b.w || a.i - b.i).map((x) => x.e);
+  return { key: ranked.slice(0, shown), more: ranked.slice(shown) };
 }
 
 export function applyOutcome(w: WorldState, o: Outcome, events: GameEvent[]): void {

@@ -50,6 +50,14 @@ const LETTER_NEWS: Record<string, (nation: string, answer: string) => string> = 
         : answer === 'favour'
           ? `The Warden called in a favour, and ${nation}'s army turned back to face a new enemy.`
           : `The Warden stood to fight ${nation}'s army.`,
+  threat: (nation, answer) =>
+    answer === 'pay'
+      ? `The Warden paid ${nation} to take its army home from the Crossing's border.`
+      : answer === 'sellswords'
+        ? `The Warden hired sellswords against ${nation}'s army at the border.`
+        : answer === 'favour'
+          ? `The Warden called in a favour, and ${nation}'s army at the border turned to face a new enemy.`
+          : `The Warden left ${nation}'s army waiting at the border.`,
   raid: (nation, answer) => (answer === 'pay' ? `The Warden paid off ${nation}'s foragers.` : `The Warden let ${nation}'s foragers burn a region rather than pay.`),
   passage: (nation, answer) => (answer === 'refuse' ? `The Warden refused ${nation}'s army passage.` : `The Warden granted ${nation}'s army passage through the Crossing.`),
   help: (nation, answer) => (answer === 'refuse' ? `The Warden refused ${nation}'s plea to close a pass to its enemy.` : `At ${nation}'s request, the Warden shut a pass to ${nation}'s enemy.`),

@@ -1,12 +1,14 @@
 /** The main screen: the map sheet in the middle of the table, surrounded by the objects you play with. */
 import { AnimatePresence, motion } from 'motion/react';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { CONFIG } from '../../engine/config';
-import { sealedLetters } from '../../engine/letters';
+import { bellNote } from '../../engine/agenda';
+import { seasonLetters } from '../../engine/letters';
+import { prologueBeats } from '../../engine/prologue';
 import { CROSSING, type RegionId } from '../../engine/types';
-import { regionsOf } from '../../engine/world';
+import { regionsOf, spareGold } from '../../engine/world';
 import { sound } from '../../audio/sound';
-import { closeOverlay, endSeason, openClaim, openCrossing, openDossier, openLedger, openLetter } from '../../store/flow';
+import { closeOverlay, openClaim, openCrossing, openDossier, openLedger, openLetter, ringBell } from '../../store/flow';
 import { useStore } from '../../store/worldStore';
 import { AudienceScene } from '../audience/AudienceScene';
 import { Courts } from '../hud/Courts';
@@ -21,7 +23,7 @@ import { MapView } from '../map/MapView';
 import { Chronicle } from '../panels/Chronicle';
 import { ChronicleBook } from '../panels/ChronicleBook';
 import { Handbook } from '../panels/Handbook';
-import { OpeningFx } from '../map/OpeningFx';
+import { PrologueFx } from '../map/PrologueFx';
 import { CrossingSheet } from '../panels/CrossingSheet';
 import { Dossier } from '../panels/Dossier';
 import { LedgerView } from '../panels/Ledger';
@@ -35,10 +37,12 @@ import { Notes } from '../table/Notes';
 import { Snuffer } from '../hud/Snuffer';
 import { Table } from '../table/Table';
 import { AmbitionCard } from '../hud/AmbitionCard';
+import { Agenda } from '../hud/Agenda';
 import { AmbitionChoice } from './AmbitionChoice';
+import { ConfirmBell } from './ConfirmBell';
 import { CrisisCard } from './CrisisCard';
 import { MontageCaption } from './MontageCaption';
-import { Opening } from './Opening';
+import { Prologue } from './Prologue';
 import { Tutorial } from './Tutorial';
 import { SeasonCard } from './SeasonCard';
 import { WhatChanged } from './WhatChanged';
@@ -53,7 +57,10 @@ export function GameTable() {
   const fx = useStore((s) => s.fx);
   const muted = useStore((s) => s.muted);
   const tension = useStore((s) => s.world?.tension ?? 0);
-  const opening = useStore((s) => s.opening);
+  const prologue = useStore((s) => s.prologue);
+  const opening = prologue !== null;
+  // The prologue is told from the world as the year opens; it does not change while it plays.
+  const beats = useMemo(() => (opening && world ? prologueBeats(world) : []), [opening, world]);
 
   useEffect(() => {
     sound.setDrums(!muted && tension > CONFIG.tension.drumsAbove);
@@ -61,9 +68,13 @@ export function GameTable() {
   }, [tension, muted]);
 
   const onSelect = useCallback((id: RegionId) => {
-    const owner = useStore.getState().world?.regions[id]?.owner;
-    if (!owner) return;
-    if (owner === 'unclaimed') openClaim(id);
+    const w = useStore.getState().world;
+    const owner = w?.regions[id]?.owner;
+    if (!w || !owner) return;
+    // A region an army means to strike opens that army's letter: the ways to answer it are there.
+    const warning = seasonLetters(w).find((l) => (l.kind === 'threat' || l.kind === 'attack') && l.region === id);
+    if (warning) openLetter(warning.id);
+    else if (owner === 'unclaimed') openClaim(id);
     else if (owner === 'crossing') openCrossing();
     else openDossier(owner);
   }, []);
@@ -85,7 +96,7 @@ export function GameTable() {
   const shown = fx && !fx.settled ? fx.before : world;
   const ledger = shown.player.ledger;
   const letter = overlay?.kind === 'letter' ? world.letters.find((l) => l.id === overlay.id) : undefined;
-  const sealed = resolving ? [] : sealedLetters(world);
+  const onTable = resolving ? [] : seasonLetters(world);
 
   return (
     <Table danger={world.tension > CONFIG.tension.drumsAbove}>
@@ -106,7 +117,7 @@ export function GameTable() {
             <Chronicle entries={shown.chronicle} pending={chroniclePending} />
           </div>
           <div className="flex-[0_1_auto]">
-            <LetterStack letters={sealed} onOpen={openLetter} />
+            <LetterStack world={world} letters={onTable} onOpen={openLetter} />
           </div>
         </aside>
 
@@ -120,21 +131,22 @@ export function GameTable() {
         >
           <MapSheet>
             <MapView world={world} fx={fx} onSelect={onSelect} interactive={!resolving && !opening}>
-              {opening && <OpeningFx world={world} />}
+              {opening && prologue !== null && <PrologueFx world={world} beats={beats} beat={prologue} />}
             </MapView>
           </MapSheet>
           <MontageCaption />
+          {!opening && !fx && world.player.ambition && !world.ending && <Agenda world={world} />}
         </motion.div>
 
         <aside className={`absolute bottom-[var(--bottom)] right-[0.9vw] top-[1.4vh] z-20 flex w-[var(--right-col)] flex-col items-center justify-between transition-opacity duration-1000 ${opening ? 'pointer-events-none opacity-0' : 'opacity-100'}`}>
           <TensionCandle tension={shown.tension} />
-          <Purse gold={shown.player.gold} land={regionsOf(shown, CROSSING).length} onClick={openCrossing} />
+          <Purse gold={shown.player.gold} land={regionsOf(shown, CROSSING).length} promised={shown.player.gold - spareGold(shown)} onClick={openCrossing} />
           <NeutralityScale neutrality={shown.player.neutrality} />
           <LedgerBook entries={ledger.length} caught={ledger.filter((e) => e.caught).length} onOpen={openLedger} />
           <EndSeasonBell
-            onRing={() => void endSeason()}
+            onRing={ringBell}
             disabled={resolving || !!audience}
-            note={sealed.length ? `${sealed.length} ${sealed.length === 1 ? 'letter' : 'letters'} unanswered` : undefined}
+            note={bellNote(world)}
           />
         </aside>
 
@@ -151,14 +163,15 @@ export function GameTable() {
           {overlay?.kind === 'handbook' && <Handbook key="handbook" />}
         </AnimatePresence>
         <Notes />
-        {opening && <Opening />}
-        <Tutorial />
+        {opening && <Prologue beats={beats} />}
       </div>
       <AnimatePresence>{audience && <AudienceScene key="audience" />}</AnimatePresence>
       <SeasonCard />
       <WhatChanged />
       <CrisisCard />
       <AmbitionChoice />
+      <ConfirmBell />
+      <Tutorial />
     </Table>
   );
 }
