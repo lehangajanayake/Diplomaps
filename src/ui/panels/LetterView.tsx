@@ -27,7 +27,9 @@ export function LetterView({ world, letter }: { world: WorldState; letter: Lette
         className="parchment relative w-[min(600px,80vw)] origin-top px-[2.2em] pb-[1.3em] pt-[1.9em] text-ink"
         role="dialog"
         aria-label={`Letter from ${p.name}`}
-        style={{ backgroundImage: 'linear-gradient(180deg, transparent 32.9%, rgb(90 60 25 / 0.14) 33.3%, transparent 33.8%, transparent 65.9%, rgb(90 60 25 / 0.12) 66.3%, transparent 66.8%)' }}
+        style={{
+          backgroundImage: 'linear-gradient(180deg, rgb(90 60 25 / 0.08), transparent 38%, transparent 62%, rgb(90 60 25 / 0.06)), var(--parchment-image)',
+        }}
       >
         <div className="absolute -top-[1.5em] left-1/2 -translate-x-1/2">
           <WaxSeal colour={p.colour} emblem={p.emblem} size="3.6em" seed={11} cracked={letter.kind === 'last'} />
