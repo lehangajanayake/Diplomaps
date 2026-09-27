@@ -41,13 +41,17 @@ export function seasonBeats(before: WorldState, after: WorldState, events: reado
   for (const e of events) {
     because = e.because ?? null;
     switch (e.kind) {
-      case 'promise':
+      case 'promise': {
+        // Name the promise itself: "You break your word to Ostrin" alone says nothing about what was broken.
+        const said = after.player.ledger.find((x) => x.id === e.entry);
+        const what = said ? `: “${said.what}”` : '';
         beat(
           e.outcome === 'kept'
-            ? { kind: 'word', text: `You keep your word to ${who(e.nation)}`, seal: e.nation, other: CROSSING, tone: 'good', weight: 50 }
-            : { kind: 'word', text: `You break your word to ${who(e.nation)}`, seal: e.nation, other: CROSSING, tone: 'bad', weight: 84 },
+            ? { kind: 'word', text: `You keep your word to ${who(e.nation)}${what}`, seal: e.nation, other: CROSSING, tone: 'good', weight: 50 }
+            : { kind: 'word', text: `You break your word to ${who(e.nation)}${what}`, seal: e.nation, other: CROSSING, tone: 'bad', weight: 84 },
         );
         break;
+      }
       case 'threat':
         beat(
           e.outcome === 'holds'

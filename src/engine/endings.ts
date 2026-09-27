@@ -5,7 +5,7 @@
  */
 import { AMBITION, bestInstigation } from './ambitions.js';
 import { CONFIG, seasonTitle } from './config.js';
-import { isLie } from './ledger.js';
+import { wasLie } from './ledger.js';
 import { letterAnswers } from './letters.js';
 import { nameOf } from './nations.js';
 import { CROSSING, NATION_IDS, type AmbitionId, type Because, type Ending, type EndingReason, type GainHow, type GameEvent, type Holder, type Letter, type WorldState } from './types.js';
@@ -181,6 +181,6 @@ export function checkEnding(w: WorldState, final: boolean): Ending | null {
 }
 
 export function liesOf(w: WorldState) {
-  const lies = w.player.ledger.filter(isLie);
+  const lies = w.player.ledger.filter(wasLie);
   return { worked: lies.filter((e) => !e.caught), caught: lies.filter((e) => e.caught) };
 }

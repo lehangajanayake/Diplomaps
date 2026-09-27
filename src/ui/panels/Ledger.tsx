@@ -1,7 +1,7 @@
 /** The open ledger: every promise and claim you have made, and to whom. Exposed lies are struck through in red. */
 import { motion } from 'motion/react';
 import { seasonTitle } from '../../engine/config';
-import { isLie } from '../../engine/ledger';
+import { wasLie } from '../../engine/ledger';
 import { wordStatus, type WordStatus } from '../../engine/promises';
 import { PROFILES } from '../../engine/nations';
 import type { LedgerEntry, WorldState } from '../../engine/types';
@@ -18,7 +18,7 @@ const WORD_WORDS: Record<WordStatus, string> = {
 
 function Entry({ entry, world }: { entry: LedgerEntry; world: WorldState }) {
   const to = PROFILES[entry.to];
-  const lie = isLie(entry);
+  const lie = wasLie(entry);
   const knownBy = entry.knownBy.filter((n) => n !== entry.to).map((n) => PROFILES[n].name);
   const conflict = entry.conflictsWith.map((id) => world.player.ledger.find((e) => e.id === id)).filter(Boolean) as LedgerEntry[];
   let verdict = '';
@@ -72,7 +72,7 @@ export function LedgerView({ world }: { world: WorldState }) {
     </div>
   );
   return (
-    <motion.div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeOverlay}>
+    <motion.div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={closeOverlay}>
       <motion.div
         onClick={(e) => e.stopPropagation()}
         initial={{ rotateY: -70, scale: 0.8, opacity: 0 }}

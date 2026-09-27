@@ -42,6 +42,14 @@ export function provokes(e: LedgerEntry): boolean {
   return e.type === 'claim' && !!e.about && !!e.claimKind && PROVOKING.has(e.claimKind) && claimTarget(e) === e.to;
 }
 
+/**
+ * Do these words push their listener toward war with the nation they are about? A threat claimed against
+ * it, or a promise to back it: support against that nation, or keeping that nation's armies out.
+ */
+export function stokes(e: LedgerEntry): boolean {
+  return provokes(e) || (e.type === 'promise' && !!e.about && (e.promiseKind === 'support_against' || e.promiseKind === 'deny_passage'));
+}
+
 /** Does this claim reassure its listener that the nation it is about means them no harm? */
 export function reassures(e: LedgerEntry): boolean {
   return e.type === 'claim' && !!e.about && e.claimKind === 'friendly_intent' && claimTarget(e) === e.to;
@@ -91,8 +99,18 @@ export function knowsTruthAbout(w: WorldState, nation: NationId, subject: Nation
   );
 }
 
+/** Could gossip catch these words out? A false claim, a broken promise, or a promise that contradicts another. */
 export function isLie(e: LedgerEntry): boolean {
   return (e.type === 'claim' && e.truth === false) || e.conflictsWith.length > 0 || e.broken;
+}
+
+/**
+ * Were these words a lie, as the ledger and the end screen tell it? A false claim or a broken promise. A
+ * promise that merely contradicts another counts only once a court has caught the contradiction: kept, or
+ * never found out, it was not a lie.
+ */
+export function wasLie(e: LedgerEntry): boolean {
+  return (e.type === 'claim' && e.truth === false) || e.broken || (e.conflictsWith.length > 0 && e.caught);
 }
 
 /* ------------------------------------------------------------------ */

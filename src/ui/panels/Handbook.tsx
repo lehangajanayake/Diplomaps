@@ -47,7 +47,7 @@ const RULES: { icon: ReactNode; text: string }[] = [
 
 export function Handbook() {
   return (
-    <motion.div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeOverlay}>
+    <motion.div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={closeOverlay}>
       <motion.article
         onClick={(e) => e.stopPropagation()}
         initial={{ rotateY: -60, scale: 0.85, opacity: 0 }}

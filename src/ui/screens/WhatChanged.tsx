@@ -43,7 +43,7 @@ export function WhatChanged() {
           className="absolute inset-0 z-[45] flex items-center justify-center bg-black/35"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          exit={{ opacity: 0, pointerEvents: 'none' }}
         >
           <motion.article
             initial={{ y: 40, rotate: 2, opacity: 0 }}

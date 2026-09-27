@@ -13,7 +13,7 @@ import { LetterOptions } from './LetterOptions';
 export function LetterView({ world, letter }: { world: WorldState; letter: Letter }) {
   const p = PROFILES[letter.from];
   return (
-    <motion.div className="absolute inset-0 z-40 flex items-center justify-center bg-black/55" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeOverlay}>
+    <motion.div className="absolute inset-0 z-40 flex items-center justify-center bg-black/55" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={closeOverlay}>
       <motion.article
         onClick={(e) => e.stopPropagation()}
         initial={{ scaleY: 0.08, y: 40, rotate: -2 }}

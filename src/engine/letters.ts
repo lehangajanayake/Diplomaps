@@ -528,7 +528,11 @@ export function deliverLetters(w: WorldState, events: readonly GameEvent[], rng:
   // The two oldest wars may tire of themselves and ask for talks.
   for (const weary of w.wars.filter((war) => war.since < w.season).sort((a, b) => a.since - b.since).slice(0, L.talksPerSeason)) {
     if (!room() || !rng.chance(L.talksChance)) continue;
-    const from = rng.chance(0.5) ? weary.a : weary.b;
+    // A court asking this season to march on its enemy does not also ask to make peace with it.
+    const marching = (n: NationId, enemy: NationId) => w.letters.some((l) => l.season === w.season && l.kind === 'passage' && l.from === n && l.about === enemy);
+    const willing = [weary.a, weary.b].filter((n) => !marching(n, n === weary.a ? weary.b : weary.a));
+    if (willing.length === 0) continue;
+    const from = willing.length === 1 ? willing[0]! : rng.chance(0.5) ? weary.a : weary.b;
     send({ kind: 'talks', from, about: from === weary.a ? weary.b : weary.a, amount: L.talksCost });
   }
   while (decisions < 2) {

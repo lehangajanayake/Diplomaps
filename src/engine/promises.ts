@@ -1,6 +1,6 @@
 /**
- * The Warden's word. Some promises the code can check at the bell: letting a court's army through,
- * keeping a court's army out, and paying gold (by a letter's answer). Those are marked kept or broken,
+ * The Warden's word. Some promises the code can check at the bell: letting a court's army through, and
+ * keeping a court's army out. Those are marked kept or broken,
  * and the court reacts. The rest stay as reminders the Warden can strike off. Nothing here judges: it
  * says what was said, when it falls due, and what follows.
  */
@@ -10,12 +10,14 @@ import { adjustSuspicion, adjustTrustPlayer } from './tension.js';
 import type { GameEvent, LedgerEntry, NationId, PromiseKind, WorldState } from './types.js';
 import { isStanding } from './world.js';
 
-/** Promise kinds the bell can check. */
-const CHECKABLE: ReadonlySet<PromiseKind> = new Set(['passage', 'deny_passage', 'gold']);
+/**
+ * Promise kinds the bell can check. Gold is not among them: no answer pays a court a sum of the Warden's
+ * choosing, so a promise of gold stays a reminder rather than being judged by a payment that was not it.
+ */
+const CHECKABLE: ReadonlySet<PromiseKind> = new Set(['passage', 'deny_passage']);
 
-/** Letter answers that let an army through the valley, and those that pay the sender gold. */
+/** Letter answers that let an army through the valley. */
 const LET_THROUGH = new Set(['grant', 'land']);
-const PAYS = new Set(['tribute', 'pay', 'apologise']);
 
 export function checkable(e: LedgerEntry): boolean {
   return e.type === 'promise' && !!e.promiseKind && CHECKABLE.has(e.promiseKind) && (e.promiseKind !== 'deny_passage' || !!e.about);
@@ -46,8 +48,6 @@ export function wordNote(e: LedgerEntry): { due: string | null; follows: string 
         due: `Whenever ${nameOf(e.about!)}'s army comes`,
         follows: `Let ${nameOf(e.about!)} through and ${to}'s trust will drop sharply. Keep the pass to ${nameOf(e.about!)} closed and ${to} will see it.`,
       };
-    case 'gold':
-      return { due: `Pay through ${to}'s next letter`, follows: `${To} will remember whether it was paid.` };
     default:
       return { due: null, follows: `${To} will remember whether you keep it.` };
   }
@@ -94,9 +94,6 @@ export function checkPromises(w: WorldState, events: GameEvent[]): void {
         else if (turnedBack(enemy) || w.player.passes[enemy] === 'closed') settleWord(w, e, true, events);
         break;
       }
-      case 'gold':
-        if (answered(e.to, ['attack', 'threat', 'angry'], PAYS)) settleWord(w, e, true, events);
-        break;
       default:
         break;
     }

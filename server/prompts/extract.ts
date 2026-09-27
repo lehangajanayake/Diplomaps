@@ -13,7 +13,7 @@ export function extractInstructions(nation: NationId, prior: ExtractRequest['pri
     : '(none)';
   return `You are the clerk of the Crossing's ledger. From the transcript of an audience between the Warden and ${PROFILES[nation].ruler.name} of ${PROFILES[nation].name}, record every PROMISE and every CLAIM the Warden made. Only the Warden's own words count; the ruler's words are context only. Do not invent entries. If the Warden made none, return an empty list.
 
-A PROMISE is anything the Warden committed to do or not do, offered, or guaranteed (trade rights, alliance, support in war, passage, gold, land, secrecy, threats of harm).
+A PROMISE is a firm commitment in the Warden's own voice to do or not do something ("I will", "you have my word", "my pass stays closed to them"): trade rights, alliance, support in war, passage, gold, land, secrecy, threats of harm. Tentative or hypothetical words are NOT promises: questions, "perhaps", "maybe", "what if", "could", "I might", suggestions, and courtesies such as "I come in peace".
 A CLAIM is any assertion of fact about another nation or the world (troop movements, secret plans, alliances, insults, weakness).
 Skip greetings, courtesies, flattery and praise of the ruler, questions, and opinions about a nation's character or tastes: they are not ledger entries. Record a promise or claim the Warden repeats only once.
 
@@ -21,7 +21,7 @@ For each entry:
 - type: "promise" or "claim".
 - what: a short ledger paraphrase, at most 14 words (e.g. "Exclusive river trade rights", "Ostrin is massing troops on Varrow's border").
 - quote: the Warden's own words, at most 20 words.
-- promise_kind (promises only, else null): exclusive (a right or favour given to this nation alone), support_against (help against a named nation), alliance, passage (letting their armies through the Crossing), deny_passage (keeping a named nation's armies out), gold, land, non_aggression, threat (a threat of harm to this ruler), other.
+- promise_kind (promises only, else null): exclusive (a right or favour given to this nation alone), support_against (help against a named nation), alliance, passage (letting their ARMIES march through the Crossing; pilgrims, travellers, caravans and trade are "other" or "exclusive", never passage), deny_passage (keeping a named nation's ARMIES out), gold, land, non_aggression, threat (a threat of harm to this ruler), other.
 - topic (promises only, else ""): 1 to 3 lowercase words naming the thing promised, e.g. "river trade", "salt road", "passage".
 - about: the nation the entry concerns, as an id, or null. For claims, the nation the claim is about. For support_against and deny_passage, the nation it is aimed at.
 - claim_kind (claims only, else null): military_threat (massing troops, planning to attack), secret_alliance (plotting or allied with another nation), hostile_intent (hatred, insults, designs on land), weakness (its army is small, its treasury empty or its court divided; not remarks about its character or priorities), friendly_intent (wants peace or friendship), other.

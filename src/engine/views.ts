@@ -3,7 +3,7 @@
  * payloads the server turns into prompts. The browser never sends prompt text.
  */
 import { CONFIG, seasonName, seasonYear } from './config.js';
-import { isLie } from './ledger.js';
+import { isLie, wasLie } from './ledger.js';
 import { PROFILES } from './nations.js';
 import { offerableRegions } from './land.js';
 import { sealedLetters } from './letters.js';
@@ -218,16 +218,16 @@ export function buildFlavourRequest(w: WorldState, events: readonly GameEvent[],
 
 /** The Warden's most telling words for the verdicts: lies first, then broken promises, then the rest. */
 function tellingWords(w: WorldState): EndingRequest['words'] {
-  const weight = (e: LedgerEntry) => (isLie(e) ? (e.caught ? 0 : 1) : e.broken ? 2 : e.type === 'promise' ? 3 : 4);
+  const weight = (e: LedgerEntry) => (wasLie(e) ? (e.caught ? 0 : 1) : e.broken ? 2 : e.type === 'promise' ? 3 : 4);
   return [...w.player.ledger]
     .sort((a, b) => weight(a) - weight(b) || b.season - a.season)
     .slice(0, 12)
-    .map((e) => ({ to: e.to, type: e.type, what: e.what, lie: isLie(e), caught: e.caught }));
+    .map((e) => ({ to: e.to, type: e.type, what: e.what, lie: wasLie(e), caught: e.caught }));
 }
 
 export function buildEndingRequest(w: WorldState): EndingRequest {
   const ending = w.ending!;
-  const lies = w.player.ledger.filter(isLie);
+  const lies = w.player.ledger.filter(wasLie);
   const allEvents = w.history.flatMap((h) => h.events);
   const highlights = eventsToNews(w, allEvents.filter((e) => ['war', 'battle', 'peace', 'cede', 'lie_caught', 'alliance'].includes(e.kind)), null).slice(0, 30);
   const startRegions = (owner: Owner) => w.map.regionIds.filter((r) => w.initialRegions[r]!.owner === owner).length;

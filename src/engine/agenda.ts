@@ -142,8 +142,6 @@ export function wordItems(w: WorldState): WordItem[] {
       }
       case 'passage':
         return { ...base, text: `Let ${to}'s army through when it asks: you promised.`, action: { kind: 'dossier', nation: e.to } };
-      case 'gold':
-        return { ...base, text: `You promised ${to} gold: pay it through ${to}'s next letter.`, action: { kind: 'dossier', nation: e.to } };
       default:
         return { ...base, text: `You promised ${to}: “${e.what}”.`, action: { kind: 'dossier', nation: e.to } };
     }

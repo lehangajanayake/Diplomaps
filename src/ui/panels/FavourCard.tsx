@@ -19,7 +19,7 @@ export function FavourCard({ world, nation }: { world: WorldState; nation: Natio
   const called = favourThisSeason(world);
   const sealed = called?.nation === nation ? called.target : null;
   return (
-    <motion.div className="absolute inset-0 z-40 flex items-center justify-center bg-black/55" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeOverlay}>
+    <motion.div className="absolute inset-0 z-40 flex items-center justify-center bg-black/55" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={closeOverlay}>
       <motion.article
         onClick={(e) => e.stopPropagation()}
         initial={{ y: 30, rotate: 2, opacity: 0 }}

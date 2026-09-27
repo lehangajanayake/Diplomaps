@@ -120,6 +120,9 @@ export function Dossier({ world, nation }: { world: WorldState; nation: NationId
         <div className="mt-[0.7em] space-y-[0.2em]">
           <InkGauge label="Trust" value={n.trustPlayer} min={-100} max={100} word={trustWord(n.trustPlayer)} />
           <InkGauge label="Suspicion" value={n.suspicion} min={0} max={100} word={suspicionWord(n.suspicion)} tone="red" />
+          <p className="font-hand text-[0.82rem] italic leading-snug text-ink-faded">
+            Suspicion rises only when this court catches you lying, breaking your word, or plotting against it.
+          </p>
         </div>
 
         <dl className="mt-[0.6em] grid grid-cols-[auto_1fr] items-center gap-x-[0.8em] gap-y-[0.4em] font-body text-[0.86rem]">

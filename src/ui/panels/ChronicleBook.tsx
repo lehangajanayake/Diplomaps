@@ -5,7 +5,7 @@ import { closeOverlay } from '../../store/flow';
 
 export function ChronicleBook({ entries }: { entries: ChronicleEntry[] }) {
   return (
-    <motion.div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeOverlay}>
+    <motion.div className="absolute inset-0 z-40 flex items-center justify-center bg-black/60" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={closeOverlay}>
       <motion.article
         onClick={(e) => e.stopPropagation()}
         initial={{ scaleY: 0.1, y: 30 }}

@@ -18,7 +18,7 @@ export function ConfirmBell() {
   return (
     <AnimatePresence>
       {warning && (
-        <motion.div className="absolute inset-0 z-[48] flex items-center justify-center bg-black/45" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={cancelRing}>
+        <motion.div className="absolute inset-0 z-[48] flex items-center justify-center bg-black/45" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={cancelRing}>
           <motion.article
             onClick={(e) => e.stopPropagation()}
             className="parchment w-[min(460px,80vw)] px-[1.6em] pb-[1em] pt-[1.1em] text-center text-ink"

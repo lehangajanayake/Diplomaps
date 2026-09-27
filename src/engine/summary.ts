@@ -7,6 +7,9 @@ import { CROSSING, NATION_IDS, type Because, type GameEvent, type Holder, type N
 import { regionsOf } from './world.js';
 
 const MAX_LINES = 4;
+/** "Affects you" has room for more: suspicion and trust both matter to the Warden's plans. */
+const MAX_YOU = 6;
+const SUSPICION_SHIFT = 8;
 const TRUST_SHIFT = 8;
 /** Tolls must fall at least this much to earn their own line. */
 const TOLL_DROP = 5;
@@ -27,6 +30,15 @@ function trustBecause(n: NationId, after: WorldState, events: readonly GameEvent
   if (crossed?.because) return crossed.because;
   if (after.player.passes[n] === 'closed') return { why: 'your pass is closed to it', yours: true };
   return undefined;
+}
+
+/** Why a court's suspicion of the Warden rose this season, when the season's events say. */
+function suspicionBecause(n: NationId, events: readonly GameEvent[]): Because | undefined {
+  if (events.some((e) => e.kind === 'lie_caught' && e.by.includes(n))) return { why: 'it caught you lying', yours: true };
+  if (events.some((e) => e.kind === 'promise' && e.outcome === 'broken' && e.nation === n)) return { why: 'you broke your word to it', yours: true };
+  if (events.some((e) => e.kind === 'exposed' && e.target === n)) return { why: 'it learned you sent an army against it', yours: true };
+  const crossed = events.find((e) => e.kind === 'red_line' && e.nation === n && e.by === CROSSING);
+  return crossed?.because;
 }
 
 export function summariseSeason(before: WorldState, after: WorldState, events: readonly GameEvent[]): SeasonSummary {
@@ -86,6 +98,14 @@ export function summariseSeason(before: WorldState, after: WorldState, events: r
     you.push(line(`${nameOf(n, 'start')} trusts you ${d > 0 ? 'more' : 'less'} (${d > 0 ? '+' : ''}${d})`, d > 0 ? 'good' : 'bad', d < 0 ? trustBecause(n, after, events) : undefined));
   }
 
+  // Suspicion is what unmasks a liar and sinks the Spider: show it moving, with why, as trust is shown.
+  const suspicions = NATION_IDS.map((n) => ({ n, d: Math.round(after.nations[n].suspicion - before.nations[n].suspicion) }))
+    .filter((x) => Math.abs(x.d) >= SUSPICION_SHIFT)
+    .sort((a, b) => Math.abs(b.d) - Math.abs(a.d));
+  for (const { n, d } of suspicions) {
+    you.push(line(`${nameOf(n, 'start')} suspects you ${d > 0 ? 'more' : 'less'} (${d > 0 ? '+' : ''}${d})`, d > 0 ? 'bad' : 'good', d > 0 ? suspicionBecause(n, events) : undefined));
+  }
+
   // The realm: the fall of nations first, then wars, conquests, peace and alliances.
   for (const e of events) if (e.kind === 'collapse') realm.push(line(`${cap(e.nation)} has fallen to ${who(e.by)}`, 'bad', e.because));
   for (const e of events) {
@@ -102,5 +122,5 @@ export function summariseSeason(before: WorldState, after: WorldState, events: r
 
   // The Warden's own doings are what they most need to see: they go first on each side.
   const mineFirst = (lines: SummaryLine[]) => [...lines.filter((l) => l.yours), ...lines.filter((l) => !l.yours)];
-  return { season: before.season, you: you.slice(0, MAX_LINES), realm: mineFirst(realm).slice(0, MAX_LINES) };
+  return { season: before.season, you: you.slice(0, MAX_YOU), realm: mineFirst(realm).slice(0, MAX_LINES) };
 }

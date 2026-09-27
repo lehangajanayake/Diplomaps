@@ -79,7 +79,7 @@ export const AMBITION: Record<AmbitionId, AmbitionDef> = {
         value: clean,
         target: 2,
         ratio: 0.5 + clean * 0.25,
-        label: `${nameOf(a, 'start')} and ${nameOf(b)} at war · suspicion ${sa} and ${sb}`,
+        label: `${nameOf(a, 'start')} and ${nameOf(b)} at war · suspicion ${sa} and ${sb} (below ${spiderSuspicion} to win)`,
       };
     },
     achieved: (w) => {
@@ -90,8 +90,14 @@ export const AMBITION: Record<AmbitionId, AmbitionDef> = {
       w.stats.instigated.length === 0
         ? 'Win a court\'s trust, then call in a favour, or warn it that its old enemy is arming: only courts that trust you believe you.'
         : 'Lie only to courts that keep secrets: the Tarn barely gossips, Sael tells everyone.',
-    note: (w) =>
-      w.stats.instigated.length === 0 ? 'A war you start counts toward your ambition.' : 'Keep their suspicion low until winter.',
+    note: (w) => {
+      if (w.stats.instigated.length > 0) return 'Keep their suspicion low until winter.';
+      // A war already planned counts only if the Warden's words stoke it.
+      const planned = w.intents.find((i) => i.kind === 'war');
+      return planned && planned.kind === 'war'
+        ? `Warn ${nameOf(planned.nation)} that ${nameOf(planned.target)} is arming: then this war counts as yours.`
+        : 'A war you start counts toward your ambition.';
+    },
   },
   peacemaker: {
     id: 'peacemaker',

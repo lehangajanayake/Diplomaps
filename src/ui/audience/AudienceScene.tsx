@@ -298,7 +298,7 @@ export function AudienceScene() {
   };
 
   return (
-    <motion.div className="absolute inset-0 z-50 overflow-hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} role="dialog" aria-label={`Audience with ${p.ruler.name}`}>
+    <motion.div className="absolute inset-0 z-50 overflow-hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} role="dialog" aria-label={`Audience with ${p.ruler.name}`}>
       <div className="absolute inset-0 bg-[#060302]/80" />
       <div className="audience-hall absolute inset-0" style={{ ['--nation' as string]: p.colourDark }} />
       <div className="relative grid h-full grid-cols-[minmax(0,0.62fr)_minmax(0,1fr)_minmax(0,0.5fr)] gap-[2vw] px-[3vw] py-[5vh]">

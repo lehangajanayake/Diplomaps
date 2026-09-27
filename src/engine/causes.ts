@@ -7,7 +7,7 @@
  * over the season's events, from the world as it was when the bell rang and as it is after.
  */
 import { CONFIG } from './config.js';
-import { provokes, reassures } from './ledger.js';
+import { provokes, reassures, stokes } from './ledger.js';
 import { nameOf } from './nations.js';
 import { CROSSING, NATION_IDS, type Because, type GameEvent, type Holder, type NationId, type Owner, type War, type WarCause, type WorldState } from './types.js';
 import { atWar, hasGrudge } from './world.js';
@@ -24,7 +24,7 @@ const theirs = (why: string): Because => ({ why, yours: false });
 /** The Warden's words to `nation` about `target` this season and last that pushed it toward war. */
 function stokingWords(w: WorldState, nation: NationId, target: NationId) {
   return w.player.ledger.filter(
-    (e) => e.to === nation && e.about === target && e.season >= w.season - 1 && (provokes(e) || e.promiseKind === 'support_against'),
+    (e) => e.to === nation && e.about === target && e.season >= w.season - 1 && stokes(e),
   );
 }
 

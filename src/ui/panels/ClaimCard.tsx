@@ -13,7 +13,7 @@ export function ClaimCard({ world, region }: { world: WorldState; region: Region
   const blocked = cannotClaim(world, region);
   const beside = blocked !== 'Only ruins beside your land can be claimed.';
   return (
-    <motion.div className="absolute inset-0 z-40 flex items-center justify-center bg-black/45" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeOverlay}>
+    <motion.div className="absolute inset-0 z-40 flex items-center justify-center bg-black/45" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, pointerEvents: 'none' }} onClick={closeOverlay}>
       <motion.article
         onClick={(e) => e.stopPropagation()}
         initial={{ y: 30, rotate: 2, opacity: 0 }}
