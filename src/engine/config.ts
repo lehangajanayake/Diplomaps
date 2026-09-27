@@ -4,7 +4,14 @@
  */
 
 export const CONFIG = {
-  narrationEnabled: false,
+  narrationEnabled: true,
+  voiceIds: {
+    varrow: '2EiwWnXFnvU5JabPnv8n',
+    kelm: '21m00Tcm4TlvDq8ikWAM',
+    sael: 'XB0fDUnXU5powFXDhCwa',
+    tarn: 'XrExE9yKIg1WjnnlVkGX',
+    ostrin: 'GBv7mTt0atIp3Br8iCZE',
+  },
   seasons: 4,
   startYear: 614,
   seasonNames: ['Spring', 'Summer', 'Autumn', 'Winter'] as const,

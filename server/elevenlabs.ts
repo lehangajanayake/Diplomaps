@@ -1,15 +1,8 @@
+import { CONFIG } from '../src/engine/config.js';
 import type { NationId } from '../src/engine/types.js';
 
 const API_URL = 'https://api.elevenlabs.io/v1/text-to-speech';
 const MODEL = process.env.ELEVENLABS_MODEL?.trim() || 'eleven_multilingual_v2';
-
-const VOICE_ENV: Record<NationId, string> = {
-  varrow: 'ELEVENLABS_VOICE_VARROW',
-  kelm: 'ELEVENLABS_VOICE_KELM',
-  sael: 'ELEVENLABS_VOICE_SAEL',
-  tarn: 'ELEVENLABS_VOICE_TARN',
-  ostrin: 'ELEVENLABS_VOICE_OSTRIN',
-};
 
 const SPEED: Record<NationId, number> = {
   varrow: 0.9,
@@ -22,13 +15,13 @@ const SPEED: Record<NationId, number> = {
 /** Generate a complete ruler reply. Returns base64 MP3 so the browser never sees the API key. */
 export async function synthesizeRulerSpeech(nation: NationId, text: string): Promise<string | null> {
   const key = process.env.ELEVENLABS_API_KEY?.trim();
-  const voiceId = process.env[VOICE_ENV[nation]]?.trim() || process.env.ELEVENLABS_VOICE_ID?.trim();
+  const voiceId = CONFIG.voiceIds[nation];
   if (!key) {
     console.error(`[elevenlabs] ${nation}: ELEVENLABS_API_KEY is not configured`);
     return null;
   }
   if (!voiceId) {
-    console.error(`[elevenlabs] ${nation}: ${VOICE_ENV[nation]} or ELEVENLABS_VOICE_ID is not configured`);
+    console.error(`[elevenlabs] ${nation}: no voice ID is configured in src/engine/config.ts`);
     return null;
   }
   if (!text) {
