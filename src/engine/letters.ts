@@ -13,6 +13,7 @@ import type { Rng } from './rng.js';
 import { regionToCede, touchesCrossing } from './land.js';
 import { applyOutcome, type Outcome } from './outcome.js';
 import { closedByLetter, passLocked, passOutcome } from './passes.js';
+import { wordBrokenBy } from './promises.js';
 import { crossRedLine } from './tension.js';
 import { CROSSING, NATION_IDS, type GameEvent, type Letter, type LetterKind, type NationId, type WorldState } from './types.js';
 import { makePeace } from './war.js';
@@ -205,11 +206,18 @@ const KINDS: Record<LetterKind, LetterKindDef> = {
     answers: (w, l) => {
       const enemy = l.about!;
       const angered = redLinesCrossedByPassage(l.from);
+      // A promise this answer would break is named on it, so the Warden never breaks their word unawares.
+      const keepOut = wordBrokenBy(w, l.from, true);
+      const letIn = wordBrokenBy(w, l.from, false);
       const letThrough = (payment: Pick<Outcome, 'gold' | 'land'>): Outcome => ({
         ...payment,
         trust: { [l.from]: L.passageTrust, [enemy]: L.passageEnemyTrust },
         neutrality: L.passageNeutrality,
-        notes: ['their army marches through', ...angered.map((n) => `crosses ${nameOf(n)}'s red line`)],
+        notes: [
+          'their army marches through',
+          ...(keepOut ? [`breaks your word to ${nameOf(keepOut.to)}`] : []),
+          ...angered.map((n) => `crosses ${nameOf(n)}'s red line`),
+        ],
         act: (x, events) => {
           for (const n of angered) {
             const e = crossRedLine(x, n, CROSSING, `the Warden let ${nameOf(l.from)}'s army through`);
@@ -235,7 +243,7 @@ const KINDS: Record<LetterKind, LetterKindDef> = {
           label: 'Refuse',
           outcome: {
             trust: { [l.from]: L.refusedTrust },
-            notes: [closed ? 'your closed pass turns them back' : 'they may force their way through'],
+            notes: [closed ? 'your closed pass turns them back' : 'they may force their way through', ...(letIn ? [`breaks your word to ${nameOf(letIn.to)}`] : [])],
             act: (x) => {
               x.nations[l.from].grievances += 1;
             },

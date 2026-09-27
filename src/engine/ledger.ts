@@ -220,7 +220,9 @@ export function addLedgerEntries(
       caughtBy: [],
       caughtSeason: null,
       caughtHow: null,
+      kept: false,
       broken: false,
+      dismissed: false,
     };
     if (entry.type === 'claim' && entry.claimKind) {
       entry.truth = evaluateClaim(w, nation, entry.about, entry.claimKind, entry.withNation);

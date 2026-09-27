@@ -9,6 +9,8 @@ import { cannotClaim, claimCost, offerableRegions } from './land.js';
 import { sealedLetters } from './letters.js';
 import { nameOf, PROFILES } from './nations.js';
 import { needsPassage } from './policy.js';
+import { passageWanted } from './crossing.js';
+import { checkable, openWords } from './promises.js';
 import { NATION_IDS, UNCLAIMED, type LetterKind, type NationId, type RegionId, type WorldState } from './types.js';
 import { isStanding, regionName } from './world.js';
 
@@ -111,6 +113,43 @@ export function agenda(w: WorldState): AgendaItem[] {
   return items;
 }
 
+/** A promise on the agenda: what to do to keep it, and whether it can be struck off (reminders only). */
+export interface WordItem {
+  id: string;
+  entry: string;
+  text: string;
+  action: AgendaAction;
+  dismissable: boolean;
+}
+
+/** How many of the Warden's open promises the agenda shows. */
+export const WORDS_SHOWN = 2;
+
+/** The Warden's word, as the agenda's "Your word": open promises, newest first, each with what keeping it takes. */
+export function wordItems(w: WorldState): WordItem[] {
+  return openWords(w).map((e): WordItem => {
+    const to = nameOf(e.to);
+    const base = { id: `word-${e.id}`, entry: e.id, dismissable: !checkable(e) };
+    switch (e.promiseKind) {
+      case 'deny_passage': {
+        const enemy = e.about!;
+        const shut = w.player.passes[enemy] === 'closed';
+        return {
+          ...base,
+          text: shut ? `Keep the pass to ${nameOf(enemy)} closed: you promised ${to}.` : `You promised ${to} to keep ${nameOf(enemy)}'s army out: close the pass to ${nameOf(enemy)}.`,
+          action: { kind: 'dossier', nation: enemy },
+        };
+      }
+      case 'passage':
+        return { ...base, text: `Let ${to}'s army through when it asks: you promised.`, action: { kind: 'dossier', nation: e.to } };
+      case 'gold':
+        return { ...base, text: `You promised ${to} gold: pay it through ${to}'s next letter.`, action: { kind: 'dossier', nation: e.to } };
+      default:
+        return { ...base, text: `You promised ${to}: “${e.what}”.`, action: { kind: 'dossier', nation: e.to } };
+    }
+  });
+}
+
 /** What is left to do, for the bell: "1 letter unanswered · 1 audience left". */
 export function bellNote(w: WorldState): string | undefined {
   const letters = sealedLetters(w).length;
@@ -124,6 +163,13 @@ export function bellNote(w: WorldState): string | undefined {
 
 /** Something urgent still undone, worth a word before the bell is rung; null when all is in hand. */
 export function bellWarning(w: WorldState): string | null {
+  // A promise to keep an army out, with the pass still open while that army means to cross.
+  for (const e of openWords(w)) {
+    if (e.promiseKind !== 'deny_passage' || !e.about || w.player.passes[e.about] === 'closed') continue;
+    const asking = w.letters.some((l) => l.season === w.season && l.kind === 'passage' && l.from === e.about && l.answer === null && l.choice !== 'refuse');
+    const coming = asking || passageWanted(w).some((x) => x.nation === e.about) || w.wars.some((x) => x.aggressor === e.about && needsPassage(w, x.aggressor, x.a === e.about ? x.b : x.a));
+    if (coming) return `You promised ${nameOf(e.to)} to keep ${nameOf(e.about)}'s army out, and your pass to ${nameOf(e.about)} is still open.`;
+  }
   for (const i of w.intents) {
     if (i.kind !== 'attack' && i.kind !== 'threat') continue;
     const letter = sealedLetters(w).find((l) => l.from === i.nation && l.kind === i.kind);

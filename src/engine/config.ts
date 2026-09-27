@@ -139,6 +139,8 @@ export const CONFIG = {
     slandered: -20,
     lieHeardOf: -6,
     brokenPromise: -18,
+    /** A court sees the Warden keep a promise it can check. */
+    keptPromise: 6,
     /** Minimum mutual trust for two nations to gossip without a formal alliance. */
     gossipFriends: 20,
     /** Minimum trust for a nation to know an ally's intentions (and catch lies about it). */

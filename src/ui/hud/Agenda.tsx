@@ -5,9 +5,9 @@
  */
 import { motion } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
-import { agenda, AGENDA_SHOWN, type AgendaItem } from '../../engine/agenda';
+import { agenda, AGENDA_SHOWN, wordItems, WORDS_SHOWN, type AgendaItem } from '../../engine/agenda';
 import type { WorldState } from '../../engine/types';
-import { followAgenda } from '../../store/flow';
+import { dismissPromise, followAgenda } from '../../store/flow';
 import { useStore } from '../../store/worldStore';
 import { AgendaGlow } from './AgendaGlow';
 
@@ -50,6 +50,7 @@ export function Agenda({ world }: { world: WorldState }) {
   const done = useTicked(world.season, shown, items).slice(-2);
   const [hover, setHover] = useState<AgendaItem | null>(null);
   const quiet = useStore((s) => !!s.selectedNation || !!s.overlay || !!s.audience || s.tutorialStep !== null || s.crisisOpen || !!s.summary || s.resolving);
+  const words = useMemo(() => wordItems(world).slice(0, WORDS_SHOWN), [world]);
   const glowing = hover ?? shown[0] ?? null;
   return (
     <>
@@ -100,6 +101,39 @@ export function Agenda({ world }: { world: WorldState }) {
             </li>
           ))}
         </ul>
+        {words.length > 0 && (
+          <>
+            <h3 className="mt-[0.3em] border-t border-ink/20 pt-[0.2em] text-center font-sc text-[0.72rem] tracking-[0.14em] text-ink-soft">Your word</h3>
+            <ul className="space-y-[0.1em]">
+              {words.map((wd) => (
+                <li key={wd.id} className="flex items-baseline gap-[0.2em]">
+                  <button
+                    type="button"
+                    onClick={() => followAgenda(wd.action)}
+                    className="group flex flex-1 items-baseline gap-[0.45em] px-[0.25em] py-[0.12em] text-left font-body text-[0.86rem] leading-snug hover:bg-[rgb(120_80_30/0.12)] focus-visible:outline-2 focus-visible:outline-wax"
+                    title="Open it"
+                  >
+                    <span className="w-[0.9em] shrink-0 text-center text-wax" aria-hidden>
+                      ✎
+                    </span>
+                    <span className="group-hover:underline decoration-ink/30 underline-offset-2">{wd.text}</span>
+                  </button>
+                  {wd.dismissable && (
+                    <button
+                      type="button"
+                      onClick={() => dismissPromise(wd.entry)}
+                      className="shrink-0 px-[0.2em] font-sc text-[0.74rem] text-ink-faded hover:text-wax"
+                      title="Strike this reminder off the agenda (the ledger keeps it)"
+                      aria-label={`Strike off: ${wd.text}`}
+                    >
+                      done ✕
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </motion.aside>
       {!quiet && glowing && <AgendaGlow selector={glowTarget(glowing)} strong={glowing === hover} />}
     </>

@@ -41,6 +41,7 @@ function focusOf(w: WorldState, b: Beat): RegionId[] {
 function focusRegions(w: WorldState, b: Beat): RegionId[] {
   const nations = beatNations(b);
   switch (b.kind) {
+    case 'word':
     case 'war':
     case 'peace':
     case 'alliance':

@@ -9,9 +9,10 @@ import { sound } from '../../audio/sound';
 import { CONFIG } from '../../engine/config';
 import { approachesFor } from '../../engine/audience';
 import { favourBlocked } from '../../engine/favours';
-import { PROFILES } from '../../engine/nations';
+import { nameOf, PROFILES } from '../../engine/nations';
+import { wordNote } from '../../engine/promises';
 import type { Mood } from '../../engine/schema';
-import type { NationId, WorldState } from '../../engine/types';
+import type { LedgerEntry, NationId, WorldState } from '../../engine/types';
 import { friendsAndEnemies } from '../../engine/world';
 import { exitAudience, leaveAudience, openFavour, sendAudienceMessage } from '../../store/flow';
 import { useStore, type AudienceState } from '../../store/worldStore';
@@ -180,7 +181,7 @@ function Summary({ audience, world }: { audience: AudienceState; world: WorldSta
         {audience.calledAway ? `${first} is called away` : audience.endedByRuler ? `${first} ends the audience` : 'The audience is over'}
       </h3>
       {r ? (
-        <div className="mt-[0.3em] space-y-[0.3em] font-body text-[0.9rem] leading-snug" data-tutorial="said">
+        <div className="mt-[0.3em] space-y-[0.3em] font-body text-[0.9rem] leading-snug">
           <p>
             {first}&rsquo;s regard for you: <span className="italic">{trustWord(r.trustBefore)}</span> → <span className="italic">{trustWord(r.trustAfter)}</span>{' '}
             <span className={delta >= 0 ? 'text-[#3d5a3a]' : 'text-ink-red'}>
@@ -202,20 +203,11 @@ function Summary({ audience, world }: { audience: AudienceState; world: WorldSta
             </p>
           )}
           {r.entries.length > 0 ? (
-            <div>
-              <span className="font-sc text-ink-soft">Written in your ledger:</span>
-              <ul className="ml-[1.1em] list-disc">
-                {r.entries.map((e) => (
-                  <li key={e.id}>
-                    <span className="font-sc text-[0.8rem]">{e.type}</span> “{e.what}”
-                    {e.type === 'claim' && e.truth === false && <span className="italic text-ink-red"> (a lie)</span>}
-                    {e.conflictsWith.length > 0 && <span className="italic text-ink-red"> (contradicts an earlier promise)</span>}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <WhatYouSaid world={world} entries={r.entries} />
           ) : (
-            <p className="italic text-ink-faded">You made no promises and no claims. Nothing was written in the ledger.</p>
+            <p className="italic text-ink-faded" data-tutorial="said">
+              You made no promises and no claims. Nothing was written in the ledger.
+            </p>
           )}
           {r.caught.map((c, i) => (
             <p key={i} className="text-ink-red">
@@ -245,6 +237,34 @@ function Summary({ audience, world }: { audience: AudienceState; world: WorldSta
         </span>
       </div>
     </motion.div>
+  );
+}
+
+/**
+ * What the Warden said, as the ledger recorded it: each promise with when it falls due, each claim, and
+ * one plain line of what follows. The ledger and the agenda's "Your word" keep them afterwards.
+ */
+function WhatYouSaid({ world, entries }: { world: WorldState; entries: LedgerEntry[] }) {
+  return (
+    <div className="border-y border-ink/15 py-[0.3em]" data-tutorial="said" aria-label="What you said">
+      <span className="font-sc text-ink-soft">What you said</span>
+      <ul className="mt-[0.1em] space-y-[0.25em]">
+        {entries.map((e) => {
+          const note = wordNote(e);
+          const conflict = e.conflictsWith.map((id) => world.player.ledger.find((x) => x.id === id)?.to).filter((n): n is NationId => !!n);
+          return (
+            <li key={e.id}>
+              <span className="font-sc text-[0.8rem] text-ink-soft">{e.type === 'promise' ? 'You promised' : 'You told them'}: </span>“{e.what}”
+              <span className="block pl-[0.8em] text-[0.84rem] italic text-ink-soft">
+                {note.due && <span className="not-italic font-sc text-[0.76rem] text-wax">{note.due}. </span>}
+                {note.follows}
+                {conflict.length > 0 && ` It contradicts what you promised ${[...new Set(conflict)].map((n) => nameOf(n)).join(' and ')}.`}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 

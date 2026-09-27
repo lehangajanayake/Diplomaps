@@ -2,10 +2,19 @@
 import { motion } from 'motion/react';
 import { seasonTitle } from '../../engine/config';
 import { isLie } from '../../engine/ledger';
+import { wordStatus, type WordStatus } from '../../engine/promises';
 import { PROFILES } from '../../engine/nations';
 import type { LedgerEntry, WorldState } from '../../engine/types';
 import { closeOverlay } from '../../store/flow';
 import { WaxSeal } from '../common/WaxSeal';
+
+/** How a promise stands, in the ledger's hand. */
+const WORD_WORDS: Record<WordStatus, string> = {
+  kept: 'kept',
+  broken: 'broken',
+  watching: 'not yet due',
+  reminder: 'yours to keep',
+};
 
 function Entry({ entry, world }: { entry: LedgerEntry; world: WorldState }) {
   const to = PROFILES[entry.to];
@@ -14,7 +23,8 @@ function Entry({ entry, world }: { entry: LedgerEntry; world: WorldState }) {
   const conflict = entry.conflictsWith.map((id) => world.player.ledger.find((e) => e.id === id)).filter(Boolean) as LedgerEntry[];
   let verdict = '';
   if (entry.type === 'claim') verdict = entry.truth === true ? 'true when spoken' : entry.truth === false ? 'a lie' : 'unprovable';
-  if (entry.broken) verdict = 'a broken promise';
+  if (entry.type === 'promise') verdict = WORD_WORDS[wordStatus(entry)];
+  if (entry.broken) verdict = 'broken';
   else if (conflict.length) verdict = `contradicts your word to ${conflict.map((c) => PROFILES[c.to].name).join(', ')}`;
   return (
     <li className="relative flex gap-[0.6em] py-[0.35em]">

@@ -66,6 +66,13 @@ export function summariseSeason(before: WorldState, after: WorldState, events: r
   }
 
   for (const e of events) {
+    if (e.kind !== 'promise') continue;
+    const entry = after.player.ledger.find((x) => x.id === e.entry);
+    const what = entry ? `: “${entry.what}”` : '';
+    you.push(e.outcome === 'kept' ? { text: `You kept your word to ${who(e.nation)}${what}`, tone: 'good' } : { text: `You broke your word to ${who(e.nation)}${what}. Its trust fell sharply`, tone: 'bad' });
+  }
+
+  for (const e of events) {
     if (e.kind === 'lie_caught') {
       const entry = after.player.ledger.find((x) => x.id === e.entry);
       you.push(line(`${e.by.map((n, i) => nameOf(n, i === 0 ? 'start' : 'mid')).join(' and ')} caught your lie${entry ? `: "${entry.what}"` : ''}`, 'bad', e.because));

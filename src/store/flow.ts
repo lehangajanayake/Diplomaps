@@ -11,6 +11,7 @@ import { echoedPromise, patienceFor, trustStep } from '../engine/audience';
 import { biggest, MONTAGE_MAX, type Beat } from '../engine/beats';
 import { audiencesLeft, bellWarning, type AgendaAction } from '../engine/agenda';
 import { composeCrisis } from '../engine/crisis';
+import { dismissWord } from '../engine/promises';
 import { firstGoal } from '../engine/guide';
 import { callFavour } from '../engine/favours';
 import { offerableRegions, recordOffer } from '../engine/land';
@@ -556,6 +557,14 @@ export function confirmRing(): void {
 
 export function cancelRing(): void {
   set({ confirmBell: null });
+}
+
+/** Strike a reminder (a promise the bell cannot check) off the agenda. */
+export function dismissPromise(entry: string): void {
+  const w = get().world;
+  if (!w) return;
+  const world = dismissWord(w, entry);
+  if (world !== w) commit(world);
 }
 
 /** Do what an agenda item points at: open the letter, the court's dossier or the ruins' card. */
