@@ -46,7 +46,20 @@ export function Chronicle({ entries, pending }: { entries: ChronicleEntry[]; pen
   const ordered = [...entries].reverse();
   const latest = ordered[0]?.season;
   return (
-    <div className="flex h-full flex-col" data-tutorial="chronicle">
+    <div
+      className="flex h-full cursor-pointer flex-col"
+      data-tutorial="chronicle"
+      role="button"
+      tabIndex={0}
+      aria-label="Open the full chronicle"
+      onClick={openChronicle}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openChronicle();
+        }
+      }}
+    >
       <Roller />
       <div ref={bodyRef} className="parchment relative -my-[0.4vh] flex-1 overflow-y-auto px-[0.85em] pb-[0.7em] pt-[0.8em] text-ink">
         <h2 className="text-center font-display text-[0.92rem] font-semibold tracking-[0.12em]">News of the Realm</h2>
@@ -73,9 +86,6 @@ export function Chronicle({ entries, pending }: { entries: ChronicleEntry[]; pen
             )}
           </section>
         ))}
-        <button type="button" onClick={openChronicle} className="mt-[0.2em] block w-full text-center font-sc text-[0.82rem] text-wax hover:underline">
-          Read the full chronicle →
-        </button>
         {pending && <p className="mt-[0.3em] animate-pulse text-center font-hand text-[0.8rem] italic text-ink-faded">{pending}</p>}
       </div>
       <Roller />
