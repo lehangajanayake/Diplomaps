@@ -10,6 +10,7 @@ import { claimRuin } from '../engine/actions';
 import { echoedPromise, patienceFor, trustStep } from '../engine/audience';
 import { biggest, MONTAGE_MAX, type Beat } from '../engine/beats';
 import { composeCrisis } from '../engine/crisis';
+import { firstGoal } from '../engine/guide';
 import { callFavour } from '../engine/favours';
 import { offerableRegions, recordOffer } from '../engine/land';
 import { chooseAnswer } from '../engine/letters';
@@ -20,8 +21,7 @@ import { openFirstSeason, playSeason } from '../engine/resolve';
 import type { AmbitionId, GameEvent, NationId, RegionId, WorldState } from '../engine/types';
 import { summariseSeason } from '../engine/summary';
 import { buildAudienceContext, buildEndingRequest, buildFlavourRequest } from '../engine/views';
-import { NATION_IDS } from '../engine/types';
-import { createWorld, isStanding } from '../engine/world';
+import { createWorld } from '../engine/world';
 import { sound } from '../audio/sound';
 import { TUTORIAL } from './intro';
 import { clearSave, loadSave, randomSeed, useStore, type AudienceTurnUI, type Note } from './worldStore';
@@ -149,7 +149,7 @@ export function chooseAmbition(ambition: AmbitionId): void {
   const world = { ...chosen, crisis: composeCrisis(chosen) };
   set({ world });
   sound.play('quill');
-  if (!skipIntro() && !tutorialDone()) showTutorialStep(0);
+  if (!skipIntro() && !tutorialDone()) startTutorial();
   else set({ crisisOpen: true });
 }
 
@@ -157,11 +157,17 @@ export function chooseAmbition(ambition: AmbitionId): void {
 /* The tutorial and the handbook                                        */
 /* ------------------------------------------------------------------ */
 
-/** Show one tutorial step, opening the friendliest court's dossier when the step is about what lies inside it. */
-function showTutorialStep(step: number): void {
+/** The tutorial starts: its guided season's goal is fixed from the crisis and the ambition as they stand now. */
+function startTutorial(): void {
   const w = get().world;
-  const friend = w ? [...NATION_IDS].filter((n) => isStanding(w, n)).sort((a, b) => w.nations[b].trustPlayer - w.nations[a].trustPlayer)[0] : undefined;
-  set({ tutorialStep: step, overlay: null, crisisOpen: false, selectedNation: TUTORIAL[step]?.dossier && friend ? friend : null });
+  if (!w) return;
+  set({ tutorialGoal: firstGoal(w), tutorialStep: 0, overlay: null, selectedNation: null, crisisOpen: false });
+}
+
+/** Show one tutorial step. Steps the player reads clear the table; steps the player does leave it be. */
+function showTutorialStep(step: number): void {
+  if (TUTORIAL[step]?.done) set({ tutorialStep: step, crisisOpen: false });
+  else set({ tutorialStep: step, overlay: null, selectedNation: null });
 }
 
 export function nextTutorialStep(): void {
@@ -188,7 +194,7 @@ export function openHandbook(): void {
 }
 
 export function replayTutorial(): void {
-  showTutorialStep(0);
+  startTutorial();
 }
 
 export function resumeGame(): boolean {

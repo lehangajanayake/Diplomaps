@@ -4,6 +4,7 @@
  */
 import { create } from 'zustand';
 import type { Beat } from '../engine/beats';
+import type { FirstGoal } from '../engine/guide';
 import type { Mood } from '../engine/schema';
 import { WORLD_VERSION, type LedgerEntry, type NationId, type RegionId, type SeasonSummary, type WorldState } from '../engine/types';
 
@@ -113,6 +114,8 @@ export interface StoreState {
   prologue: number | null;
   /** The step of the tutorial on screen, or null. */
   tutorialStep: number | null;
+  /** The guided first season's goal, fixed when the tutorial starts. */
+  tutorialGoal: FirstGoal | null;
   muted: boolean;
   notes: Note[];
   setHoverRegion: (id: RegionId | null) => void;
@@ -137,6 +140,7 @@ export const useStore = create<StoreState>()((set) => ({
   relations: 'off',
   prologue: null,
   tutorialStep: null,
+  tutorialGoal: null,
   muted: false,
   notes: [],
   setHoverRegion: (id) => set({ hoverRegion: id }),

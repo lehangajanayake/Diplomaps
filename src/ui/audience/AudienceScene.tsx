@@ -180,7 +180,7 @@ function Summary({ audience, world }: { audience: AudienceState; world: WorldSta
         {audience.calledAway ? `${first} is called away` : audience.endedByRuler ? `${first} ends the audience` : 'The audience is over'}
       </h3>
       {r ? (
-        <div className="mt-[0.3em] space-y-[0.3em] font-body text-[0.9rem] leading-snug">
+        <div className="mt-[0.3em] space-y-[0.3em] font-body text-[0.9rem] leading-snug" data-tutorial="said">
           <p>
             {first}&rsquo;s regard for you: <span className="italic">{trustWord(r.trustBefore)}</span> → <span className="italic">{trustWord(r.trustAfter)}</span>{' '}
             <span className={delta >= 0 ? 'text-[#3d5a3a]' : 'text-ink-red'}>

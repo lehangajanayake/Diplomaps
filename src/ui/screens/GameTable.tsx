@@ -161,13 +161,13 @@ export function GameTable() {
         </AnimatePresence>
         <Notes />
         {opening && <Prologue beats={beats} />}
-        <Tutorial />
       </div>
       <AnimatePresence>{audience && <AudienceScene key="audience" />}</AnimatePresence>
       <SeasonCard />
       <WhatChanged />
       <CrisisCard />
       <AmbitionChoice />
+      <Tutorial />
     </Table>
   );
 }
