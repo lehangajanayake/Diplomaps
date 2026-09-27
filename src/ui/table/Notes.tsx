@@ -6,7 +6,7 @@ import { WaxSeal } from '../common/WaxSeal';
 export function Notes() {
   const notes = useStore((s) => s.notes);
   return (
-    <div className="pointer-events-none absolute bottom-[4.5vh] left-1/2 z-30 flex w-[min(560px,50vw)] -translate-x-1/2 flex-col items-center gap-[0.6vh]">
+    <div className="pointer-events-none absolute bottom-[4.5vh] left-1/2 z-[60] flex w-[min(560px,50vw)] -translate-x-1/2 flex-col items-center gap-[0.6vh]">
       <AnimatePresence>
         {notes.map((n) => (
           <motion.div

@@ -28,6 +28,8 @@ import { clearSave, loadSave, randomSeed, useStore, type AudienceTurnUI, type No
 const get = () => useStore.getState();
 const set = useStore.setState;
 
+const aiCreditsExhausted = () => note('AI credits have run out. Please contact the developer.', 'danger', 12000);
+
 let noteId = 1;
 export function note(text: string, tone: Note['tone'] = 'info', ms = 6500): void {
   const id = noteId++;
@@ -362,7 +364,7 @@ export async function sendAudienceMessage(raw: string): Promise<void> {
     if (e.t === 'meta') set({ audience: { ...cur, mood: e.mood, moodTick: cur.moodTick + 1 } });
     else if (e.t === 'delta') set({ audience: { ...cur, streamText: cur.streamText + e.text } });
     else if (e.t === 'audio') sound.playSpeech(e.data);
-  });
+  }, aiCreditsExhausted);
   const cur = get().audience;
   const world = get().world;
   if (!cur || !world) return;
@@ -413,7 +415,7 @@ async function closeAudience(endedByRuler: boolean, calledAway: boolean): Promis
     .slice(-40)
     .map((e) => ({ id: e.id, to: e.to, type: e.type, what: e.what, promiseKind: e.promiseKind, topic: e.topic, about: e.about }));
   const offerable = offerableRegions(w0, a.nation).map((id) => w0.map.regions[id]!.name);
-  const extraction = await extractPromises({ nation: a.nation, season: w0.season, turns, prior, offerable });
+  const extraction = await extractPromises({ nation: a.nation, season: w0.season, turns, prior, offerable }, aiCreditsExhausted);
   let world = recordAudience(get().world!, a.nation, a.trustChange, extraction.learned, true);
   const added = addLedgerEntries(world, a.nation, extraction.entries);
   world = added.world;
@@ -536,7 +538,7 @@ export async function endSeason(): Promise<void> {
 
   // The chronicler and the courts' scribes write while the montage plays.
   set({ chroniclePending: 'The chronicler dips his quill…' });
-  const flavour = writeFlavour(buildFlavourRequest(outcome.state, outcome.events, w.season, audiences));
+  const flavour = writeFlavour(buildFlavourRequest(outcome.state, outcome.events, w.season, audiences), aiCreditsExhausted);
   await sleep(700);
   set({ seasonCard: null });
   await sleep(300);
@@ -572,7 +574,7 @@ export async function finishGame(): Promise<void> {
   if (!w?.ending) return;
   set({ phase: 'ending', ending: { verdicts: {}, loading: true, fallback: false }, selectedNation: null, overlay: null });
   sound.setDrums(false);
-  const result = await writeEnding(buildEndingRequest(w));
+  const result = await writeEnding(buildEndingRequest(w), aiCreditsExhausted);
   set({ ending: { verdicts: result.verdicts, loading: false, fallback: result.fallback } });
 }
 

@@ -75,6 +75,11 @@ export async function handleAudience(req: Request): Promise<Response> {
             }
           },
         });
+        if (result.quotaExceeded) {
+          send({ t: 'error', error: 'ai_credits_exhausted' });
+          if (open) controller.close();
+          return;
+        }
         if (result.ok && parser.complete) finished = true;
         else if (emitted.length > 0) break; // words already shown; do not start the reply again
       }
@@ -98,8 +103,9 @@ export async function handleAudience(req: Request): Promise<Response> {
       reply = cleanText(reply, 700);
       if (reply) {
         const outOfPatience = patience - judged.patienceCost <= 0 || exchange >= CONFIG.audience.maxExchanges;
-        const audio = CONFIG.narrationEnabled ? await synthesizeRulerSpeech(nation, reply) : null;
-        if (audio) send({ t: 'audio', data: audio });
+        const speech = CONFIG.narrationEnabled ? await synthesizeRulerSpeech(nation, reply) : { audio: null, quotaExceeded: false };
+        if (speech.quotaExceeded) send({ t: 'error', error: 'elevenlabs_credits_exhausted' });
+        if (speech.audio) send({ t: 'audio', data: speech.audio });
         if (reply.length > emitted.length && reply.startsWith(emitted)) send({ t: 'delta', text: reply.slice(emitted.length) });
         send({ t: 'done', ...judged, ends: ends || outOfPatience, reply, fallback: false });
       } else {

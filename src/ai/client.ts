@@ -25,7 +25,9 @@ export interface Health {
   models?: { fast: string; rich: string };
 }
 
-async function postJson<T>(path: string, body: unknown, timeoutMs: number, fallback: () => T): Promise<T> {
+export type CreditsExhaustedHandler = () => void;
+
+async function postJson<T>(path: string, body: unknown, timeoutMs: number, fallback: () => T, onCreditsExhausted?: CreditsExhaustedHandler): Promise<T> {
   try {
     const res = await fetch(path, {
       method: 'POST',
@@ -33,6 +35,7 @@ async function postJson<T>(path: string, body: unknown, timeoutMs: number, fallb
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(timeoutMs),
     });
+    if (res.status === 402) onCreditsExhausted?.();
     if (!res.ok) return fallback();
     return (await res.json()) as T;
   } catch {
@@ -58,7 +61,7 @@ export interface StreamedReply extends Exchange {
 }
 
 /** Stream a ruler's reply. `onEvent` sees meta and each delta as they arrive. */
-export async function streamAudience(req: AudienceRequest, onEvent: (e: AudienceStreamEvent) => void): Promise<StreamedReply> {
+export async function streamAudience(req: AudienceRequest, onEvent: (e: AudienceStreamEvent) => void, onCreditsExhausted?: CreditsExhaustedHandler): Promise<StreamedReply> {
   const nation = req.nation as NationId;
   const calm: Exchange = { mood: 'wary', trustDelta: 0, patienceCost: 1, insolent: false };
   // The ruler is "called away": nothing is judged, and the audience ends.
@@ -106,6 +109,8 @@ export async function streamAudience(req: AudienceRequest, onEvent: (e: Audience
         } else if (event.t === 'done') {
           const { t: _t, ...reply } = event;
           return { ...reply, reply: event.reply || text };
+        } else if (event.t === 'error' && (event.error === 'ai_credits_exhausted' || event.error === 'elevenlabs_credits_exhausted')) {
+          onCreditsExhausted?.();
         }
         onEvent(event);
       }
@@ -118,22 +123,22 @@ export async function streamAudience(req: AudienceRequest, onEvent: (e: Audience
   }
 }
 
-export function extractPromises(req: ExtractRequest): Promise<ExtractResult> {
-  return postJson<ExtractResult>('/api/extract', req, 50_000, () => ({ entries: [], landOffer: null, learned: '', fallback: true }));
+export function extractPromises(req: ExtractRequest, onCreditsExhausted?: CreditsExhaustedHandler): Promise<ExtractResult> {
+  return postJson<ExtractResult>('/api/extract', req, 50_000, () => ({ entries: [], landOffer: null, learned: '', fallback: true }), onCreditsExhausted);
 }
 
 /** The chronicle of the season just ended, and the words on the letters that open the next. */
-export function writeFlavour(req: FlavourRequest): Promise<FlavourResult> {
+export function writeFlavour(req: FlavourRequest, onCreditsExhausted?: CreditsExhaustedHandler): Promise<FlavourResult> {
   return postJson<FlavourResult>('/api/flavour', req, 50_000, () => ({
     chronicle: fallbackChronicle(req.news, seasonTitle(req.season)),
     quotes: {},
     fallback: true,
-  }));
+  }), onCreditsExhausted);
 }
 
-export function writeEnding(req: EndingRequest): Promise<EndingAIResult> {
+export function writeEnding(req: EndingRequest, onCreditsExhausted?: CreditsExhaustedHandler): Promise<EndingAIResult> {
   return postJson<EndingAIResult>('/api/ending', req, 50_000, () => ({
     verdicts: Object.fromEntries(req.nations.map((n) => [n.nation, fallbackVerdict(n.nation, n.trust, n.suspicion, req.outcome.result === 'victory')])),
     fallback: true,
-  }));
+  }), onCreditsExhausted);
 }

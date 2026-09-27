@@ -2,7 +2,7 @@
 import { fallbackVerdict } from '../../src/engine/fallbacks.js';
 import { EndingAIOutputSchema, EndingRequestSchema, cleanText, type EndingAIResult } from '../../src/engine/schema.js';
 import { guard, json, readJson } from '../http.js';
-import { MODELS, effortFor, structured } from '../openai.js';
+import { AIQuotaError, MODELS, effortFor, structured } from '../openai.js';
 import { endingInput, endingInstructions } from '../prompts/ending.js';
 
 export async function handleEnding(req: Request): Promise<Response> {
@@ -13,17 +13,23 @@ export async function handleEnding(req: Request): Promise<Response> {
   const parsed = EndingRequestSchema.safeParse(body.value);
   if (!parsed.success) return json({ error: 'invalid_request' }, 400);
   const request = parsed.data;
-  const raw = await structured({
-    label: 'ending',
-    model: MODELS.rich,
-    effort: effortFor('rich'),
-    instructions: endingInstructions(),
-    input: endingInput(request),
-    schema: EndingAIOutputSchema,
-    schemaName: 'ending',
-    maxOutputTokens: 1400,
-    timeoutMs: 20_000,
-  });
+  let raw;
+  try {
+    raw = await structured({
+      label: 'ending',
+      model: MODELS.rich,
+      effort: effortFor('rich'),
+      instructions: endingInstructions(),
+      input: endingInput(request),
+      schema: EndingAIOutputSchema,
+      schemaName: 'ending',
+      maxOutputTokens: 1400,
+      timeoutMs: 20_000,
+    });
+  } catch (error) {
+    if (error instanceof AIQuotaError) return json({ error: 'ai_credits_exhausted' }, 402);
+    throw error;
+  }
   const won = request.outcome.result === 'victory';
   const verdicts: EndingAIResult['verdicts'] = {};
   for (const v of raw?.verdicts ?? []) {
