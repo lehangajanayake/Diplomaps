@@ -2,7 +2,6 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { loadEnv } from 'vite';
 import { greetingText, type GreetingTone } from '../src/engine/courtesy.js';
-import { GREETINGS, type GreetingTone } from '../src/engine/courtesy.js';
 import { CONFIG } from '../src/engine/config.js';
 import { NATION_IDS, type NationId } from '../src/engine/types.js';
 

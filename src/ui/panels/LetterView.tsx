@@ -31,6 +31,9 @@ export function LetterView({ world, letter }: { world: WorldState; letter: Lette
           backgroundImage: 'linear-gradient(180deg, rgb(90 60 25 / 0.08), transparent 38%, transparent 62%, rgb(90 60 25 / 0.06)), var(--parchment-image)',
         }}
       >
+        <button type="button" onClick={closeOverlay} className="absolute right-[1em] top-[0.8em] font-sc text-[0.9rem] text-ink-faded hover:text-wax">
+          x
+        </button>
         <div className="absolute -top-[1.5em] left-1/2 -translate-x-1/2">
           <WaxSeal colour={p.colour} emblem={p.emblem} size="3.6em" seed={11} cracked={letter.kind === 'last'} />
         </div>
