@@ -4,7 +4,7 @@
  */
 
 export const CONFIG = {
-  narrationEnabled: (import.meta as ImportMeta & { env?: { VITE_NARRATION_ENABLED?: string } }).env?.VITE_NARRATION_ENABLED === 'true',
+  narrationEnabled: true,
   voiceIds: {
     varrow: '2EiwWnXFnvU5JabPnv8n',
     kelm: '21m00Tcm4TlvDq8ikWAM',
