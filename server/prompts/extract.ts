@@ -15,7 +15,7 @@ export function extractInstructions(nation: NationId, prior: ExtractRequest['pri
 
 A PROMISE is anything the Warden committed to do or not do, offered, or guaranteed (trade rights, alliance, support in war, passage, gold, land, secrecy, threats of harm).
 A CLAIM is any assertion of fact about another nation or the world (troop movements, secret plans, alliances, insults, weakness).
-Skip greetings, courtesies, flattery and praise of the ruler, questions, and opinions about a nation's character or tastes: they are not ledger entries.
+Skip greetings, courtesies, flattery and praise of the ruler, questions, and opinions about a nation's character or tastes: they are not ledger entries. Record a promise or claim the Warden repeats only once.
 
 For each entry:
 - type: "promise" or "claim".

@@ -8,7 +8,7 @@ import { claimRuin } from '../src/engine/actions.js';
 import { trustStep } from '../src/engine/audience.js';
 import { CONFIG } from '../src/engine/config.js';
 import { callFavour, exposureChance, favourBlocked, favourTargets } from '../src/engine/favours.js';
-import { cannotClaim, cedableRegions, claimCost, recordOffer } from '../src/engine/land.js';
+import { cannotClaim, cedableRegions, claimCost, hasOffered, recordOffer } from '../src/engine/land.js';
 import { addLedgerEntries, recordAudience, recordExchange } from '../src/engine/ledger.js';
 import { answerLetter, letterAnswers, sealedLetters, type LetterAnswer } from '../src/engine/letters.js';
 import { setPass } from '../src/engine/passes.js';
@@ -159,9 +159,10 @@ const kingdom: Bot = {
           return null;
       }
     });
-    for (const n of byTrust(w).filter((n) => cedableRegions(w, n).length > 0).slice(0, 2)) {
+    // Court the friendliest rulers who could still give land.
+    for (const n of byTrust(w).filter((n) => cedableRegions(w, n).length > 0 && !hasOffered(w, n)).slice(0, 2)) {
       w = talk(w, rng, n, [0, 5]);
-      if (w.nations[n].trustPlayer >= 20 && rng.chance(0.35)) w = recordOffer(w, n, null);
+      if (rng.chance(0.35)) w = recordOffer(w, n, null);
     }
     w = favourFromBestFriend(w);
     return claimRuins(w, 10);

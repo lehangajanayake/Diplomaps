@@ -69,8 +69,7 @@ export function composeCrisis(w: WorldState): Crisis {
   }
 
   // No army marches yet: name the grudge most likely to boil over, so the quiet still has stakes.
-  const sealed = sealedLetters(w).length;
-  const letters = sealed === 0 ? 'Talk to a ruler' : `Answer your ${sealed === 1 ? 'letter' : `${sealed} letters`}, then talk`;
+  const letters = sealedLetters(w).length === 0 ? 'Talk to a ruler' : 'Answer your letters, then talk';
   const hot = hottestGrudge(w);
   if (hot) {
     return {

@@ -339,11 +339,12 @@ export function sendLetter(w: WorldState, fields: Pick<Letter, 'kind' | 'from'> 
 
 const isNationId = (o: string): o is NationId => (NATION_IDS as readonly string[]).includes(o);
 
-/** Nations at war beside a region of the valley that is not already burning: raiders. */
+/** Unfriendly nations at war beside a region of the valley that is not already burning: raiders. */
 function raidTargets(w: WorldState): { nation: NationId; region: string }[] {
   const out: { nation: NationId; region: string }[] = [];
   for (const nation of NATION_IDS) {
-    if (!isStanding(w, nation) || warsOf(w, nation) === 0) continue;
+    // A court at war forages across the border, unless it is a friend of the Warden's.
+    if (!isStanding(w, nation) || warsOf(w, nation) === 0 || w.nations[nation].trustPlayer >= L.raidTrustBelow) continue;
     for (const id of w.map.regionIds) {
       if (w.regions[id]!.owner !== CROSSING || isBurning(w, id)) continue;
       if (w.map.regions[id]!.neighbours.some((nb) => w.regions[nb]!.owner === nation)) out.push({ nation, region: id });

@@ -27,6 +27,8 @@ export interface AudienceResult {
   trustBefore: number;
   trustAfter: number;
   learned: string;
+  /** The region the ruler promised to cede at the season's end, by name. */
+  offer: string | null;
   entries: LedgerEntry[];
   caught: string[];
   fallback: boolean;

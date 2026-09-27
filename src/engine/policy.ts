@@ -71,9 +71,11 @@ export function favouriteEnemy(w: WorldState, nation: NationId): { target: Natio
  * story readable; allies, favours and the Warden's words add the rest.
  */
 function planWar(w: WorldState, rng: Rng): Intent[] {
+  // Only a grudge hot enough to hold at the bell is planned, so the crisis card's warning is never hollow:
+  // the war comes unless the Warden talks the nation down or shuts the pass.
   const candidates = NATION_IDS.flatMap((nation) => {
     const best = favouriteEnemy(w, nation);
-    return best ? [{ nation, target: best.target, chance: warChance(best.desire) }] : [];
+    return best && best.desire >= CONFIG.war.standDown ? [{ nation, target: best.target, chance: warChance(best.desire) }] : [];
   });
   if (candidates.length === 0) return [];
   const pick = rng.weighted(candidates, candidates.map((c) => c.chance + 1e-6));

@@ -5,7 +5,7 @@
 import { CONFIG, seasonName, seasonYear } from './config.js';
 import { isLie } from './ledger.js';
 import { PROFILES } from './nations.js';
-import { cedableRegions } from './land.js';
+import { offerableRegions } from './land.js';
 import { sealedLetters } from './letters.js';
 import type { AudienceContext, EndingRequest, FlavourRequest, KnowledgeItem, News } from './schema.js';
 import { redLineCrossedRecently } from './tension.js';
@@ -170,7 +170,7 @@ export function buildAudienceContext(w: WorldState, nation: NationId): AudienceC
     trust: n.trustPlayer,
     suspicion: n.suspicion,
     pass: w.player.passes[nation],
-    offerable: cedableRegions(w, nation).map((id) => place(w, id)),
+    offerable: offerableRegions(w, nation).map((id) => place(w, id)),
     neutrality: Math.round(w.player.neutrality),
     regions: regionsOf(w, nation).length,
     troops: totalTroops(w, nation),

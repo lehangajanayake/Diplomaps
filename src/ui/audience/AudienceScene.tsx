@@ -171,7 +171,7 @@ function SpymasterNote({ world, audience }: { world: WorldState; audience: Audie
 function Summary({ audience, world }: { audience: AudienceState; world: WorldState }) {
   const p = PROFILES[audience.nation];
   const r = audience.result;
-  const first = p.ruler.name.split(' ')[0];
+  const first = p.ruler.short;
   const delta = r ? Math.round(r.trustAfter - r.trustBefore) : 0;
   const left = CONFIG.audiencesPerSeason - world.audiencesThisSeason.length;
   return (
@@ -189,6 +189,12 @@ function Summary({ audience, world }: { audience: AudienceState; world: WorldSta
             </span>
             {audience.insolent && <span className="text-ink-red"> Your strange words were taken as an insult.</span>}
           </p>
+          {r.offer && (
+            <p className="text-[#3d5a3a]">
+              <span className="font-sc">Land promised: </span>
+              {r.offer} joins your valley when the season ends, if {p.name} still trusts you.
+            </p>
+          )}
           {r.learned && (
             <p>
               <span className="font-sc text-ink-soft">You learned: </span>
@@ -262,7 +268,7 @@ export function AudienceScene() {
 
   if (!audience || !world) return null;
   const p = PROFILES[audience.nation];
-  const first = p.ruler.name.split(' ')[0];
+  const first = p.ruler.short;
   const approaches = approachesFor(world, audience.nation);
   const send = () => {
     const text = draft.trim();

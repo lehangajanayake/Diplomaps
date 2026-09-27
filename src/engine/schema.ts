@@ -47,6 +47,7 @@ export const NationProfileSchema = z.object({
   capitalName: z.string().min(2),
   ruler: z.object({
     name: z.string().min(2),
+    short: z.string().min(2),
     title: z.string().min(2),
     pronoun: z.enum(['he', 'she', 'they']),
   }),

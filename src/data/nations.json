@@ -11,6 +11,7 @@
       "capitalName": "Harrowgate",
       "ruler": {
         "name": "Hadrik the Unbowed",
+        "short": "Hadrik",
         "title": "King of Varrow, Lord of the Iron Steppe",
         "pronoun": "he"
       },
@@ -48,6 +49,7 @@
       "capitalName": "Silverhithe",
       "ruler": {
         "name": "Ysolde Marrow",
+        "short": "Ysolde",
         "title": "First Chancellor of the Kelmish League",
         "pronoun": "she"
       },
@@ -85,6 +87,7 @@
       "capitalName": "Brightwater",
       "ruler": {
         "name": "Lisette Aumery",
+        "short": "Lisette",
         "title": "Duchess of Sael, Mistress of the Salt Roads",
         "pronoun": "she"
       },
@@ -122,6 +125,7 @@
       "capitalName": "Reedholm",
       "ruler": {
         "name": "Mother Gethin",
+        "short": "Mother Gethin",
         "title": "Speaker of the Tarn, Eldest of the Reed Clans",
         "pronoun": "she"
       },
@@ -157,6 +161,7 @@
       "capitalName": "Hallowspire",
       "ruler": {
         "name": "Anselm Vey",
+        "short": "Anselm",
         "title": "Hierarch of Ostrin, Keeper of the Seven Lamps",
         "pronoun": "he"
       },

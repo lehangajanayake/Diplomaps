@@ -46,6 +46,18 @@ export function cedableRegions(w: WorldState, nation: NationId): RegionId[] {
   return own.filter((id) => id !== capital && touchesCrossing(w, id));
 }
 
+/** Regions `nation`'s ruler could give in an audience: only a friendly court gives land, and only once a game. */
+export function offerableRegions(w: WorldState, nation: NationId): RegionId[] {
+  if (w.nations[nation].trustPlayer < CONFIG.land.offerTrust || hasOffered(w, nation)) return [];
+  return cedableRegions(w, nation);
+}
+
+/** Has `nation`'s ruler already given land in an audience, or promised it this season? */
+export function hasOffered(w: WorldState, nation: NationId): boolean {
+  if (w.player.offers.some((o) => o.nation === nation)) return true;
+  return w.history.some((h) => h.events.some((e) => e.kind === 'gain' && e.how === 'offer' && e.from === nation));
+}
+
 /** The region `nation` would hand the Crossing: the one named if it can, else the least defended. */
 export function regionToCede(w: WorldState, nation: NationId, preferred: RegionId | null = null): RegionId | null {
   const candidates = cedableRegions(w, nation);
@@ -68,12 +80,14 @@ export function cannotClaim(w: WorldState, region: RegionId): string | null {
   return null;
 }
 
-/** A ruler offered land in an audience: note it, to be handed over when the season ends. */
+/** A ruler offered land in an audience: note it, to be handed over when the season ends (if the ruler could offer any). */
 export function recordOffer(world: WorldState, nation: NationId, regionName: string | null): WorldState {
+  const offerable = offerableRegions(world, nation);
+  if (offerable.length === 0) return world;
   const w = cloneWorld(world);
   const named = regionName?.toLowerCase();
-  const region = cedableRegions(w, nation).find((id) => w.map.regions[id]!.name.toLowerCase() === named) ?? null;
-  w.player.offers = [...w.player.offers.filter((o) => !(o.nation === nation && o.season === w.season)), { nation, region, season: w.season }];
+  const region = offerable.find((id) => w.map.regions[id]!.name.toLowerCase() === named) ?? null;
+  w.player.offers = [...w.player.offers, { nation, region, season: w.season }];
   return w;
 }
 

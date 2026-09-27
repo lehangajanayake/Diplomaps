@@ -10,7 +10,7 @@ import { claimRuin } from '../engine/actions';
 import { echoedPromise, patienceFor, trustStep } from '../engine/audience';
 import { biggest, MONTAGE_MAX, type Beat } from '../engine/beats';
 import { callFavour } from '../engine/favours';
-import { cedableRegions, recordOffer } from '../engine/land';
+import { offerableRegions, recordOffer } from '../engine/land';
 import { answerLetter } from '../engine/letters';
 import { PROFILES } from '../engine/nations';
 import { setPass } from '../engine/passes';
@@ -412,16 +412,16 @@ async function closeAudience(endedByRuler: boolean, calledAway: boolean): Promis
     .filter((e) => e.to !== a.nation)
     .slice(-40)
     .map((e) => ({ id: e.id, to: e.to, type: e.type, what: e.what, promiseKind: e.promiseKind, topic: e.topic, about: e.about }));
-  const offerable = cedableRegions(w0, a.nation).map((id) => w0.map.regions[id]!.name);
+  const offerable = offerableRegions(w0, a.nation).map((id) => w0.map.regions[id]!.name);
   const extraction = await extractPromises({ nation: a.nation, season: w0.season, turns, prior, offerable });
   let world = recordAudience(get().world!, a.nation, a.trustChange, extraction.learned, true);
   const added = addLedgerEntries(world, a.nation, extraction.entries);
   world = added.world;
+  let offer: string | null = null;
   if (extraction.landOffer) {
     world = recordOffer(world, a.nation, extraction.landOffer.region);
-    const offer = world.player.offers.at(-1);
-    const where = offer?.region ? world.map.regions[offer.region]!.name : 'a region';
-    note(`${PROFILES[a.nation].name} offered you ${where}. It is yours when the season ends, if they still trust you.`, 'good', 9000);
+    const made = world.player.offers.find((o) => o.nation === a.nation && o.season === world.season);
+    if (made) offer = made.region ? world.map.regions[made.region]!.name : 'a region';
   }
   commit(world, added.events);
   const cur = get().audience;
@@ -434,6 +434,7 @@ async function closeAudience(endedByRuler: boolean, calledAway: boolean): Promis
         trustBefore: w0.nations[a.nation].trustPlayer - a.trustChange,
         trustAfter: world.nations[a.nation].trustPlayer,
         learned: extraction.learned,
+        offer,
         entries: added.added,
         caught: added.events.flatMap((e) => (e.kind === 'lie_caught' ? [e.how] : [])),
         fallback: extraction.fallback,

@@ -8,13 +8,21 @@ import { CONFIG, seasonTitle } from './config.js';
 import { isLie } from './ledger.js';
 import { letterAnswers } from './letters.js';
 import { nameOf } from './nations.js';
-import { CROSSING, NATION_IDS, type AmbitionId, type Ending, type EndingReason, type GameEvent, type Letter, type WorldState } from './types.js';
+import { CROSSING, NATION_IDS, type AmbitionId, type Ending, type EndingReason, type GainHow, type GameEvent, type Holder, type Letter, type WorldState } from './types.js';
 
 const HOW_WORDS: Record<string, string> = {
   favour: 'your favour',
   lie: 'your lie',
   word: 'your warning',
   promise: 'your promise of support',
+};
+
+/** How a region joined the valley. */
+const GAIN_WORDS: Record<GainHow, (from: Holder, place: string) => string> = {
+  offer: (from, place) => `${nameOf(from, 'start')} gave you ${place} in an audience.`,
+  payment: (from, place) => `${nameOf(from, 'start')} paid you ${place} instead of gold.`,
+  spoils: (from, place) => `${nameOf(from, 'start')} shared ${place} from the war you started.`,
+  claim: (_from, place) => `You claimed the ruins of ${place}.`,
 };
 
 /** After a win, the tip is a new challenge. */
@@ -83,13 +91,16 @@ function decidingMoments(w: WorldState, ambition: AmbitionId, reason: EndingReas
     case 'merchant':
       return merchantMoments(w, won);
     case 'kingdom': {
-      const out: string[] = [];
+      const lost: string[] = [];
+      const gained: string[] = [];
       for (const e of events) {
-        if (e.kind === 'battle' && e.captured && e.defender === CROSSING) out.push(`${nameOf(e.attacker, 'start')} took ${place(e.region)} from you.`);
-        if (e.kind === 'cede' && e.nation === CROSSING) out.push(`You gave ${place(e.region)} to ${nameOf(e.target)}.`);
+        if (e.kind === 'battle' && e.captured && e.defender === CROSSING) lost.push(`${nameOf(e.attacker, 'start')} took ${place(e.region)} from you.`);
+        if (e.kind === 'cede' && e.nation === CROSSING) lost.push(`You gave ${place(e.region)} to ${nameOf(e.target)}.`);
+        if (e.kind === 'gain') gained.push(GAIN_WORDS[e.how](e.from, place(e.region)));
       }
-      const gained = w.player.regionsGained.map((id) => `You won ${place(id)}.`);
-      return [...gained, ...out].slice(0, 2);
+      // A win was decided by the last land to join; a loss by the land lost, or too little gained.
+      if (won) return gained.slice(-2);
+      return lost.length > 0 ? lost.slice(0, 2) : [`You gained ${gained.length} ${gained.length === 1 ? 'region' : 'regions'}; you needed ${CONFIG.ambitions.kingdomRegions - 3}.`];
     }
     case 'spider': {
       const out = w.stats.instigated.map(

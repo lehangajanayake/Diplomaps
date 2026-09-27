@@ -95,7 +95,7 @@ function Verdict({ world, nation, index, verdict, loading }: { world: WorldState
           <span className={`font-body text-[0.8rem] italic text-ink-faded ${fallen ? 'line-through decoration-ink-red' : ''}`}>of {p.name}</span>
         </p>
         <p className="font-hand text-[1.02rem] italic leading-snug text-ink-soft">
-          {verdict ? `“${verdict}”` : loading ? <span className="animate-pulse">{p.ruler.name.split(' ')[0]} is choosing {POSSESSIVE[p.ruler.pronoun]} words…</span> : ''}
+          {verdict ? `“${verdict}”` : loading ? <span className="animate-pulse">{p.ruler.short} is choosing {POSSESSIVE[p.ruler.pronoun]} words…</span> : ''}
         </p>
         <p className="mt-[0.1em] font-body text-[0.8rem] leading-snug text-ink-faded">
           <span className="font-sc text-wax">Secret aim · </span>

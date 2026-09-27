@@ -227,6 +227,8 @@ export const CONFIG = {
     tradeChargeTrust: -3,
     raidCost: [20, 30] as const,
     raidChance: 0.45,
+    /** Only a court cooler than this toward the Warden sends foragers into the valley. */
+    raidTrustBelow: 10,
     tribute: [30, 45] as const,
     tributeTrust: 5,
     sellswordsCost: 35,
@@ -282,6 +284,8 @@ export const CONFIG = {
     claimStep: 15,
     /** A court hands over land instead of gold only if it trusts the Warden at least this much. */
     askTrust: 5,
+    /** A ruler gives land in an audience only when at least cordial, and only once a game. */
+    offerTrust: 10,
     spoilsGold: 40,
   },
 

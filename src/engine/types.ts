@@ -37,7 +37,8 @@ export interface NationProfile {
   colourDark: string;
   emblem: Emblem;
   capitalName: string;
-  ruler: { name: string; title: string; pronoun: 'he' | 'she' | 'they' };
+  /** `short` is how the ruler is named in passing: "Hadrik", "Mother Gethin". */
+  ruler: { name: string; short: string; title: string; pronoun: 'he' | 'she' | 'they' };
   personality: string;
   /** The personality in one short line, for the dossier. */
   oneLiner: string;
