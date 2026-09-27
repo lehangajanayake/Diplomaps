@@ -38,8 +38,11 @@ export function Chronicle({ entries, pending }: { entries: ChronicleEntry[]; pen
   const ordered = [...entries].reverse();
   const latest = ordered[0]?.season;
   return (
-    <div
-      className="flex h-full cursor-pointer flex-col"
+    <motion.div
+      className="flex h-full cursor-pointer flex-col transition-[filter] duration-200 hover:brightness-105"
+      whileHover={{ y: -2, scale: 1.01 }}
+      whileTap={{ scale: 0.995 }}
+      transition={{ type: 'spring', stiffness: 380, damping: 28 }}
       data-tutorial="chronicle"
       role="button"
       tabIndex={0}
@@ -81,6 +84,6 @@ export function Chronicle({ entries, pending }: { entries: ChronicleEntry[]; pen
         {pending && <p className="mt-[0.3em] animate-pulse text-center font-hand text-[0.8rem] italic text-ink-faded">{pending}</p>}
       </div>
       <Roller />
-    </div>
+    </motion.div>
   );
 }
