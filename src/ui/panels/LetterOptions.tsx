@@ -50,7 +50,7 @@ export function LetterOptions({ world, letter }: { world: WorldState; letter: Le
                 aria-pressed={isChosen}
                 aria-label={`${a.label}${isChosen ? ' (your answer)' : ''}: ${effects.length ? effects.map(effectText).join(', ') : 'nothing changes'}${a.blocked ? `. ${a.blocked}` : ''}`}
                 onClick={() => decideLetter(letter.id, a.id)}
-                className="group flex w-full items-center gap-[0.7em] px-[0.6em] py-[0.45em] text-left transition-colors hover:bg-[rgb(120_80_30/0.1)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wax disabled:cursor-not-allowed disabled:opacity-55"
+                className={`group flex w-full items-center gap-[0.7em] px-[0.6em] py-[0.45em] text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wax disabled:cursor-not-allowed disabled:opacity-55 ${isChosen ? 'bg-[rgb(120_80_30/0.14)]' : 'hover:bg-[rgb(120_80_30/0.1)]'}`}
               >
                 <WaxSeal colour={colour} emblem="crossroads" size="2.2em" seed={a.id.length + 20} />
                 <span className="min-w-0 flex-1">
