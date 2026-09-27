@@ -3,9 +3,11 @@
  * crisis and the chosen ambition (talk to one court, answer a letter, ring the bell), and one step each
  * for what the bell brings. Every step is one sentence, spotlights one thing, and can be skipped.
  */
+import { audiencesLeft } from '../engine/agenda';
 import type { FirstGoal } from '../engine/guide';
 import { seasonLetters, sealedLetters } from '../engine/letters';
 import { nameOf, PROFILES } from '../engine/nations';
+import { isStanding } from '../engine/world';
 import type { StoreState } from './worldStore';
 
 export interface TutorialStep {
@@ -22,8 +24,25 @@ export interface TutorialStep {
 }
 
 const mark = (name: string) => `[data-tutorial="${name}"]`;
-/** The table is in play: no audience, no bell being rung, no season's cards. */
-const calm = (s: StoreState) => !s.audience && !s.resolving && !s.fx && !s.summary;
+/**
+ * The table is in play and nothing covers it: no audience, no letter or other sheet open, no crisis card,
+ * no bell being rung or asking to be sure, no season's cards. Table steps wait, unseen, until then.
+ */
+const calm = (s: StoreState) => !s.audience && !s.overlay && !s.crisisOpen && !s.confirmBell && !s.resolving && !s.fx && !s.summary;
+
+/** Another court's dossier is open, not the goal's. */
+const wrongDossier = (s: StoreState, g: FirstGoal) => !!s.selectedNation && s.selectedNation !== g.nation;
+
+/**
+ * The goal's court cannot be given an audience now (no audiences left, already heard this season, or
+ * fallen), as when the tutorial is replayed mid-game: the steps that lead there pass by themselves.
+ */
+function cannotTalk(s: StoreState): boolean {
+  const w = s.world;
+  const goal = s.tutorialGoal;
+  if (!w || !goal) return true;
+  return audiencesLeft(w) <= 0 || w.audiencesThisSeason.includes(goal.nation) || !isStanding(w, goal.nation);
+}
 
 export const TUTORIAL: readonly TutorialStep[] = [
   { target: () => mark('valley'), text: () => 'This is your valley. Every road runs through it.' },
@@ -33,15 +52,21 @@ export const TUTORIAL: readonly TutorialStep[] = [
   { target: (_s, g) => `[data-court="${g.nation}"]`, text: (_s, g) => `Your first goal: ${g.text}` },
   {
     target: (_s, g) => `[data-court="${g.nation}"]`,
-    text: (_s, g) => `Click ${nameOf(g.nation)}'s seal to open its dossier.`,
-    done: (s) => !!s.selectedNation || !!s.audience,
+    text: (s, g) => (wrongDossier(s, g) ? `That is ${nameOf(s.selectedNation!)}'s dossier. Click ${nameOf(g.nation)}'s seal instead.` : `Click ${nameOf(g.nation)}'s seal to open its dossier.`),
+    done: (s) => s.selectedNation === s.tutorialGoal?.nation || !!s.audience || cannotTalk(s),
     when: calm,
   },
   {
-    target: () => mark('audience'),
-    text: (_s, g) => `Request an audience with ${PROFILES[g.nation].ruler.short}.`,
-    done: (s) => !!s.audience,
-    when: (s) => calm(s) && !!s.selectedNation,
+    // If the Warden has wandered to another court's dossier (or closed this one), point back to the goal's seal.
+    target: (s, g) => (s.selectedNation === g.nation ? mark('audience') : `[data-court="${g.nation}"]`),
+    text: (s, g) =>
+      s.selectedNation === g.nation
+        ? `Request an audience with ${PROFILES[g.nation].ruler.short}.`
+        : wrongDossier(s, g)
+          ? `That is ${nameOf(s.selectedNation!)}'s dossier. Click ${nameOf(g.nation)}'s seal to go back.`
+          : `Click ${nameOf(g.nation)}'s seal to open its dossier again.`,
+    done: (s) => !!s.audience || cannotTalk(s),
+    when: calm,
   },
   {
     target: () => mark('approaches'),
