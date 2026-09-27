@@ -50,18 +50,11 @@ export function LetterOptions({ world, letter }: { world: WorldState; letter: Le
                 aria-pressed={isChosen}
                 aria-label={`${a.label}${isChosen ? ' (your answer)' : ''}: ${effects.length ? effects.map(effectText).join(', ') : 'nothing changes'}${a.blocked ? `. ${a.blocked}` : ''}`}
                 onClick={() => decideLetter(letter.id, a.id)}
-                className={`group flex w-full items-center gap-[0.7em] border px-[0.6em] py-[0.45em] text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wax disabled:cursor-not-allowed disabled:opacity-55 ${
-                  isChosen
-                    ? 'border-[#3d5a3a]/70 bg-[rgb(61_90_58/0.12)]'
-                    : 'border-ink/20 bg-[rgb(255_250_235/0.25)] hover:border-wax/60 hover:bg-[rgb(120_80_30/0.1)]'
-                }`}
+                className={`group flex w-full items-center gap-[0.7em] px-[0.6em] py-[0.45em] text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wax disabled:cursor-not-allowed disabled:opacity-55 ${isChosen ? 'bg-[rgb(120_80_30/0.14)]' : 'hover:bg-[rgb(120_80_30/0.1)]'}`}
               >
                 <WaxSeal colour={colour} emblem="crossroads" size="2.2em" seed={a.id.length + 20} />
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-baseline justify-between gap-[0.6em]">
-                    <span className="font-sc text-[1.02rem] tracking-[0.03em] group-enabled:group-hover:text-wax">{a.label}</span>
-                    {isChosen && <span className="shrink-0 font-sc text-[0.78rem] tracking-[0.08em] text-[#3d5a3a]">✓ your answer</span>}
-                  </span>
+                  <span className="font-sc text-[1.02rem] tracking-[0.03em] group-enabled:group-hover:text-wax">{a.label}</span>
                   <span className="mt-[0.1em] flex flex-wrap gap-x-[0.9em] gap-y-[0.15em]">
                     {key.map((e, i) => (
                       <EffectChip key={i} effect={e} />

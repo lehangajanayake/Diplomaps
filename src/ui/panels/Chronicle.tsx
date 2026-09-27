@@ -8,16 +8,8 @@ import { CROSSING_PROFILE, PROFILES } from '../../engine/nations';
 import { CROSSING, type ChronicleBeat, type ChronicleEntry } from '../../engine/types';
 import { openChronicle } from '../../store/flow';
 import { BeatIcon } from '../common/BeatIcon';
+import { Roller } from '../common/Roller';
 import { WaxSeal } from '../common/WaxSeal';
-
-function Roller() {
-  return (
-    <div className="relative z-10 mx-[-6%] h-[1.6vh] min-h-[11px] rounded-full" style={{ background: 'linear-gradient(180deg, #2a170a 0%, #7a4c26 35%, #a06a38 50%, #5a341a 75%, #1e1007 100%)', boxShadow: '0 3px 6px rgb(0 0 0 / 0.6)' }}>
-      <span className="absolute -left-[5%] top-1/2 h-[140%] w-[7%] -translate-y-1/2 rounded-full" style={{ background: 'radial-gradient(circle at 35% 35%, #c9a24a, #5a3f14)' }} />
-      <span className="absolute -right-[5%] top-1/2 h-[140%] w-[7%] -translate-y-1/2 rounded-full" style={{ background: 'radial-gradient(circle at 35% 35%, #c9a24a, #5a3f14)' }} />
-    </div>
-  );
-}
 
 const TONE = { good: 'text-[#2f5a2c]', bad: 'text-ink-red', neutral: 'text-ink-soft' } as const;
 
@@ -46,7 +38,23 @@ export function Chronicle({ entries, pending }: { entries: ChronicleEntry[]; pen
   const ordered = [...entries].reverse();
   const latest = ordered[0]?.season;
   return (
-    <div className="flex h-full flex-col" data-tutorial="chronicle">
+    <motion.div
+      className="flex h-full cursor-pointer flex-col transition-[filter] duration-200 hover:brightness-105"
+      whileHover={{ y: -2, scale: 1.01 }}
+      whileTap={{ scale: 0.995 }}
+      transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+      data-tutorial="chronicle"
+      role="button"
+      tabIndex={0}
+      aria-label="Open the full chronicle"
+      onClick={openChronicle}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openChronicle();
+        }
+      }}
+    >
       <Roller />
       <div ref={bodyRef} className="parchment relative -my-[0.4vh] flex-1 overflow-y-auto px-[0.85em] pb-[0.7em] pt-[0.8em] text-ink">
         <h2 className="text-center font-display text-[0.92rem] font-semibold tracking-[0.12em]">News of the Realm</h2>
@@ -73,12 +81,9 @@ export function Chronicle({ entries, pending }: { entries: ChronicleEntry[]; pen
             )}
           </section>
         ))}
-        <button type="button" onClick={openChronicle} className="mt-[0.2em] block w-full text-center font-sc text-[0.82rem] text-wax hover:underline">
-          Read the full chronicle →
-        </button>
         {pending && <p className="mt-[0.3em] animate-pulse text-center font-hand text-[0.8rem] italic text-ink-faded">{pending}</p>}
       </div>
       <Roller />
-    </div>
+    </motion.div>
   );
 }

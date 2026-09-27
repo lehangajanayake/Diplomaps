@@ -18,7 +18,8 @@ const CARD_H = 150;
  * Put the card beside the spotlight, always on screen: below it when the player reads, above it when the
  * player acts (what they need next, like an audience's text box, is usually below), else the other side.
  */
-function cardPosition(box: Box | null, doing: boolean): { left: number; top: number } {
+function cardPosition(box: Box | null, doing: boolean, corner: boolean): { left: number; top: number } {
+  if (corner) return { left: 24, top: window.innerHeight - CARD_H - 40 };
   if (!box) {
     return doing
       ? { left: window.innerWidth - CARD_W - 24, top: window.innerHeight - CARD_H - 24 }
@@ -62,7 +63,7 @@ export function Tutorial() {
 
   if (step === null || !current || !goal || !visible) return null;
   const last = step === TUTORIAL.length - 1;
-  const pos = cardPosition(box, doing);
+  const pos = cardPosition(box, doing, !!current.corner);
   return (
     <div className={`absolute inset-0 z-[70] ${doing ? 'pointer-events-none' : ''}`} role="dialog" aria-label="Tutorial" aria-live="polite">
       {/* While the tutorial speaks, the dark around the spotlight stops clicks reaching the table. */}

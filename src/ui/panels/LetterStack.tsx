@@ -22,11 +22,13 @@ const KIND_LABEL: Record<LetterKind, string> = {
 const STACKING = ['', 'gap-[1vh]', 'gap-[1vh]', '[&>*+*]:-mt-[1.3vh]', '[&>*+*]:-mt-[2.6vh]'];
 
 export function LetterStack({ world, letters, onOpen }: { world: WorldState; letters: Letter[]; onOpen: (id: string) => void }) {
+  const orderedLetters = [...letters].sort((a, b) => Number(Boolean(a.choice)) - Number(Boolean(b.choice)));
   return (
     <div className={`relative flex flex-col ${STACKING[Math.min(letters.length, 4)]}`} data-tutorial="letters">
-      {letters.map((letter, i) => {
+      {orderedLetters.map((letter, i) => {
         const nation = PROFILES[letter.from];
         const chosen = letter.choice ? letterAnswers(world, letter).find((a) => a.id === letter.choice) : undefined;
+        const isAnswered = Boolean(chosen);
         return (
           <motion.button
             key={letter.id}
@@ -37,19 +39,26 @@ export function LetterStack({ world, letters, onOpen }: { world: WorldState; let
             transition={{ delay: 0.15 * i, type: 'spring', stiffness: 120, damping: 14 }}
             onClick={() => onOpen(letter.id)}
             data-letter-id={letter.id}
-            aria-label={`Letter from ${nameOf(letter.from)}: ${chosen ? `your answer, ${chosen.label}. Open to change it.` : KIND_LABEL[letter.kind]}`}
-            className={`relative flex items-center gap-[0.6em] px-[0.8em] py-[0.55em] text-left text-ink ${chosen ? 'opacity-80' : ''}`}
+            aria-label={`Letter from ${nameOf(letter.from)}: ${chosen ? `opened, your answer, ${chosen.label}. Open to change it.` : KIND_LABEL[letter.kind]}`}
+            className={`relative flex items-center gap-[0.6em] px-[0.8em] py-[0.55em] text-left text-ink ${isAnswered ? 'bg-[#d2bc8e]' : ''}`}
             style={{
-              background: 'linear-gradient(160deg, #efe0bb 0%, #dcc697 60%, #cdb483 100%)',
+              background: isAnswered ? 'linear-gradient(160deg, #e0cca0 0%, #cbb383 100%)' : 'linear-gradient(160deg, #efe0bb 0%, #dcc697 60%, #cdb483 100%)',
               boxShadow: '0 6px 14px rgb(0 0 0 / 0.55), inset 0 0 14px rgb(120 80 30 / 0.35)',
+              zIndex: isAnswered ? 0 : orderedLetters.length - i,
             }}
           >
             <span className="pointer-events-none absolute inset-0" style={{ background: 'linear-gradient(135deg, transparent 49.4%, rgb(90 60 25 / 0.25) 50%, transparent 50.6%), linear-gradient(45deg, transparent 49.4%, rgb(90 60 25 / 0.18) 50%, transparent 50.6%)' }} />
-            <WaxSeal colour={nation.colour} emblem={nation.emblem} size="2.4em" seed={letter.id.length + i} cracked={letter.kind === 'last'} />
+            {isAnswered ? (
+              <span className="flex h-[2.4em] w-[2.4em] shrink-0 rotate-[-12deg] items-center justify-center border border-ink-faded/70 font-sc text-[0.46rem] tracking-[0.08em] text-ink-faded">
+                OPENED
+              </span>
+            ) : (
+              <WaxSeal colour={nation.colour} emblem={nation.emblem} size="2.4em" seed={letter.id.length + i} cracked={letter.kind === 'last'} />
+            )}
             <span className="relative leading-tight">
               <span className="block font-sc text-[0.82rem]">From {nameOf(letter.from)}</span>
               {chosen ? (
-                <span className="block font-hand text-[0.74rem] italic text-[#3d5a3a]">Your answer: {chosen.label}</span>
+                <span className="block font-sc text-[0.68rem] tracking-[0.08em] text-ink">OPENED · <span className="font-hand text-[0.74rem] italic tracking-normal text-ink-soft">{chosen.label}</span></span>
               ) : (
                 <span className="block font-hand text-[0.74rem] italic text-ink-faded">{KIND_LABEL[letter.kind]}</span>
               )}

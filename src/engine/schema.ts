@@ -206,6 +206,7 @@ export type AudienceStreamEvent =
   | { t: 'meta'; mood: Mood; ends: boolean }
   | { t: 'delta'; text: string }
   | { t: 'audio'; data: string }
+  | { t: 'error'; error: 'ai_credits_exhausted' | 'elevenlabs_credits_exhausted' }
   | ({ t: 'done'; ends: boolean; reply: string; fallback: boolean } & Exchange);
 
 /* ------------------------------------------------------------------ */

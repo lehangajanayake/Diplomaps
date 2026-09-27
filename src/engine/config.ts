@@ -4,7 +4,7 @@
  */
 
 export const CONFIG = {
-  narrationEnabled: true,
+  narrationEnabled: false,
   voiceIds: {
     varrow: '2EiwWnXFnvU5JabPnv8n',
     kelm: '21m00Tcm4TlvDq8ikWAM',

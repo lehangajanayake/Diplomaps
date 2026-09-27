@@ -1,7 +1,7 @@
 /**
- * Pins and string: a brass pin in every capital and a string between every two nations. At war: thick
- * solid red with crossed swords, pulsing slowly; hostile: thin dashed red; allies: solid green with linked
- * rings; neutral: faint dotted grey (see STRING).
+ * Pins and string: a brass pin in every capital and a string for active relations between nations. At war:
+ * thick solid red with crossed swords, pulsing slowly; hostile: thin dashed red; allies: solid green with
+ * linked rings (see STRING). Neutral relations have no map string.
  */
 import { motion } from 'motion/react';
 import { NATION_IDS, type MapData, type NationId, type Point, type WorldState } from '../../engine/types';
@@ -35,10 +35,11 @@ export function Relations({ world, map }: { world: WorldState; map: MapData }) {
     <motion.g initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }} style={{ pointerEvents: 'none' }} data-relations>
       {pairs.map(([a, b]) => {
         const kind = relationBetween(world, a, b);
+        if (kind === 'neutral') return null;
         const s = STRING[kind];
         const { d, mid } = sag(at(a), at(b));
         return (
-          <g key={`${a}-${b}`} className={kind === 'war' ? 'string-war' : undefined} opacity={kind === 'neutral' ? 0.75 : 0.95} data-string={kind}>
+          <g key={`${a}-${b}`} className={kind === 'war' ? 'string-war' : undefined} opacity={0.95} data-string={kind}>
             <path d={d} fill="none" stroke={s.colour} strokeWidth={s.width} strokeLinecap="round" strokeDasharray={s.dash} />
             <RelationMark kind={kind} x={mid[0]} y={mid[1]} scale={1.3} />
           </g>

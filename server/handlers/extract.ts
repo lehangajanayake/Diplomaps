@@ -4,7 +4,7 @@
  */
 import { cleanText, ExtractAISchema, ExtractRequestSchema, sanitizeExtraction, sanitizeLandOffer, type ExtractResult } from '../../src/engine/schema.js';
 import { guard, json, readJson } from '../http.js';
-import { MODELS, effortFor, structured } from '../openai.js';
+import { AIQuotaError, MODELS, effortFor, structured } from '../openai.js';
 import { extractInput, extractInstructions } from '../prompts/extract.js';
 
 export async function handleExtract(req: Request): Promise<Response> {
@@ -16,17 +16,23 @@ export async function handleExtract(req: Request): Promise<Response> {
   if (!parsed.success) return json({ error: 'invalid_request' }, 400);
   const { nation, turns, prior, offerable } = parsed.data;
   if (!turns.some((t) => t.role === 'player')) return json({ entries: [], landOffer: null, learned: '', fallback: false } satisfies ExtractResult);
-  const raw = await structured({
-    label: `extract:${nation}`,
-    model: MODELS.fast,
-    effort: effortFor('fast'),
-    instructions: extractInstructions(nation, prior, offerable),
-    input: extractInput(nation, turns),
-    schema: ExtractAISchema,
-    schemaName: 'ledger_entries',
-    maxOutputTokens: 1200,
-    timeoutMs: 20_000,
-  });
+  let raw;
+  try {
+    raw = await structured({
+      label: `extract:${nation}`,
+      model: MODELS.fast,
+      effort: effortFor('fast'),
+      instructions: extractInstructions(nation, prior, offerable),
+      input: extractInput(nation, turns),
+      schema: ExtractAISchema,
+      schemaName: 'ledger_entries',
+      maxOutputTokens: 1200,
+      timeoutMs: 20_000,
+    });
+  } catch (error) {
+    if (error instanceof AIQuotaError) return json({ error: 'ai_credits_exhausted' }, 402);
+    throw error;
+  }
   const result: ExtractResult = raw
     ? {
         entries: sanitizeExtraction(raw, new Set(prior.map((p) => p.id))),

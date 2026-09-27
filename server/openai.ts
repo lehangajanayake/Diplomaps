@@ -63,6 +63,13 @@ interface Usage {
 
 export const usageTotals = { calls: 0, failures: 0, input: 0, cached: 0, output: 0, reasoning: 0, cost: 0 };
 
+export class AIQuotaError extends Error {
+  constructor() {
+    super('OpenAI credits or quota exhausted');
+    this.name = 'AIQuotaError';
+  }
+}
+
 function logUsage(label: string, model: string, usage: Usage | null | undefined, ms: number, note = ''): void {
   if (!usage) {
     console.log(`[ai] ${label.padEnd(20)} ${model} no usage reported ${ms}ms ${note}`);
@@ -88,6 +95,10 @@ function describeError(err: unknown): string {
   if (err instanceof OpenAI.APIError) return `${err.status ?? ''} ${err.name}: ${err.message}`.slice(0, 300);
   if (err instanceof Error) return `${err.name}: ${err.message}`.slice(0, 300);
   return String(err).slice(0, 300);
+}
+
+function isQuotaError(err: unknown): boolean {
+  return err instanceof OpenAI.APIError && (err.code === 'insufficient_quota' || /quota|credit|billing/i.test(err.message));
 }
 
 /**
@@ -169,6 +180,7 @@ export async function structured<T>(o: BaseOptions & { schema: ZodType<T> }): Pr
       }
       console.log(`[ai] ${o.label} attempt ${attempt + 1}: ${response.status}${response.incomplete_details ? ` (${response.incomplete_details.reason})` : ''}`);
     } catch (err) {
+      if (isQuotaError(err)) throw new AIQuotaError();
       if (rejectsReasoning(err) && !noReasoning.has(o.model)) {
         noReasoning.add(o.model);
         attempt--;
@@ -189,7 +201,7 @@ export async function structured<T>(o: BaseOptions & { schema: ZodType<T> }): Pr
  */
 export async function streamStructured<T>(
   o: BaseOptions & { schema: ZodType<T>; onText: (chunk: string) => void; attempt: number },
-): Promise<{ ok: boolean; text: string }> {
+): Promise<{ ok: boolean; text: string; quotaExceeded?: boolean }> {
   const c = getClient();
   if (!c) {
     console.log(`[ai] ${o.label.padEnd(20)} skipped: no OPENAI_API_KEY configured`);
@@ -219,6 +231,7 @@ export async function streamStructured<T>(
       }
       break;
     } catch (err) {
+      if (isQuotaError(err)) return { ok: false, text: '', quotaExceeded: true };
       if (rejectsReasoning(err) && !noReasoning.has(o.model) && text.length === 0) {
         noReasoning.add(o.model);
         continue;

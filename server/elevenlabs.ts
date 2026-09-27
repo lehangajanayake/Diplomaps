@@ -13,20 +13,20 @@ const SPEED: Record<NationId, number> = {
 };
 
 /** Generate a complete ruler reply. Returns base64 MP3 so the browser never sees the API key. */
-export async function synthesizeRulerSpeech(nation: NationId, text: string): Promise<string | null> {
+export async function synthesizeRulerSpeech(nation: NationId, text: string): Promise<{ audio: string | null; quotaExceeded: boolean }> {
   const key = process.env.ELEVENLABS_API_KEY?.trim();
   const voiceId = CONFIG.voiceIds[nation];
   if (!key) {
     console.error(`[elevenlabs] ${nation}: ELEVENLABS_API_KEY is not configured`);
-    return null;
+    return { audio: null, quotaExceeded: false };
   }
   if (!voiceId) {
     console.error(`[elevenlabs] ${nation}: no voice ID is configured in src/engine/config.ts`);
-    return null;
+    return { audio: null, quotaExceeded: false };
   }
   if (!text) {
     console.error(`[elevenlabs] ${nation}: received empty text`);
-    return null;
+    return { audio: null, quotaExceeded: false };
   }
 
   try {
@@ -54,18 +54,18 @@ export async function synthesizeRulerSpeech(nation: NationId, text: string): Pro
     if (!response.ok) {
       const detail = (await response.text()).slice(0, 500).replace(/\s+/g, ' ');
       console.error(`[elevenlabs] ${nation}: HTTP ${response.status} ${response.statusText}${detail ? ` - ${detail}` : ''}`);
-      return null;
+      return { audio: null, quotaExceeded: /quota|credit|character limit/i.test(detail) };
     }
     const audio = Buffer.from(await response.arrayBuffer());
     if (audio.length === 0) {
       console.error(`[elevenlabs] ${nation}: response contained no audio`);
-      return null;
+      return { audio: null, quotaExceeded: false };
     }
     console.log(`[elevenlabs] ${nation}: generated ${audio.length} bytes in ${Date.now() - startedAt}ms`);
-    return audio.toString('base64');
+    return { audio: audio.toString('base64'), quotaExceeded: false };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[elevenlabs] ${nation}: request failed - ${message.slice(0, 240)}`);
-    return null;
+    return { audio: null, quotaExceeded: false };
   }
 }

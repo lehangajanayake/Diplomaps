@@ -3,7 +3,7 @@ import { seasonTitle } from '../../src/engine/config.js';
 import { fallbackChronicle } from '../../src/engine/fallbacks.js';
 import { FlavourAISchema, FlavourRequestSchema, cleanText, sanitizeLines, type FlavourResult } from '../../src/engine/schema.js';
 import { guard, json, readJson } from '../http.js';
-import { MODELS, effortFor, structured } from '../openai.js';
+import { AIQuotaError, MODELS, effortFor, structured } from '../openai.js';
 import { flavourInput, flavourInstructions } from '../prompts/flavour.js';
 
 export async function handleFlavour(req: Request): Promise<Response> {
@@ -14,17 +14,23 @@ export async function handleFlavour(req: Request): Promise<Response> {
   const parsed = FlavourRequestSchema.safeParse(body.value);
   if (!parsed.success) return json({ error: 'invalid_request' }, 400);
   const request = parsed.data;
-  const raw = await structured({
-    label: `flavour:s${request.season}`,
-    model: MODELS.rich,
-    effort: effortFor('rich'),
-    instructions: flavourInstructions(),
-    input: flavourInput(request),
-    schema: FlavourAISchema,
-    schemaName: 'flavour',
-    maxOutputTokens: 1400,
-    timeoutMs: 20_000,
-  });
+  let raw;
+  try {
+    raw = await structured({
+      label: `flavour:s${request.season}`,
+      model: MODELS.rich,
+      effort: effortFor('rich'),
+      instructions: flavourInstructions(),
+      input: flavourInput(request),
+      schema: FlavourAISchema,
+      schemaName: 'flavour',
+      maxOutputTokens: 1400,
+      timeoutMs: 20_000,
+    });
+  } catch (error) {
+    if (error instanceof AIQuotaError) return json({ error: 'ai_credits_exhausted' }, 402);
+    throw error;
+  }
   const chronicle = raw ? sanitizeLines(raw.chronicle, 2, 4, 240) : null;
   const known = new Set(request.letters.map((l) => l.id));
   const quotes: Record<string, string> = {};
