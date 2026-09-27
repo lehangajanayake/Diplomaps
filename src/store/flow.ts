@@ -2,22 +2,28 @@
  * Game orchestration: everything that mixes the pure engine, the AI endpoints and the UI state.
  * Components call these functions; they read and write the Zustand store.
  */
-import { assessAudience, extractPromises, fetchHealth, streamAudience, writeEnding, writeFlavour } from '../ai/client';
-import { CONFIG, seasonName, seasonTitle, seasonYear } from '../engine/config';
+import { extractPromises, fetchHealth, streamAudience, writeEnding, writeFlavour } from '../ai/client';
+import { CONFIG, seasonName } from '../engine/config';
 import { greetingFor, greetingToneFor } from '../engine/courtesy';
-import { addLedgerEntries, recordAudience } from '../engine/ledger';
+import { addLedgerEntries, recordAudience, recordExchange } from '../engine/ledger';
 import { claimRuin } from '../engine/actions';
-import { cedableRegions, recordOffer } from '../engine/land';
+import { echoedPromise, patienceFor, trustStep } from '../engine/audience';
+import { biggest, MONTAGE_MAX, type Beat } from '../engine/beats';
+import { callFavour } from '../engine/favours';
+import { offerableRegions, recordOffer } from '../engine/land';
 import { answerLetter } from '../engine/letters';
 import { PROFILES } from '../engine/nations';
+import { setPass } from '../engine/passes';
 import type { AudienceRequest } from '../engine/schema';
 import { openFirstSeason, playSeason } from '../engine/resolve';
 import type { AmbitionId, GameEvent, NationId, RegionId, WorldState } from '../engine/types';
 import { summariseSeason } from '../engine/summary';
 import { buildAudienceContext, buildEndingRequest, buildFlavourRequest } from '../engine/views';
-import { createWorld } from '../engine/world';
+import { NATION_IDS } from '../engine/types';
+import { createWorld, isStanding } from '../engine/world';
 import { sound } from '../audio/sound';
-import { clearSave, loadSave, randomSeed, useStore, type AudienceTurnUI, type MapFx, type Note } from './worldStore';
+import { TUTORIAL } from './intro';
+import { clearSave, loadSave, randomSeed, useStore, type AudienceTurnUI, type Note } from './worldStore';
 
 const get = () => useStore.getState();
 const set = useStore.setState;
@@ -76,6 +82,19 @@ export function hasSave(): boolean {
   return loadSave() !== null;
 }
 
+/** `?skipIntro` skips the opening and the tutorial (for replays and automated playtests). */
+const skipIntro = () => new URLSearchParams(location.search).has('skipIntro');
+
+const TUTORIAL_KEY = 'diplomaps.tutorial.done';
+
+function tutorialDone(): boolean {
+  try {
+    return localStorage.getItem(TUTORIAL_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export function beginGame(seed?: number): void {
   const param = new URLSearchParams(location.search).get('seed');
   const chosen = seed ?? (param && /^\d+$/.test(param) ? Number(param) : randomSeed());
@@ -88,24 +107,71 @@ export function beginGame(seed?: number): void {
     audience: null,
     seasonCard: null,
     fx: null,
-    chronicleFresh: null,
     chroniclePending: null,
     ending: null,
     notes: [],
     resolving: false,
     summary: null,
-    crisisOpen: true,
+    crisisOpen: false,
+    relations: 'off',
+    opening: !skipIntro(),
+    tutorialStep: null,
   });
   sound.startAmbient();
 }
 
-/** The player picks the ambition they will win or lose on; the first season's crisis follows. */
+/** The opening is over (or skipped): on to the choice of ambition. */
+export function endOpening(): void {
+  if (get().opening) set({ opening: false });
+}
+
+/** The player picks the ambition they will win or lose on; the tutorial (first game only) or the first crisis follows. */
 export function chooseAmbition(ambition: AmbitionId): void {
   const w = get().world;
   if (!w || w.player.ambition) return;
   const world = openFirstSeason({ ...w, player: { ...w.player, ambition } });
-  set({ world, crisisOpen: true });
+  set({ world });
   sound.play('quill');
+  if (!skipIntro() && !tutorialDone()) showTutorialStep(0);
+  else set({ crisisOpen: true });
+}
+
+/* ------------------------------------------------------------------ */
+/* The tutorial and the handbook                                        */
+/* ------------------------------------------------------------------ */
+
+/** Show one tutorial step, opening the friendliest court's dossier when the step is about what lies inside it. */
+function showTutorialStep(step: number): void {
+  const w = get().world;
+  const friend = w ? [...NATION_IDS].filter((n) => isStanding(w, n)).sort((a, b) => w.nations[b].trustPlayer - w.nations[a].trustPlayer)[0] : undefined;
+  set({ tutorialStep: step, overlay: null, crisisOpen: false, selectedNation: TUTORIAL[step]?.dossier && friend ? friend : null });
+}
+
+export function nextTutorialStep(): void {
+  const step = get().tutorialStep;
+  if (step === null) return;
+  if (step + 1 < TUTORIAL.length) showTutorialStep(step + 1);
+  else endTutorial();
+}
+
+/** Finished or skipped: the tutorial will not show again on its own, and the season's crisis opens. */
+export function endTutorial(): void {
+  try {
+    localStorage.setItem(TUTORIAL_KEY, '1');
+  } catch {
+    // storage blocked: the tutorial will show again next game, which does no harm
+  }
+  set({ tutorialStep: null, selectedNation: null, crisisOpen: true });
+}
+
+export function openHandbook(): void {
+  if (get().audience || get().resolving) return;
+  set({ overlay: { kind: 'handbook' }, selectedNation: null });
+  sound.play('paper');
+}
+
+export function replayTutorial(): void {
+  showTutorialStep(0);
 }
 
 export function resumeGame(): boolean {
@@ -137,6 +203,12 @@ export function openCrossing(): void {
 
 export function openLedger(): void {
   set({ overlay: { kind: 'ledger' }, selectedNation: null });
+  sound.play('paper');
+}
+
+/** The chronicler's full prose for every season. */
+export function openChronicle(): void {
+  set({ overlay: { kind: 'chronicle' }, selectedNation: null });
   sound.play('paper');
 }
 
@@ -181,6 +253,32 @@ export function claimRegion(region: RegionId): void {
   if (world !== w) commit(world, events);
 }
 
+/** The card for calling in a favour from a nation that trusts you. */
+export function openFavour(nation: NationId): void {
+  if (get().audience || get().resolving) return;
+  set({ overlay: { kind: 'favour', nation }, selectedNation: null });
+  sound.play('paper');
+}
+
+/** Seal the war letter: `nation` will declare war on `target` when the bell rings. */
+export function callInFavour(nation: NationId, target: NationId): void {
+  const w = get().world;
+  if (!w) return;
+  const { world, events } = callFavour(w, nation, target);
+  if (world === w) return;
+  commit(world, events);
+  sound.play('drums');
+}
+
+export function togglePass(nation: NationId): void {
+  const w = get().world;
+  if (!w) return;
+  const { world, events } = setPass(w, nation, w.player.passes[nation] === 'open' ? 'closed' : 'open');
+  if (world === w) return;
+  commit(world, events);
+  sound.play('doors');
+}
+
 export function decideLetter(id: string, answer: string): void {
   const w = get().world;
   if (!w) return;
@@ -209,43 +307,55 @@ export function canHoldAudience(w: WorldState, nation: NationId): string | null 
 export function startAudience(nation: NationId): void {
   const w = get().world;
   if (!w || canHoldAudience(w, nation)) return;
-  const greeting = greetingFor(w, nation);
+  const trust = w.nations[nation].trustPlayer;
+  const patience = patienceFor(trust);
   set({
     selectedNation: null,
     overlay: null,
     audience: {
       nation,
-      turns: [{ role: 'ruler', text: greeting }],
+      turns: [{ role: 'ruler', text: greetingFor(w, nation) }],
       status: 'awaiting',
       streamText: '',
-      audio: null,
-      mood: w.nations[nation].trustPlayer >= 25 ? 'warm' : w.nations[nation].trustPlayer <= -20 ? 'wary' : 'neutral',
+      mood: trust >= 25 ? 'pleased' : trust <= -35 ? 'angry' : 'wary',
       moodTick: 0,
+      patience,
+      patienceMax: patience,
+      trustChange: 0,
+      warning: null,
+      insolent: false,
       endedByRuler: false,
       calledAway: false,
       result: null,
       leaving: false,
     },
   });
-  sound.play('doors', () => sound.playGreeting(nation, greetingToneFor(w, nation)));
+  // The greeting is spoken once the doors have closed, unless the Warden has already left.
+  sound.play('doors', () => {
+    if (get().audience?.nation === nation) sound.playGreeting(nation, greetingToneFor(w, nation));
+  });
 }
 
 function playerMessages(turns: AudienceTurnUI[]): number {
   return turns.filter((t) => t.role === 'player').length;
 }
 
+/**
+ * One exchange: the Warden speaks, the ruler replies and judges the words. Trust moves at once (within the
+ * audience's cap) and patience burns down; when it is gone, the ruler ends the audience.
+ */
 export async function sendAudienceMessage(raw: string): Promise<void> {
   const state = get();
   const a = state.audience;
   const w = state.world;
   const text = raw.trim().slice(0, 600);
-  if (!a || !w || a.status !== 'awaiting' || !text) return;
-  if (playerMessages(a.turns) >= CONFIG.messagesPerAudience) return;
+  if (!a || !w || a.status !== 'awaiting' || !text || a.patience <= 0) return;
   const turns: AudienceTurnUI[] = [...a.turns, { role: 'player', text }];
-  set({ audience: { ...a, turns, status: 'speaking', streamText: '' } });
+  const warning = echoedPromise(w, a.nation, text)?.warning ?? null;
+  set({ audience: { ...a, turns, status: 'speaking', streamText: '', warning } });
   sound.play('quill');
 
-  const req: AudienceRequest = { mode: 'reply', nation: a.nation, turns, context: buildAudienceContext(w, a.nation), endedByRuler: false };
+  const req: AudienceRequest = { nation: a.nation, turns, context: buildAudienceContext(w, a.nation), patience: a.patience };
   const result = await streamAudience(req, (e) => {
     const cur = get().audience;
     if (!cur) return;
@@ -254,15 +364,31 @@ export async function sendAudienceMessage(raw: string): Promise<void> {
     else if (e.t === 'audio') sound.playSpeech(e.data);
   });
   const cur = get().audience;
-  if (!cur) return;
-  const finalTurns: AudienceTurnUI[] = [...cur.turns, { role: 'ruler', text: result.reply }];
-  const count = playerMessages(finalTurns);
-  const over = result.ends || count >= CONFIG.messagesPerAudience;
-  set({ audience: { ...cur, turns: finalTurns, streamText: '', mood: result.mood, status: over ? 'closing' : 'awaiting', calledAway: result.fallback } });
-  if (over) await closeAudience(result.ends && count < CONFIG.messagesPerAudience && !result.fallback, result.fallback);
+  const world = get().world;
+  if (!cur || !world) return;
+  const step = result.fallback ? 0 : trustStep(cur.trustChange, result.trustDelta);
+  if (step !== 0) set({ world: recordExchange(world, cur.nation, step) });
+  const patience = Math.max(0, cur.patience - result.patienceCost);
+  const over = result.ends || patience <= 0;
+  set({
+    audience: {
+      ...cur,
+      turns: [...cur.turns, { role: 'ruler', text: result.reply }],
+      streamText: '',
+      mood: result.mood,
+      moodTick: cur.moodTick + 1,
+      patience,
+      trustChange: cur.trustChange + step,
+      insolent: cur.insolent || result.insolent,
+      status: over ? 'closing' : 'awaiting',
+      calledAway: result.fallback,
+    },
+  });
+  if (result.insolent) note(`${PROFILES[cur.nation].ruler.name} took your strange words as an insult.`, 'danger');
+  if (over) await closeAudience(!result.fallback, result.fallback);
 }
 
-/** The player takes their leave before the fourth message. */
+/** The Warden takes their leave. */
 export async function leaveAudience(): Promise<void> {
   const a = get().audience;
   if (!a || a.status !== 'awaiting') return;
@@ -270,42 +396,34 @@ export async function leaveAudience(): Promise<void> {
   await closeAudience(false, false);
 }
 
+/** After the audience: the clerk writes the Warden's promises and claims into the ledger, and notes what was learned. */
 async function closeAudience(endedByRuler: boolean, calledAway: boolean): Promise<void> {
   const a = get().audience;
   const w0 = get().world;
   if (!a || !w0) return;
   const turns = a.turns;
-  const spoke = playerMessages(turns) > 0;
   set({ audience: { ...a, status: 'closing', endedByRuler, calledAway } });
-  // Nothing was said, or the ruler was called away before a single real reply: nothing to judge or record.
-  if (!spoke || (calledAway && playerMessages(turns) <= 1)) {
+  // Nothing was said, or the ruler was called away before a single real reply: nothing to record, and it costs no audience.
+  if (playerMessages(turns) === 0 || (calledAway && playerMessages(turns) <= 1)) {
     set({ audience: { ...a, status: 'closed', endedByRuler, calledAway, result: null } });
     return;
   }
-  const context = buildAudienceContext(w0, a.nation);
   const prior = w0.player.ledger
     .filter((e) => e.to !== a.nation)
     .slice(-40)
     .map((e) => ({ id: e.id, to: e.to, type: e.type, what: e.what, promiseKind: e.promiseKind, topic: e.topic, about: e.about }));
-  const offerable = cedableRegions(w0, a.nation).map((id) => w0.map.regions[id]!.name);
-  const [assessment, extraction] = await Promise.all([
-    assessAudience({ mode: 'assess', nation: a.nation, turns, context, endedByRuler }),
-    extractPromises({ nation: a.nation, season: w0.season, turns, prior, offerable }),
-  ]);
-  // A ruler called away by a failed connection does not cost the player an audience.
-  const held = !(calledAway && playerMessages(turns) <= 1);
-  const trustBefore = get().world!.nations[a.nation].trustPlayer;
-  let { world } = recordAudience(get().world!, a.nation, assessment.trustDelta, assessment.learned, held);
+  const offerable = offerableRegions(w0, a.nation).map((id) => w0.map.regions[id]!.name);
+  const extraction = await extractPromises({ nation: a.nation, season: w0.season, turns, prior, offerable });
+  let world = recordAudience(get().world!, a.nation, a.trustChange, extraction.learned, true);
   const added = addLedgerEntries(world, a.nation, extraction.entries);
   world = added.world;
+  let offer: string | null = null;
   if (extraction.landOffer) {
     world = recordOffer(world, a.nation, extraction.landOffer.region);
-    const offer = world.player.offers.at(-1);
-    const where = offer?.region ? world.map.regions[offer.region]!.name : 'a region';
-    note(`${PROFILES[a.nation].name} offered you ${where}. It is yours when the season ends, if they still trust you.`, 'good', 9000);
+    const made = world.player.offers.find((o) => o.nation === a.nation && o.season === world.season);
+    if (made) offer = made.region ? world.map.regions[made.region]!.name : 'a region';
   }
   commit(world, added.events);
-  const caught = added.events.flatMap((e) => (e.kind === 'lie_caught' ? [e.how] : []));
   const cur = get().audience;
   if (!cur) return;
   set({
@@ -313,28 +431,27 @@ async function closeAudience(endedByRuler: boolean, calledAway: boolean): Promis
       ...cur,
       status: 'closed',
       result: {
-        trustBefore,
+        trustBefore: w0.nations[a.nation].trustPlayer - a.trustChange,
         trustAfter: world.nations[a.nation].trustPlayer,
-        trustDelta: world.nations[a.nation].trustPlayer - trustBefore,
-        learned: assessment.learned,
+        learned: extraction.learned,
+        offer,
         entries: added.added,
-        caught,
-        manipulation: assessment.manipulation,
-        fallback: assessment.fallback,
+        caught: added.events.flatMap((e) => (e.kind === 'lie_caught' ? [e.how] : [])),
+        fallback: extraction.fallback,
       },
     },
   });
-  if (assessment.manipulation) note(`${PROFILES[a.nation].ruler.name} took your strange words as an insult.`, 'danger');
 }
 
-/** Close the doors on the audience hall. */
-export function exitAudience(): void {
+/** Close the doors on the audience hall, then do `then` (such as calling in a favour) at the table. */
+export function exitAudience(then?: () => void): void {
   const a = get().audience;
   if (!a) return;
   set({ audience: { ...a, leaving: true } });
   sound.play('doors');
   window.setTimeout(() => {
     set({ audience: null });
+    then?.();
   }, 900);
 }
 
@@ -345,70 +462,103 @@ export function exitAudience(): void {
 
 const sleep = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
 
-function buildFx(before: WorldState, events: GameEvent[]): MapFx {
-  const fx: MapFx = {
-    key: Date.now(),
-    before: Object.fromEntries(before.map.regionIds.map((id) => [id, { ...before.regions[id]! }])),
-    settled: false,
-    moves: [],
-    battles: [],
-    conquests: [],
-    trails: [],
-    mobilised: [],
-  };
-  for (const e of events) {
-    if (e.kind === 'move') fx.moves.push({ from: e.from, to: e.to, owner: e.nation, troops: e.troops });
-    else if (e.kind === 'battle') {
-      fx.battles.push({ region: e.region, from: e.from, attacker: e.attacker, captured: e.captured });
-      if (e.captured) fx.conquests.push({ region: e.region, from: e.from, owner: e.attacker });
-    } else if (e.kind === 'cede') fx.conquests.push({ region: e.region, from: null, owner: e.target });
-    else if (e.kind === 'gain') fx.conquests.push({ region: e.region, from: null, owner: 'crossing' });
-    else if (e.kind === 'mobilise') fx.mobilised.push({ region: e.region, amount: e.amount });
-    else if (e.kind === 'gossip') fx.trails.push({ from: e.from, to: e.to, entry: e.entry });
+/** How long each beat of the montage holds the map. A caught lie or a betrayal gets a moment to land. */
+function beatMs(beat: Beat): number {
+  if (beat.kind === 'lie' || beat.kind === 'exposed') return 2600;
+  if (beat.kind === 'collapse') return 2000;
+  return 1350;
+}
+
+let skipBeat: (() => void) | null = null;
+let skipping = false;
+
+/** Wait, unless the player skips the montage. */
+function beatPause(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(done, ms);
+    function done() {
+      window.clearTimeout(timer);
+      skipBeat = null;
+      resolve();
+    }
+    skipBeat = done;
+  });
+}
+
+/** Skip the rest of the season montage. */
+export function skipMontage(): void {
+  skipping = true;
+  skipBeat?.();
+}
+
+/** Play the bell's biggest moments one at a time on the map. */
+async function playMontage(beats: readonly Beat[]): Promise<void> {
+  skipping = false;
+  for (let i = 0; i < beats.length && !skipping; i++) {
+    set((s) => ({ fx: s.fx ? { ...s.fx, index: i } : null }));
+    const beat = beats[i]!;
+    if (beat.kind === 'lie' || beat.kind === 'exposed') sound.play('drums');
+    else if (beat.kind === 'war' || beat.kind === 'collapse' || beat.kind === 'assault') sound.play('bell');
+    await beatPause(beatMs(beat));
   }
-  // A region taken twice in one season inks in once, in its final colour.
-  fx.conquests = fx.conquests.filter((c, i) => !fx.conquests.slice(i + 1).some((later) => later.region === c.region));
-  fx.trails = fx.trails.slice(0, 8);
-  return fx;
+}
+
+/** Did any war, peace or alliance begin or end? */
+function relationsChanged(before: WorldState, after: WorldState): boolean {
+  const key = (w: WorldState) => [...w.wars.map((x) => `w${x.a}${x.b}`), ...w.alliances.map((x) => `a${x.a}${x.b}`)].sort().join();
+  return key(before) !== key(after);
+}
+
+export function toggleRelations(): void {
+  set({ relations: get().relations === 'on' ? 'off' : 'on' });
+  sound.play('paper');
 }
 
 export async function endSeason(): Promise<void> {
   const s = get();
   const w = s.world;
   if (!w || s.resolving || s.audience || w.ending) return;
-  const finalSeason = w.season >= CONFIG.seasons;
-  const next = w.season + 1;
-  const title = finalSeason ? `The End of ${seasonName(w.season)}, ${seasonYear(w.season)}` : `${seasonName(next)}, Year ${seasonYear(next)}`;
   sound.play('bell');
-  set({ resolving: true, selectedNation: null, overlay: null, fx: null, seasonCard: { season: next, title, message: 'The five courts make their moves…', closing: false } });
+  set({
+    resolving: true,
+    selectedNation: null,
+    overlay: null,
+    fx: null,
+    seasonCard: { season: w.season, title: `The End of ${seasonName(w.season)}`, message: 'The five courts make their moves…', closing: false },
+  });
 
   // Code decides everything at once; the pause is only for the bell to ring.
   const audiences = [...w.audiencesThisSeason];
   const outcome = playSeason(w);
-  await sleep(1600);
-  const fx = buildFx(w, outcome.events);
-  set({ world: outcome.state, fx, seasonCard: { ...get().seasonCard!, message: finalSeason ? 'The last season is done.' : 'The courts have moved.', closing: true } });
+  await sleep(1400);
+  set({ world: outcome.state, fx: { key: Date.now(), before: w, beats: biggest(outcome.beats, MONTAGE_MAX), index: -1, settled: false }, seasonCard: { ...get().seasonCard!, closing: true } });
   if (outcome.state.tension > CONFIG.tension.drumsAbove) sound.play('drums');
 
-  // The chronicler and the courts' scribes write while the map plays out.
+  // The chronicler and the courts' scribes write while the montage plays.
   set({ chroniclePending: 'The chronicler dips his quill…' });
   const flavour = writeFlavour(buildFlavourRequest(outcome.state, outcome.events, w.season, audiences));
-  await sleep(1100);
+  await sleep(700);
   set({ seasonCard: null });
-  await sleep(4600);
-  set((st) => ({ fx: st.fx ? { ...st.fx, settled: true } : null }));
-  await sleep(200);
+  await sleep(300);
+  await playMontage(get().fx?.beats ?? []);
+  // When friends and foes have changed, the pins and string come out for a moment to show the new order.
+  if (!skipping && relationsChanged(w, outcome.state) && get().relations === 'off') {
+    set({ relations: 'flash' });
+    await beatPause(2400);
+    if (get().relations === 'flash') set({ relations: 'off' });
+  }
+
+  // The table catches up: numbers float, needles swing, letters land, and the "What changed" card opens.
   set({ fx: null, resolving: false, summary: summariseSeason(w, outcome.state, outcome.events) });
 
-  // The words ink themselves in whenever they return; the table is already yours again.
+  // The prose inks itself in whenever it returns; the table is already yours again.
   void flavour.then((f) => {
     const cur = get().world;
     if (!cur) return;
-    const entry = { season: w.season, title: seasonTitle(w.season), lines: f.chronicle, fromAI: !f.fallback };
-    const chronicle = [...cur.chronicle.filter((c) => c.season !== w.season), entry].sort((x, y) => x.season - y.season);
+    const chronicle = cur.chronicle.map((c) => (c.season === w.season ? { ...c, lines: f.chronicle, fromAI: !f.fallback } : c));
     const letters = cur.letters.map((l) => (f.quotes[l.id] ? { ...l, quote: f.quotes[l.id]! } : l));
     const latest = cur.history.at(-1)?.season;
-    set({ world: { ...cur, chronicle, letters }, chronicleFresh: w.season, chroniclePending: latest === w.season ? null : get().chroniclePending });
+    set({ world: { ...cur, chronicle, letters }, chroniclePending: latest === w.season ? null : get().chroniclePending });
     sound.play('quill');
   });
 }
@@ -428,6 +578,6 @@ export async function finishGame(): Promise<void> {
 
 export function playAgain(): void {
   clearSave();
-  set({ phase: 'table', ending: null, chronicleFresh: null });
+  set({ phase: 'table', ending: null });
   beginGame(randomSeed());
 }

@@ -2,14 +2,18 @@
  * The bell: everything that happens between one season and the next, decided by code in a fixed
  * order. Pure and seeded: the same world always resolves the same way.
  */
-import { CONFIG } from './config.js';
+import { chronicleBeats, seasonBeats, type Beat } from './beats.js';
+import { CONFIG, seasonTitle } from './config.js';
 import { composeCrisis } from './crisis.js';
 import { attackTheCrossing, recoverBurning, resolveMarches } from './crossing.js';
 import { computeIncome } from './economy.js';
 import { checkEnding } from './endings.js';
+import { honourFavours } from './favours.js';
 import { runGossip } from './gossip.js';
 import { honourOffers } from './land.js';
+import { revealLiesOnTheField } from './ledger.js';
 import { closeLetters, deliverLetters } from './letters.js';
+import { resentClosedPasses } from './passes.js';
 import { planIntents, sparkedByWords, warHolds } from './policy.js';
 import { Rng } from './rng.js';
 import { addTension, adjustNeutrality, adjustSuspicion } from './tension.js';
@@ -49,8 +53,9 @@ export function resolveSeason(state: WorldState): { state: WorldState; events: G
   // 1. Letters still sealed take their default answer.
   closeLetters(w, events);
 
-  // 2. The nations act on what they meant to do, unless the Warden talked them out of it,
-  //    and words spoken this season may start wars nobody planned.
+  // 2. Friends go to war as the Warden asked; the nations act on what they meant to do, unless the
+  //    Warden talked them out of it; and words spoken this season may start wars nobody planned.
+  honourFavours(w, rng, events);
   for (const intent of w.intents) {
     if (intent.kind !== 'war') continue;
     if (warHolds(w, intent.nation, intent.target)) declareWar(w, intent.nation, intent.target, 'grudge', events);
@@ -61,11 +66,13 @@ export function resolveSeason(state: WorldState): { state: WorldState; events: G
   }
 
   // 3. Armies muster, march through the valley where they were let (or forced their way), strike at
-  //    the Crossing itself, and fight; nations whose capitals fall collapse into ruins.
+  //    the Crossing itself, and fight; lies that started wars come out on the field; nations whose
+  //    capitals fall collapse into ruins.
   muster(w, events);
   const marches = resolveMarches(w, rng, events);
   attackTheCrossing(w, rng, events);
   fightWars(w, rng, events, marches);
+  revealLiesOnTheField(w, rng, events);
   collapseFallen(w, events);
 
   // 4. The realm shifts: ruins are taken, friends ally, tired wars end.
@@ -73,8 +80,9 @@ export function resolveSeason(state: WorldState): { state: WorldState; events: G
   formAlliances(w, rng, events);
   wearyPeace(w, rng, events);
 
-  // 5. Rulers hand over the land they offered; tolls are paid; the realm settles.
+  // 5. Rulers hand over the land they offered; courts shut out resent it; tolls are paid; the realm settles.
   honourOffers(w, events);
+  resentClosedPasses(w);
   const income = computeIncome(w);
   w.player.gold += income.gold;
   w.player.goldEarned += income.gold;
@@ -110,16 +118,22 @@ export function openFirstSeason(world: WorldState): WorldState {
 export interface SeasonOutcome {
   state: WorldState;
   events: GameEvent[];
+  /** What the bell set in motion, worth telling, in order: the montage plays the biggest. */
+  beats: Beat[];
   ending: Ending | null;
   record: SeasonRecord;
 }
 
-/** Resolve, gossip, check for an ending, record history and turn the page. */
+/** Resolve, gossip, check for an ending, record history and the chronicle, and turn the page. */
 export function playSeason(world: WorldState): SeasonOutcome {
   const resolved = resolveSeason(world);
   const gossip = runGossip(resolved.state, new Rng(resolved.state.rng));
   const w = gossip.state;
   const events = [...world.seasonLog, ...resolved.events, ...gossip.events];
+  const beats = seasonBeats(world, w, [...resolved.events, ...gossip.events]);
+  // The chronicle's lines (the whole season, the Warden's own deeds too) are decided now; its prose
+  // is written later, when the AI returns.
+  w.chronicle.push({ season: w.season, title: seasonTitle(w.season), beats: chronicleBeats(seasonBeats(world, w, events)), lines: [], fromAI: false });
   const ending = checkEnding(w, w.season >= CONFIG.seasons);
   const record: SeasonRecord = {
     season: w.season,
@@ -133,5 +147,5 @@ export function playSeason(world: WorldState): SeasonOutcome {
   w.seasonLog = [];
   if (ending) w.ending = ending;
   else openSeason(w, events);
-  return { state: w, events, ending, record };
+  return { state: w, events, beats, ending, record };
 }

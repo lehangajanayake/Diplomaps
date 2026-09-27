@@ -200,7 +200,7 @@ class SoundBoard {
 
   preloadGreeting(nation: NationId, tone: GreetingTone): void {
     const key = `${nation}-${tone}`;
-    if (this.preloadedGreetings.has(key)) return;
+    if (this.muted || !CONFIG.narrationEnabled || this.preloadedGreetings.has(key)) return;
     try {
       const audio = new Audio(`/audio/greetings/${key}.mp3`);
       audio.preload = 'auto';

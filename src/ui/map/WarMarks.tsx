@@ -1,24 +1,57 @@
 /**
- * What the wars are doing to the Crossing, drawn on the map: broken roads where a nation is at war,
- * faded roads where one has fallen, smoke over burning fields, and a red marker wherever an army
- * means to strike the valley.
+ * What the wars and the Warden's choices are doing to the Crossing, drawn on the map: broken roads
+ * where a nation is at war, greyed roads and a barrier where its pass is closed, faded roads where it
+ * has fallen, smoke over burning fields, a red marker wherever an army means to strike the valley,
+ * and a banner at the pass of a friend sent to war by the Warden's favour.
  */
 import { memo } from 'react';
 import { roadState, type RoadState } from '../../engine/economy';
-import type { MapData, NationId, Point, RegionId, WorldState } from '../../engine/types';
+import { favourThisSeason } from '../../engine/favours';
+import { PROFILES } from '../../engine/nations';
+import type { MapData, MapRoad, NationId, Point, RegionId, WorldState } from '../../engine/types';
 import { NATION_IDS } from '../../engine/types';
-import { INK_RED, LAND } from './palette';
+import { INK, INK_RED, LAND } from './palette';
 
 function along(points: readonly Point[], t: number): Point {
   const i = Math.min(points.length - 1, Math.max(0, Math.round(t * (points.length - 1))));
   return points[i]!;
 }
 
+/** A point on the road just outside the pass (on the nation's side), and the road's heading there in degrees. */
+function outsidePass(road: MapRoad, distance: number): { at: Point; heading: number } {
+  const near = road.points.reduce((best, p, i) => (Math.hypot(p[0] - road.pass[0], p[1] - road.pass[1]) < Math.hypot(road.points[best]![0] - road.pass[0], road.points[best]![1] - road.pass[1]) ? i : best), 0);
+  let i = near;
+  while (i > 0 && Math.hypot(road.points[i]![0] - road.pass[0], road.points[i]![1] - road.pass[1]) < distance) i--;
+  const a = road.points[Math.max(0, i - 1)]!;
+  const b = road.points[Math.min(road.points.length - 1, i + 1)]!;
+  return { at: road.points[i]!, heading: (Math.atan2(b[1] - a[1], b[0] - a[0]) * 180) / Math.PI };
+}
+
+/** A striped wooden barrier laid across the road outside a closed pass. */
+function Barrier({ road }: { road: MapRoad }) {
+  const { at, heading } = outsidePass(road, 12);
+  return (
+    <g transform={`translate(${at[0]} ${at[1]}) rotate(${heading + 90})`} data-barrier={road.nation}>
+      <path d="M-10 -1.8 H10 V1.8 H-10 Z" fill={LAND} stroke={INK} strokeWidth={0.9} />
+      <path d="M-6 -1.8 L-8.5 1.8 M-1 -1.8 L-3.5 1.8 M4 -1.8 L1.5 1.8 M9 -1.8 L6.5 1.8" stroke={INK_RED} strokeWidth={2} />
+      <path d="M-10 -4.5 V4.5 M10 -4.5 V4.5" stroke={INK} strokeWidth={1.8} strokeLinecap="round" />
+    </g>
+  );
+}
+
 function BrokenRoad({ map, nation, state }: { map: MapData; nation: NationId; state: RoadState }) {
   const road = map.roads.find((r) => r.nation === nation);
   if (!road || state === 'open') return null;
   if (state === 'gone') return <path d={road.d} fill="none" stroke={LAND} strokeWidth={3.2} opacity={0.75} strokeLinecap="round" />;
-  if (state !== 'broken') return null;
+  if (state === 'closed') {
+    return (
+      <g>
+        <path d={road.d} fill="none" stroke={LAND} strokeWidth={3.4} opacity={0.8} strokeLinecap="round" />
+        <path d={road.d} fill="none" stroke="#8d8573" strokeWidth={1.3} strokeDasharray="5 3.2" opacity={0.9} strokeLinecap="round" />
+        <Barrier road={road} />
+      </g>
+    );
+  }
   return (
     <g>
       <path d={road.d} fill="none" stroke={LAND} strokeWidth={3.6} strokeDasharray="9 13" strokeLinecap="round" opacity={0.95} />
@@ -38,7 +71,7 @@ const PLUMES = [
   [5, 0, -3.1],
 ] as const;
 
-function Smoke({ map, region }: { map: MapData; region: RegionId }) {
+export function Smoke({ map, region }: { map: MapData; region: RegionId }) {
   const [x, y] = map.regions[region]!.centroid;
   return (
     <g style={{ pointerEvents: 'none' }} data-burning={region}>
@@ -64,15 +97,30 @@ function Danger({ map, region }: { map: MapData; region: RegionId }) {
   );
 }
 
+/** The friend sent to war by the Warden's favour musters under its banner at its pass. */
+function FavourBanner({ map, nation }: { map: MapData; nation: NationId }) {
+  const road = map.roads.find((r) => r.nation === nation);
+  if (!road) return null;
+  const { at } = outsidePass(road, 22);
+  return (
+    <g transform={`translate(${at[0]} ${at[1]})`} data-favour={nation}>
+      <path d="M0 4 V-24" stroke={INK} strokeWidth={1.5} strokeLinecap="round" />
+      <path d="M0.7 -23.5 H17 L12 -18 L17 -12.5 H0.7 Z" fill={PROFILES[nation].colour} stroke="#2a1d12" strokeWidth={0.7} className="banner-wave" />
+    </g>
+  );
+}
+
 export const WarMarks = memo(function WarMarks({ world }: { world: WorldState }) {
   const { map } = world;
   const burning = Object.keys(world.burning).filter((id) => (world.burning[id] ?? 0) >= world.season);
   const threatened = world.intents.flatMap((i) => (i.kind === 'attack' ? [i.region] : []));
+  const favour = favourThisSeason(world);
   return (
     <g style={{ pointerEvents: 'none' }}>
       {NATION_IDS.map((n) => (
         <BrokenRoad key={n} map={map} nation={n} state={roadState(world, n)} />
       ))}
+      {favour && <FavourBanner map={map} nation={favour.nation} />}
       {burning.map((id) => (
         <Smoke key={id} map={map} region={id} />
       ))}

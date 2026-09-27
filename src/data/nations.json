@@ -11,6 +11,7 @@
       "capitalName": "Harrowgate",
       "ruler": {
         "name": "Hadrik the Unbowed",
+        "short": "Hadrik",
         "title": "King of Varrow, Lord of the Iron Steppe",
         "pronoun": "he"
       },
@@ -32,7 +33,7 @@
       "friends": [
         { "with": "ostrin", "reason": "Ostrin's priests blessed Hadrik's crowning, and Varrish riders guard the pilgrim roads." }
       ],
-      "discretion": 0.4,
+      "gossip": 0.4,
       "aggression": 0.8,
       "trustToPlayer": 0,
       "regionWords": ["Iron", "Horse", "Frost", "Wolf", "Spear", "Barrow", "Steppe", "Hoof", "Winter", "Grim"]
@@ -48,6 +49,7 @@
       "capitalName": "Silverhithe",
       "ruler": {
         "name": "Ysolde Marrow",
+        "short": "Ysolde",
         "title": "First Chancellor of the Kelmish League",
         "pronoun": "she"
       },
@@ -69,7 +71,7 @@
       "friends": [
         { "with": "sael", "reason": "Kelmish banks finance Saelish fleets; the two courts share a table at every fair." }
       ],
-      "discretion": 0.7,
+      "gossip": 0.35,
       "aggression": 0.35,
       "trustToPlayer": 15,
       "regionWords": ["Coin", "Mill", "Wharf", "Toll", "Weir", "Silver", "Barge", "Market", "Lock", "Tally"]
@@ -85,6 +87,7 @@
       "capitalName": "Brightwater",
       "ruler": {
         "name": "Lisette Aumery",
+        "short": "Lisette",
         "title": "Duchess of Sael, Mistress of the Salt Roads",
         "pronoun": "she"
       },
@@ -106,7 +109,7 @@
       "friends": [
         { "with": "kelm", "reason": "Kelmish gold and Saelish ships have made each other rich for a generation." }
       ],
-      "discretion": 0.85,
+      "gossip": 0.85,
       "aggression": 0.3,
       "trustToPlayer": 20,
       "regionWords": ["Pearl", "Salt", "Silk", "Gull", "Coral", "Amber", "Tide", "Lantern", "Rose", "Mist"]
@@ -122,6 +125,7 @@
       "capitalName": "Reedholm",
       "ruler": {
         "name": "Mother Gethin",
+        "short": "Mother Gethin",
         "title": "Speaker of the Tarn, Eldest of the Reed Clans",
         "pronoun": "she"
       },
@@ -141,7 +145,7 @@
         { "against": "kelm", "reason": "Kelmish usurers bought the clans' debts and sent bailiffs into the fens." }
       ],
       "friends": [],
-      "discretion": 0.2,
+      "gossip": 0.2,
       "aggression": 0.55,
       "trustToPlayer": -10,
       "regionWords": ["Reed", "Heron", "Mire", "Fen", "Sedge", "Eel", "Bog", "Willow", "Drowned", "Peat"]
@@ -157,6 +161,7 @@
       "capitalName": "Hallowspire",
       "ruler": {
         "name": "Anselm Vey",
+        "short": "Anselm",
         "title": "Hierarch of Ostrin, Keeper of the Seven Lamps",
         "pronoun": "he"
       },
@@ -178,7 +183,7 @@
       "friends": [
         { "with": "varrow", "reason": "The Hierarch crowned Hadrik; Varrish lances keep the pilgrim roads safe." }
       ],
-      "discretion": 0.45,
+      "gossip": 0.45,
       "aggression": 0.5,
       "trustToPlayer": -5,
       "regionWords": ["Lamp", "Saint", "Chapel", "Vigil", "Crag", "Spire", "Hallow", "Bell", "Pilgrim", "Ember"]

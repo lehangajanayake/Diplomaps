@@ -149,6 +149,24 @@ export function RegionHover({ map, id, owner }: { map: MapData; id: RegionId; ow
         <path d={region.d} fill={ownerFill(owner)} fillOpacity={0.1} stroke={ownerInk(owner)} strokeWidth={2.4} strokeLinejoin="round" />
         <path d={region.d} fill="none" stroke={INK} strokeWidth={0.6} opacity={0.7} />
       </g>
+      {!region.capital && (
+        <text
+          x={region.label[0]}
+          y={region.label[1]}
+          textAnchor="middle"
+          fontFamily="'IM Fell English', serif"
+          fontSize={12.5}
+          letterSpacing={0.15}
+          fill={INK}
+          paintOrder="stroke"
+          stroke="#efe3c3"
+          strokeWidth={2.6}
+          strokeOpacity={0.7}
+          strokeLinejoin="round"
+        >
+          {region.name}
+        </text>
+      )}
     </g>
   );
 }

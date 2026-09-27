@@ -32,6 +32,8 @@ export function summariseSeason(before: WorldState, after: WorldState, events: r
     else if (e.kind === 'burn') you.push({ text: `${cap(e.nation)} burned ${place(e.region)}`, tone: 'bad' });
     else if (e.kind === 'march' && e.forced) you.push({ text: `${cap(e.nation)} forced its way through your valley`, tone: 'bad' });
     else if (e.kind === 'march') you.push({ text: `${cap(e.nation)}'s army marched through your valley`, tone: 'neutral' });
+    else if (e.kind === 'turned_back') you.push({ text: `Your closed pass turned back ${who(e.nation)}'s army`, tone: 'good' });
+    else if (e.kind === 'exposed') you.push({ text: `${cap(e.target)} learned you sent ${who(e.nation)} against it`, tone: 'bad' });
   }
 
   for (const e of events) {
@@ -52,7 +54,10 @@ export function summariseSeason(before: WorldState, after: WorldState, events: r
   for (const e of events) if (e.kind === 'collapse') realm.push({ text: `${cap(e.nation)} has fallen to ${who(e.by)}`, tone: 'bad' });
   for (const e of events) {
     if (e.kind === 'war') {
-      const text = e.cause === 'ally' ? `${cap(e.nation)} joined the war against ${who(e.target)}` : `${cap(e.nation)} declared war on ${who(e.target)}`;
+      const text =
+        e.cause === 'ally'
+          ? `${cap(e.nation)} joined the war against ${who(e.target)}`
+          : `${cap(e.nation)} declared war on ${who(e.target)}${e.cause === 'favour' ? ', as you asked' : ''}`;
       realm.push({ text, tone: 'bad' });
     } else if (e.kind === 'battle' && e.captured && e.defender !== CROSSING) {
       realm.push({ text: `${cap(e.attacker)} took ${place(e.region)} from ${who(e.defender)}`, tone: 'neutral' });

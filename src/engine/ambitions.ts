@@ -88,7 +88,7 @@ export const AMBITION: Record<AmbitionId, AmbitionDef> = {
     },
     tip: (w) =>
       w.stats.instigated.length === 0
-        ? 'Call in a favour from a nation that trusts you, or tell a court its old enemy is arming.'
+        ? 'Win a court\'s trust, then call in a favour, or warn it that its old enemy is arming: only courts that trust you believe you.'
         : 'Lie only to courts that keep secrets: the Tarn barely gossips, Sael tells everyone.',
     note: (w) =>
       w.stats.instigated.length === 0 ? 'A war you start counts toward your ambition.' : 'Keep their suspicion low until winter.',

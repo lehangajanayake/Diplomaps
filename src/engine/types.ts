@@ -37,7 +37,8 @@ export interface NationProfile {
   colourDark: string;
   emblem: Emblem;
   capitalName: string;
-  ruler: { name: string; title: string; pronoun: 'he' | 'she' | 'they' };
+  /** `short` is how the ruler is named in passing: "Hadrik", "Mother Gethin". */
+  ruler: { name: string; short: string; title: string; pronoun: 'he' | 'she' | 'they' };
   personality: string;
   /** The personality in one short line, for the dossier. */
   oneLiner: string;
@@ -50,7 +51,8 @@ export interface NationProfile {
   redLine: { kind: RedLineKind; about: NationId | null; text: string };
   grudges: { against: NationId; reason: string }[];
   friends: { with: NationId; reason: string }[];
-  discretion: number;
+  /** How readily this court passes on what it hears, 0 to 1: a chatty court spreads the Warden's words and secrets. */
+  gossip: number;
   aggression: number;
   trustToPlayer: number;
   regionWords: string[];
@@ -239,7 +241,7 @@ export interface LedgerEntry {
   broken: boolean;
 }
 
-export const LETTER_KINDS = ['attack', 'raid', 'passage', 'spoils', 'talks', 'trade', 'last', 'angry'] as const;
+export const LETTER_KINDS = ['attack', 'raid', 'passage', 'help', 'spoils', 'talks', 'trade', 'last', 'angry'] as const;
 export type LetterKind = (typeof LETTER_KINDS)[number];
 
 /** A letter on the Warden's table. What it says and what each answer does live in letters.ts. */
@@ -249,7 +251,7 @@ export interface Letter {
   from: NationId;
   /** The season the letter is on the table. */
   season: number;
-  /** The other nation the letter concerns: the enemy, the target, the one who caught you. */
+  /** The other nation the letter concerns: the enemy, the target, the friend who gave you away. */
   about: NationId | null;
   region: RegionId | null;
   /** Gold offered or asked. */
@@ -277,6 +279,17 @@ export interface PlayerState {
   claims: number;
   /** Land rulers offered in audiences, handed over when the season ends. */
   offers: LandOffer[];
+  /** Favours called in, one a season at most. */
+  favours: Favour[];
+}
+
+/** A favour the Warden called in: `nation` declares war on `target` when the season's bell rings. */
+export interface Favour {
+  nation: NationId;
+  target: NationId;
+  season: number;
+  /** Did the target learn who asked? Decided when the war is declared; null until then. */
+  exposed: boolean | null;
 }
 
 /** A ruler's offer of land, made in an audience. `region` is the one named, if any. */
@@ -319,6 +332,13 @@ export type GameEvent =
   | { kind: 'collapse'; season: number; nation: NationId; by: Owner; region: RegionId }
   /** A nation's army marched through the Crossing: let through, or forcing its way past a refusal. */
   | { kind: 'march'; season: number; nation: NationId; target: NationId; forced: boolean }
+  /** A closed pass turned back an army that meant to cross the valley. */
+  | { kind: 'turned_back'; season: number; nation: NationId; target: NationId }
+  | { kind: 'pass'; season: number; nation: NationId; state: PassState }
+  /** The Warden called in a favour: `nation` will declare war on `target` at the bell. */
+  | { kind: 'favour'; season: number; nation: NationId; target: NationId }
+  /** The target of a favour learned the Warden asked for the war. */
+  | { kind: 'exposed'; season: number; nation: NationId; target: NationId }
   | { kind: 'burn'; season: number; nation: NationId; region: RegionId }
   | { kind: 'gain'; season: number; region: RegionId; from: Holder; how: GainHow }
   | {
@@ -343,9 +363,39 @@ export type GameEvent =
   | { kind: 'letter'; season: number; letter: string; nation: NationId; letterKind: LetterKind; answer: string }
   | { kind: 'tension'; season: number; from: number; to: number };
 
+/** What kind of moment a chronicle line (and a montage beat) is: it picks the icon and the map's effect. */
+export type BeatKind =
+  | 'war'
+  | 'battle'
+  | 'capture'
+  | 'assault'
+  | 'held'
+  | 'collapse'
+  | 'occupy'
+  | 'march'
+  | 'turned_back'
+  | 'burn'
+  | 'gain'
+  | 'lie'
+  | 'exposed'
+  | 'peace'
+  | 'alliance'
+  | 'stand_down';
+
+/** One line of the chronicle: what happened in about twelve words, under the seal of the nation it is about. */
+export interface ChronicleBeat {
+  kind: BeatKind;
+  text: string;
+  seal: Holder;
+  tone: 'good' | 'bad' | 'neutral';
+}
+
 export interface ChronicleEntry {
   season: number;
   title: string;
+  /** The season's events, one line each, decided by code. */
+  beats: ChronicleBeat[];
+  /** The full chronicle in prose, written by the AI (or a template) after the season. */
   lines: string[];
   fromAI: boolean;
 }
@@ -393,7 +443,7 @@ export interface Instigation {
   a: NationId;
   b: NationId;
   season: number;
-  how: 'favour' | 'passage' | 'lie' | 'word' | 'promise';
+  how: 'favour' | 'lie' | 'word' | 'promise';
 }
 
 /** The card that opens each season: what is at stake, in one plain sentence, and a suggested move. */
@@ -434,7 +484,7 @@ export interface WorldStats {
 }
 
 /** Bumped whenever the saved shape changes, so an old save is never loaded into a new game. */
-export const WORLD_VERSION = 2;
+export const WORLD_VERSION = 4;
 
 export interface WorldState {
   version: typeof WORLD_VERSION;

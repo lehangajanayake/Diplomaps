@@ -6,11 +6,11 @@
 import { fallbackAudienceReply, fallbackChronicle, fallbackVerdict } from '../engine/fallbacks';
 import { seasonTitle } from '../engine/config';
 import type {
-  AudienceAssessment,
   AudienceRequest,
   AudienceStreamEvent,
   EndingAIResult,
   EndingRequest,
+  Exchange,
   ExtractRequest,
   ExtractResult,
   FlavourRequest,
@@ -50,27 +50,26 @@ export async function fetchHealth(): Promise<Health> {
   }
 }
 
-export interface StreamedReply {
+/** One exchange of an audience: the ruler's reply and how the Warden's words landed. */
+export interface StreamedReply extends Exchange {
   reply: string;
-  mood: Mood;
   ends: boolean;
   fallback: boolean;
 }
 
 /** Stream a ruler's reply. `onEvent` sees meta and each delta as they arrive. */
-export async function streamAudience(
-  req: AudienceRequest,
-  onEvent: (e: AudienceStreamEvent) => void,
-): Promise<StreamedReply> {
+export async function streamAudience(req: AudienceRequest, onEvent: (e: AudienceStreamEvent) => void): Promise<StreamedReply> {
   const nation = req.nation as NationId;
+  const calm: Exchange = { mood: 'wary', trustDelta: 0, patienceCost: 1, insolent: false };
+  // The ruler is "called away": nothing is judged, and the audience ends.
   const fallback = (): StreamedReply => {
     const reply = fallbackAudienceReply(nation);
-    onEvent({ t: 'meta', mood: 'neutral', ends: true });
+    onEvent({ t: 'meta', mood: 'wary', ends: true });
     onEvent({ t: 'delta', text: reply });
-    return { reply, mood: 'neutral', ends: true, fallback: true };
+    return { ...calm, patienceCost: 0, reply, ends: true, fallback: true };
   };
   let text = '';
-  let mood: Mood = 'neutral';
+  let mood: Mood = 'wary';
   let ends = false;
   try {
     const res = await fetch('/api/audience', {
@@ -102,37 +101,25 @@ export async function streamAudience(
         if (event.t === 'meta') {
           mood = event.mood;
           ends = event.ends;
-          onEvent(event);
         } else if (event.t === 'delta') {
           text += event.text;
-          onEvent(event);
-        } else if (event.t === 'audio') {
-          onEvent(event);
         } else if (event.t === 'done') {
-          return { reply: event.reply || text, mood: event.mood, ends: event.ends, fallback: event.fallback };
+          const { t: _t, ...reply } = event;
+          return { ...reply, reply: event.reply || text };
         }
+        onEvent(event);
       }
     }
-    if (text) return { reply: text, mood, ends, fallback: false };
+    if (text) return { ...calm, mood, reply: text, ends, fallback: false };
     return fallback();
   } catch {
-    if (text) return { reply: text, mood, ends, fallback: false };
+    if (text) return { ...calm, mood, reply: text, ends, fallback: false };
     return fallback();
   }
 }
 
-export function assessAudience(req: AudienceRequest): Promise<AudienceAssessment> {
-  return postJson<AudienceAssessment>('/api/audience', req, 50_000, () => ({
-    trustDelta: 0,
-    endedEarly: !!req.endedByRuler,
-    manipulation: false,
-    learned: '',
-    fallback: true,
-  }));
-}
-
 export function extractPromises(req: ExtractRequest): Promise<ExtractResult> {
-  return postJson<ExtractResult>('/api/extract', req, 50_000, () => ({ entries: [], landOffer: null, fallback: true }));
+  return postJson<ExtractResult>('/api/extract', req, 50_000, () => ({ entries: [], landOffer: null, learned: '', fallback: true }));
 }
 
 /** The chronicle of the season just ended, and the words on the letters that open the next. */

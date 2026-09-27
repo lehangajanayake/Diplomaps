@@ -81,7 +81,7 @@ export function fallbackChronicle(news: readonly News[], seasonTitle: string): s
 }
 
 /** What each ruler writes on each kind of letter, when the AI cannot write it. */
-export const LETTER_WORDS: Record<'attack' | 'raid' | 'passage' | 'spoils' | 'talks' | 'trade', Record<NationId, string>> = {
+export const LETTER_WORDS: Record<'attack' | 'raid' | 'passage' | 'help' | 'spoils' | 'talks' | 'trade', Record<NationId, string>> = {
   attack: {
     varrow: 'Varrow asked. You refused. Now Varrow rides. Pay, or watch the horses drink from your wells.',
     kelm: 'Your account is in arrears, Warden. Kelm has sent collectors. They carry spears.',
@@ -102,6 +102,13 @@ export const LETTER_WORDS: Record<'attack' | 'raid' | 'passage' | 'spoils' | 'ta
     sael: 'Open your little gates, darling. My soldiers promise to wipe their boots.',
     tarn: 'The clans must cross your valley. Will you be a bridge, or a dam? Hm.',
     ostrin: 'The pilgrims of the Lamp march to war. It is written they pass through the valley.',
+  },
+  help: {
+    varrow: 'Shut your gate on our enemy, toll-keeper. Varrow pays for loyalty. Varrow also remembers it.',
+    kelm: 'Kelm will pay a fair rate to see a certain gate shut. Consider it a sound investment.',
+    sael: 'Darling, close your little gate on those brutes and I shall be ever so grateful. In gold.',
+    tarn: 'Be a dam this once, Warden, not a bridge. The fen will fill your purse. Hm.',
+    ostrin: 'It is written: blessed is the gate that shuts upon the wicked. And its keeper is paid, child.',
   },
   spoils: {
     varrow: 'You pointed, Varrow rode, Varrow won. Take your share, toll-keeper. Varrow pays its debts.',
@@ -142,6 +149,15 @@ export const ANGRY_WORDS: Record<NationId, string> = {
   sael: 'Darling, you lied to me. How very rude. Only I am allowed to do that.',
   tarn: 'The heron sees the frog lie still to hide. Hm. The fen saw you.',
   ostrin: 'It is written: the liar builds on water. Your house is sinking, child.',
+};
+
+/** A court that learned the Warden sent another nation to war against it, when the AI cannot write its letter. */
+export const EXPOSED_WORDS: Record<NationId, string> = {
+  varrow: 'You set dogs on Varrow and hid behind the kennel door. Varrow found the door, Warden.',
+  kelm: 'We traced the payment, Warden. The war on Kelm was bought in your valley. Noted. Underlined.',
+  sael: 'Darling, you hired someone to hit me? How crude. I expected poison, at the very least.',
+  tarn: 'The water told us whose hand stirred it. Hm. The fen has a long memory.',
+  ostrin: 'It is written: whoever throws the stone and hides the hand shall lose the hand. Mind yours, child.',
 };
 
 /** Verdicts for when the AI cannot be reached: each ruler's parting shot, by how the game went. */

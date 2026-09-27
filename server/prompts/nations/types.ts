@@ -2,6 +2,12 @@
 export interface NationVoice {
   /** How the ruler talks, in a short paragraph. */
   voice: string;
+  /** The one thing players will remember them doing. */
+  habit: string;
+  /** What makes them funny. */
+  humour: string;
+  /** How they throw the Warden's own words back, as an example line. */
+  remembers: string;
   /** Things that warm this ruler toward the Warden. */
   pleases: string[];
   /** Things that anger or bore this ruler. */

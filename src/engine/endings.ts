@@ -6,22 +6,77 @@
 import { AMBITION } from './ambitions.js';
 import { CONFIG, seasonTitle } from './config.js';
 import { isLie } from './ledger.js';
+import { letterAnswers } from './letters.js';
 import { nameOf } from './nations.js';
-import { CROSSING, NATION_IDS, type AmbitionId, type Ending, type EndingReason, type GameEvent, type WorldState } from './types.js';
+import { CROSSING, NATION_IDS, type AmbitionId, type Ending, type EndingReason, type GainHow, type GameEvent, type Holder, type Letter, type WorldState } from './types.js';
 
 const HOW_WORDS: Record<string, string> = {
   favour: 'your favour',
-  passage: 'the passage you granted',
   lie: 'your lie',
   word: 'your warning',
   promise: 'your promise of support',
+};
+
+/** How a region joined the valley. */
+const GAIN_WORDS: Record<GainHow, (from: Holder, place: string) => string> = {
+  offer: (from, place) => `${nameOf(from, 'start')} gave you ${place} in an audience.`,
+  payment: (from, place) => `${nameOf(from, 'start')} paid you ${place} instead of gold.`,
+  spoils: (from, place) => `${nameOf(from, 'start')} shared ${place} from the war you started.`,
+  claim: (_from, place) => `You claimed the ruins of ${place}.`,
+};
+
+/** After a win, the tip is a new challenge. */
+const NEXT_AMBITION: Record<AmbitionId, string> = {
+  merchant: 'Now try the Spider: start a war between two nations and keep your hands clean.',
+  kingdom: 'Now try the Peacemaker: end the year with every war over.',
+  spider: 'Now try the Kingdom: grow your valley without an army.',
+  peacemaker: 'Now try the Merchant: grow rich while the realm burns.',
 };
 
 function allEvents(w: WorldState): GameEvent[] {
   return w.history.flatMap((h) => h.events);
 }
 
-function decidingMoments(w: WorldState, ambition: AmbitionId, reason: EndingReason): string[] {
+/** What a letter's chosen answer paid the Warden (or cost), in a few words. */
+function dealLine(l: Letter, gold: number): string {
+  const from = nameOf(l.from, 'start');
+  switch (l.kind) {
+    case 'passage':
+      return `${from} paid you ${gold} gold to march through your valley.`;
+    case 'help':
+      return `${from} paid you ${gold} gold to close the pass to ${nameOf(l.about!)}.`;
+    case 'spoils':
+      return `${from} shared ${gold} gold of its spoils with you.`;
+    case 'attack':
+      return `You paid ${-gold} gold when ${nameOf(l.from)} marched on you.`;
+    case 'raid':
+      return `You paid ${nameOf(l.from)}'s raiders ${-gold} gold.`;
+    default:
+      return gold > 0 ? `${from} paid you ${gold} gold.` : `Your answer to ${nameOf(l.from)} cost you ${-gold} gold.`;
+  }
+}
+
+/** The Merchant's year: what filled the purse, and what emptied it. */
+function merchantMoments(w: WorldState, won: boolean): string[] {
+  const deals = w.letters.flatMap((letter) => {
+    const gold = letter.answer ? (letterAnswers(w, letter).find((a) => a.id === letter.answer)?.outcome.gold ?? 0) : 0;
+    return gold ? [{ letter, gold }] : [];
+  });
+  const caravans = deals.filter((d) => d.letter.kind === 'trade').reduce((sum, d) => sum + d.gold, 0);
+  const tolls = allEvents(w).reduce((sum, e) => sum + (e.kind === 'income' ? e.tolls : 0), 0) + caravans;
+  const others = deals.filter((d) => d.letter.kind !== 'trade');
+  const best = [...others].sort((a, b) => b.gold - a.gold)[0];
+  const worst = [...others].sort((a, b) => a.gold - b.gold)[0];
+  const seasons = w.history.map((h) => ({ season: h.season, delta: h.goldEnd - h.goldStart }));
+  const lean = [...seasons].sort((a, b) => a.delta - b.delta)[0];
+  if (won) return [`Tolls and caravans brought in ${tolls} gold.`, ...(best && best.gold > 0 ? [dealLine(best.letter, best.gold)] : [])];
+  return [
+    ...(worst && worst.gold < 0 ? [dealLine(worst.letter, worst.gold)] : []),
+    ...(lean ? [`${seasonTitle(lean.season)} brought only ${lean.delta >= 0 ? `+${lean.delta}` : lean.delta} gold.`] : []),
+  ].slice(0, 2);
+}
+
+function decidingMoments(w: WorldState, ambition: AmbitionId, reason: EndingReason, won: boolean): string[] {
   const events = allEvents(w);
   const place = (id: string) => w.map.regions[id]?.name ?? id;
   if (reason === 'ashes') {
@@ -33,23 +88,19 @@ function decidingMoments(w: WorldState, ambition: AmbitionId, reason: EndingReas
     return [`${certain.map((n, i) => nameOf(n, i === 0 ? 'start' : 'mid')).join(', ')} all became certain you were lying.`];
   }
   switch (ambition) {
-    case 'merchant': {
-      const seasons = w.history.map((h) => ({ season: h.season, delta: h.goldEnd - h.goldStart }));
-      const best = [...seasons].sort((a, b) => b.delta - a.delta)[0];
-      const worst = [...seasons].sort((a, b) => a.delta - b.delta)[0];
-      const out: string[] = [];
-      if (best && best.delta > 0) out.push(`Your best season was ${seasonTitle(best.season)}: +${best.delta} gold.`);
-      if (worst && worst !== best && worst.delta < best!.delta) out.push(`${seasonTitle(worst.season)} brought only ${worst.delta >= 0 ? `+${worst.delta}` : worst.delta} gold.`);
-      return out.slice(0, 2);
-    }
+    case 'merchant':
+      return merchantMoments(w, won);
     case 'kingdom': {
-      const out: string[] = [];
+      const lost: string[] = [];
+      const gained: string[] = [];
       for (const e of events) {
-        if (e.kind === 'battle' && e.captured && e.defender === CROSSING) out.push(`${nameOf(e.attacker, 'start')} took ${place(e.region)} from you.`);
-        if (e.kind === 'cede' && e.nation === CROSSING) out.push(`You gave ${place(e.region)} to ${nameOf(e.target)}.`);
+        if (e.kind === 'battle' && e.captured && e.defender === CROSSING) lost.push(`${nameOf(e.attacker, 'start')} took ${place(e.region)} from you.`);
+        if (e.kind === 'cede' && e.nation === CROSSING) lost.push(`You gave ${place(e.region)} to ${nameOf(e.target)}.`);
+        if (e.kind === 'gain') gained.push(GAIN_WORDS[e.how](e.from, place(e.region)));
       }
-      const gained = w.player.regionsGained.map((id) => `You won ${place(id)}.`);
-      return [...gained, ...out].slice(0, 2);
+      // A win was decided by the last land to join; a loss by the land lost, or too little gained.
+      if (won) return gained.slice(-2);
+      return lost.length > 0 ? lost.slice(0, 2) : [`You gained ${gained.length} ${gained.length === 1 ? 'region' : 'regions'}; you needed ${CONFIG.ambitions.kingdomRegions - 3}.`];
     }
     case 'spider': {
       const out = w.stats.instigated.map(
@@ -90,7 +141,7 @@ function make(w: WorldState, reason: EndingReason, final: boolean): Ending {
       : reason === 'unmasked'
         ? 'Every lie can travel. Never promise the same thing to two courts.'
         : won
-          ? 'Next time, try a different ambition.'
+          ? NEXT_AMBITION[ambition]
           : def.tip(w);
   return {
     result: won ? 'victory' : 'defeat',
@@ -101,7 +152,7 @@ function make(w: WorldState, reason: EndingReason, final: boolean): Ending {
     title,
     subtitle,
     progress: def.progress(w),
-    moments: decidingMoments(w, ambition, reason),
+    moments: decidingMoments(w, ambition, reason, won),
     tip,
   };
 }

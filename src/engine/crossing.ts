@@ -5,6 +5,7 @@
  */
 import { available, edgeKind, fight, type AttackOption } from './battles.js';
 import { CONFIG } from './config.js';
+import { marchesForTheWarden } from './favours.js';
 import { PROFILES } from './nations.js';
 import { needsPassage } from './policy.js';
 import type { Rng } from './rng.js';
@@ -15,10 +16,13 @@ import { isStanding } from './world.js';
 /** Who marches through the Crossing this season, and against whom. */
 export type Marches = Map<NationId, NationId>;
 
-/** Wars whose sides can only meet by crossing the valley. */
-function warsNeedingPassage(w: WorldState): { nation: NationId; target: NationId }[] {
+/**
+ * Armies that can only reach their enemy by crossing the valley: those of wars being fought and, when
+ * a season opens, of wars being planned. By the bell, planned wars have been declared or called off.
+ */
+function armiesNeedingPassage(w: WorldState, includePlanned: boolean): { nation: NationId; target: NationId }[] {
   const out: { nation: NationId; target: NationId }[] = [];
-  for (const intent of w.intents) {
+  for (const intent of includePlanned ? w.intents : []) {
     if (intent.kind === 'war' && needsPassage(w, intent.nation, intent.target)) out.push({ nation: intent.nation, target: intent.target });
   }
   for (const war of w.wars) {
@@ -30,26 +34,30 @@ function warsNeedingPassage(w: WorldState): { nation: NationId; target: NationId
 
 /** The armies that want to cross the valley this season, for the letters that ask leave. */
 export function passageWanted(w: WorldState): { nation: NationId; target: NationId }[] {
-  return warsNeedingPassage(w).filter((x) => w.player.passes[x.nation] === 'open');
+  return armiesNeedingPassage(w, true).filter((x) => w.player.passes[x.nation] === 'open');
 }
 
 /**
- * At the bell: armies let through march; armies refused (or facing a closed pass) may force their
- * way through if they are desperate enough, at a cost to the valley.
+ * At the bell: a closed pass turns an army back; armies let through (or sent by the Warden's favour)
+ * march; armies refused may force their way through if they are desperate enough, at a cost to the valley.
  */
 export function resolveMarches(w: WorldState, rng: Rng, events: GameEvent[]): Marches {
   const marches: Marches = new Map();
   const l = CONFIG.letters;
-  for (const { nation, target } of warsNeedingPassage(w)) {
+  for (const { nation, target } of armiesNeedingPassage(w, false)) {
+    if (w.player.passes[nation] === 'closed') {
+      w.nations[nation].grievances += 1;
+      events.push({ kind: 'turned_back', season: w.season, nation, target });
+      continue;
+    }
     const letter = w.letters.find((x) => x.kind === 'passage' && x.season === w.season && x.from === nation && x.about === target);
-    const granted = letter?.answer === 'grant' || letter?.answer === 'land';
+    const granted = letter?.answer === 'grant' || letter?.answer === 'land' || marchesForTheWarden(w, nation, target);
     if (granted) {
       marches.set(nation, target);
       events.push({ kind: 'march', season: w.season, nation, target, forced: false });
       continue;
     }
-    const refused = letter?.answer === 'refuse' || w.player.passes[nation] === 'closed';
-    if (!refused || !rng.chance(PROFILES[nation].aggression * l.forcedChance)) continue;
+    if (letter?.answer !== 'refuse' || !rng.chance(PROFILES[nation].aggression * l.forcedChance)) continue;
     marches.set(nation, target);
     const loss = Math.min(w.player.gold, l.forcedGold);
     w.player.gold -= loss;

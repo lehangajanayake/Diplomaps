@@ -4,8 +4,9 @@
  */
 import { CONFIG } from './config.js';
 import { CLAIM_KINDS, CROSSING, NATION_IDS, type ClaimKind, type GameEvent, type LedgerEntry, type NationId, type WorldState } from './types.js';
+import type { Rng } from './rng.js';
 import type { ExtractedEntry } from './schema.js';
-import { addTension, adjustNeutrality, adjustSuspicion, adjustTrustPlayer, clamp, crossRedLine, strike } from './tension.js';
+import { addTension, adjustNeutrality, adjustSuspicion, adjustTrustPlayer, crossRedLine, strike } from './tension.js';
 import { PROFILES } from './nations.js';
 import { allied, atWar, cloneWorld, hasGrudge, regionsOf, totalTroops } from './world.js';
 
@@ -23,6 +24,29 @@ function troopsFacing(w: WorldState, nation: NationId, target: NationId): number
   return sum;
 }
 
+/** Claims that set a court against the nation they are about: it is arming, it hates you, it plots. */
+const PROVOKING: ReadonlySet<ClaimKind> = new Set(['military_threat', 'hostile_intent', 'secret_alliance']);
+
+type ClaimFields = Pick<LedgerEntry, 'to' | 'about' | 'claimKind' | 'withNation'>;
+
+/**
+ * The court a claim of threat, hostility or friendship is aimed at: the third court the Warden named
+ * ("Kelm means to attack Sael"), or else the listener. A secret alliance's other party is no target.
+ */
+export function claimTarget(e: ClaimFields): NationId {
+  return e.claimKind !== 'secret_alliance' && e.withNation && e.withNation !== e.about ? e.withNation : e.to;
+}
+
+/** Does this claim set its listener against the nation it is about? Only a threat aimed at the listener does. */
+export function provokes(e: LedgerEntry): boolean {
+  return e.type === 'claim' && !!e.about && !!e.claimKind && PROVOKING.has(e.claimKind) && claimTarget(e) === e.to;
+}
+
+/** Does this claim reassure its listener that the nation it is about means them no harm? */
+export function reassures(e: LedgerEntry): boolean {
+  return e.type === 'claim' && !!e.about && e.claimKind === 'friendly_intent' && claimTarget(e) === e.to;
+}
+
 /** Was a claim about `about` true when told to `to`? null when nobody could know. */
 export function evaluateClaim(
   w: WorldState,
@@ -33,24 +57,25 @@ export function evaluateClaim(
 ): boolean | null {
   if (!about || !CLAIM_KINDS.includes(kind)) return null;
   const x = w.nations[about];
+  const target = claimTarget({ to, about, claimKind: kind, withNation });
   switch (kind) {
     case 'military_threat': {
-      const aimed = w.intents.some((i) => i.kind === 'war' && i.nation === about && i.target === to);
-      return aimed || atWar(w, about, to) || x.trust[to] <= -55 || troopsFacing(w, about, to) >= 8;
+      const aimed = w.intents.some((i) => i.kind === 'war' && i.nation === about && i.target === target);
+      return aimed || atWar(w, about, target) || x.trust[target] <= -55 || troopsFacing(w, about, target) >= 8;
     }
     case 'secret_alliance':
       if (!withNation || withNation === about) return null;
       return allied(w, about, withNation) || x.trust[withNation] >= 40;
     case 'hostile_intent':
-      if (about === to) return null;
-      return x.trust[to] <= -20 || hasGrudge(about, to);
+      if (about === target) return null;
+      return x.trust[target] <= -20 || hasGrudge(about, target);
     case 'weakness': {
       const avg = NATION_IDS.reduce((s, n) => s + totalTroops(w, n), 0) / NATION_IDS.length;
       return totalTroops(w, about) < avg * 0.85 || regionsOf(w, about).length < 3;
     }
     case 'friendly_intent':
-      if (about === to) return null;
-      return x.trust[to] >= 20;
+      if (about === target) return null;
+      return x.trust[target] >= 20;
     default:
       return null;
   }
@@ -143,6 +168,25 @@ export function becomeAware(w: WorldState, entry: LedgerEntry, nation: NationId,
   return events;
 }
 
+/**
+ * A lie that started a war does not survive the fighting: each season the war goes on, the court that
+ * was lied to may find there was no truth in it, and the court it slandered may hear what was said.
+ */
+export function revealLiesOnTheField(w: WorldState, rng: Rng, events: GameEvent[]): void {
+  for (const war of w.wars) {
+    for (const [told, about] of [[war.a, war.b], [war.b, war.a]] as const) {
+      for (const entry of w.player.ledger) {
+        if (entry.type !== 'claim' || entry.truth !== false || entry.to !== told || entry.about !== about) continue;
+        const catchers = [told, about].filter((n) => !entry.caughtBy.includes(n) && rng.chance(CONFIG.suspicion.warReveal));
+        if (catchers.length === 0) continue;
+        const how = `${PROFILES[told].name} found no truth in it on the field`;
+        for (const n of catchers) events.push(...becomeAware(w, entry, n, how));
+        events.push({ kind: 'lie_caught', season: w.season, entry: entry.id, by: catchers, how });
+      }
+    }
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /* Adding promises and claims from an audience                          */
 /* ------------------------------------------------------------------ */
@@ -228,13 +272,16 @@ export function addLedgerEntries(
 /* Audiences                                                            */
 /* ------------------------------------------------------------------ */
 
-export function recordAudience(
-  world: WorldState,
-  nation: NationId,
-  trustDelta: number,
-  learned: string,
-  held: boolean,
-): { world: WorldState; events: GameEvent[] } {
+/** One exchange of an audience: the ruler's trust moves (the caller keeps the audience within its cap). */
+export function recordExchange(world: WorldState, nation: NationId, trustDelta: number): WorldState {
+  if (trustDelta === 0) return world;
+  const w = cloneWorld(world);
+  adjustTrustPlayer(w, nation, trustDelta);
+  return w;
+}
+
+/** The audience is over: count it, let a warm one calm the realm, and remember what the Warden learned. */
+export function recordAudience(world: WorldState, nation: NationId, trustChange: number, learned: string, held: boolean): WorldState {
   const w = cloneWorld(world);
   if (held && !w.audiencesThisSeason.includes(nation)) {
     w.audiencesThisSeason.push(nation);
@@ -242,9 +289,8 @@ export function recordAudience(
     w.nations[nation].lastAudienceSeason = w.season;
     w.stats.audiencesHeld += 1;
   }
-  adjustTrustPlayer(w, nation, clamp(trustDelta, -15, 15));
-  if (held && trustDelta >= CONFIG.tension.warmAudience) addTension(w, CONFIG.tension.warmAudienceCalm);
+  if (held && trustChange >= CONFIG.tension.warmAudience) addTension(w, CONFIG.tension.warmAudienceCalm);
   if (learned) w.nations[nation].learned.push({ season: w.season, text: learned });
-  return { world: w, events: [] };
+  return w;
 }
 

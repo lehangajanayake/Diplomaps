@@ -16,7 +16,24 @@ export const CONFIG = {
   startYear: 614,
   seasonNames: ['Spring', 'Summer', 'Autumn', 'Winter'] as const,
   audiencesPerSeason: 2,
-  messagesPerAudience: 4,
+
+  /** Audiences (audience.ts): a ruler listens while their patience lasts. */
+  audience: {
+    /** Starting patience, in exchanges: trust at or below each mark gives that many; above the last, `patienceMax`. */
+    patience: [
+      { trustAtMost: -30, exchanges: 3 },
+      { trustAtMost: 0, exchanges: 4 },
+      { trustAtMost: 39, exchanges: 5 },
+    ],
+    patienceMax: 6,
+    /** An exchange costs 1 patience; repetition, empty flattery, pushing a refused point or insolence cost up to this. */
+    maxCost: 3,
+    /** How far one exchange, and one whole audience, can move a ruler's trust. */
+    exchangeTrust: 6,
+    audienceTrust: 15,
+    /** A hard stop, whatever the ruler's patience. */
+    maxExchanges: 8,
+  },
 
   map: {
     width: 1000,
@@ -82,9 +99,12 @@ export const CONFIG = {
     strengthWeight: 0.4,
     redLine: 1,
     /** The Warden's words: warning a court about its rival, promising support, or reassuring it. */
-    provoked: 0.8,
+    provoked: 0.6,
     emboldened: 0.5,
-    reassured: 1,
+    reassured: 0.6,
+    /** Words move a court only as far as it believes the Warden: not at all at this trust, fully at `beliefFull`. */
+    beliefNone: -20,
+    beliefFull: 40,
     /** Each war a nation is already fighting cools its appetite for another. */
     busyPenalty: 0.9,
     maxWarsPerNation: 2,
@@ -93,6 +113,11 @@ export const CONFIG = {
     steepness: 3,
     /** A planned war is called off at the bell if desire has fallen below this. */
     standDown: 0.7,
+    /**
+     * A realm that has not yet seen war grows restless: in seasons 1, 2, 3... the hottest grudge boils
+     * over with at least this chance, so no game stays quiet for long.
+     */
+    firstWarFloor: [0, 0.6, 1],
     allianceTrust: 30,
     allianceChance: 0.5,
     /** Chance a nation marches into ruins beside it each season. */
@@ -127,6 +152,8 @@ export const CONFIG = {
     brokenPromise: 22,
     redLine: 10,
     decay: 3,
+    /** Each season a war started by a lie goes on, each side may find the lie out on the field. */
+    warReveal: 0.45,
   },
 
   neutrality: {
@@ -207,14 +234,49 @@ export const CONFIG = {
     tradeChargeTrust: -3,
     raidCost: [20, 30] as const,
     raidChance: 0.45,
+    /** Only a court cooler than this toward the Warden sends foragers into the valley. */
+    raidTrustBelow: 10,
     tribute: [30, 45] as const,
     tributeTrust: 5,
     sellswordsCost: 35,
     sellswordsTroops: 4,
     talksCost: 15,
     talksChance: 0.6,
+    /** How many wars may ask for talks in one season. */
+    talksPerSeason: 2,
     talksTrust: 6,
     talksTension: -5,
+    /** A nation about to be attacked through the valley may pay you to close the pass to its enemy. */
+    helpChance: 0.6,
+    helpFee: [25, 35] as const,
+    helpTrust: 6,
+    helpRefusedTrust: -6,
+  },
+
+  /** Favours (favours.ts): a friend goes to war on the Warden's word, once a season. */
+  favours: {
+    /** How much a nation must trust the Warden before it will go to war for it. */
+    minTrust: 50,
+    /** What calling one costs: that friend's trust, and the Warden's neutrality. */
+    trustCost: -20,
+    neutralityCost: -15,
+    /** If the target learns who asked (the chance is how much the friend gossips). */
+    exposedSuspicion: 30,
+    exposedTrust: -15,
+  },
+
+  relations: {
+    /** The relations view draws two nations whose mutual trust is at or below this as hostile. */
+    hostileBelow: -25,
+    /** A nation counts another a friend when it trusts it this much, an enemy when it distrusts it this much. */
+    friendAbove: 30,
+    enemyBelow: -30,
+  },
+
+  /** Passes (passes.ts): a closed pass stops a nation's armies, caravans and tolls. */
+  passes: {
+    /** Trust the nation loses in the Warden each season its pass stays closed. */
+    closedTrust: -6,
   },
 
   /** Land for the Crossing (land.ts): what it costs to grow, and what growing costs you. */
@@ -225,16 +287,20 @@ export const CONFIG = {
     growthNeutrality: -5,
     /** ...and makes every nation it borders this much warier. */
     growthTrust: -4,
-    claimCost: 30,
+    claimCost: 35,
     claimStep: 15,
+    /** A court hands over land instead of gold only if it trusts the Warden at least this much. */
+    askTrust: 5,
+    /** A ruler gives land in an audience only when at least cordial, and only once a game. */
+    offerTrust: 10,
     spoilsGold: 40,
   },
 
   ambitions: {
-    merchantGold: 300,
+    merchantGold: 330,
     kingdomRegions: 7,
-    spiderSuspicion: 50,
-    peacemakerTension: 30,
+    spiderSuspicion: 40,
+    peacemakerTension: 26,
   },
 
   endings: {

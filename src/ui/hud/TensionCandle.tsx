@@ -1,5 +1,6 @@
 /** Tension as a candle burning down in a brass holder. The flame and glow flicker; it runs red when war is near. */
 import { CONFIG } from '../../engine/config';
+import { FloatingDelta } from '../common/FloatingDelta';
 import { tensionWord } from './words';
 
 export function TensionCandle({ tension, bare = false }: { tension: number; bare?: boolean }) {
@@ -61,7 +62,8 @@ export function TensionCandle({ tension, bare = false }: { tension: number; bare
         </g>
       </svg>
       {!bare && (
-      <div className="mt-1 text-center leading-tight">
+      <div className="relative mt-1 text-center leading-tight">
+        <FloatingDelta value={Math.round(t)} invert className="-top-[1.1em] left-1/2" />
         <div className="font-sc text-[0.72rem] tracking-[0.14em] text-parchment-300/80">Tension</div>
         <div className={`font-display text-[1.05rem] font-semibold ${danger ? 'text-[#f08a5d]' : 'text-parchment-100'} candle-text`}>
           {Math.round(t)} <span className="font-body text-[0.8rem] font-normal italic opacity-80">{tensionWord(t)}</span>

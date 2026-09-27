@@ -80,6 +80,7 @@ export function createWorld(seed: number): WorldState {
       goldSpent: 0,
       neutrality: CONFIG.start.neutrality,
       passes: Object.fromEntries(NATION_IDS.map((id) => [id, 'open'])) as Record<NationId, 'open'>,
+      favours: [],
       ledger: [],
       regionsGained: [],
       claims: 0,
@@ -96,6 +97,7 @@ export function createWorld(seed: number): WorldState {
       {
         season: 0,
         title: 'The Eve of Spring, 614',
+        beats: [],
         lines: [
           'Five crowns watch one another across the valley, and every road between them runs through the Crossing.',
           "In Wayhold the Warden breaks the seal on a new year. The tolls are good. The quiet will not last.",
@@ -170,8 +172,14 @@ export function bordersOwner(world: WorldState, owner: Owner, other: Owner): boo
   });
 }
 
-export function atWar(world: WorldState, a: Owner, b: Owner): boolean {
+/** Wars are fought between nations; the Crossing is struck by attacks instead (see `marchingOnCrossing`). */
+export function atWar(world: WorldState, a: NationId, b: NationId): boolean {
   return world.wars.some((w) => (w.a === a && w.b === b) || (w.a === b && w.b === a));
+}
+
+/** Does this nation mean to attack the valley when the bell rings? */
+export function marchingOnCrossing(world: WorldState, nation: NationId): boolean {
+  return world.intents.some((i) => i.kind === 'attack' && i.nation === nation);
 }
 
 /** How many wars a nation is fighting. */
@@ -181,6 +189,27 @@ export function warsOf(world: WorldState, nation: NationId): number {
 
 export function allied(world: WorldState, a: Owner, b: Owner): boolean {
   return world.alliances.some((al) => (al.a === a && al.b === b) || (al.a === b && al.b === a));
+}
+
+/** How two nations stand, as the relations view draws it. */
+export type Relation = 'war' | 'ally' | 'hostile' | 'neutral';
+
+export function relationBetween(world: WorldState, a: NationId, b: NationId): Relation {
+  if (atWar(world, a, b)) return 'war';
+  if (allied(world, a, b)) return 'ally';
+  const mutual = (world.nations[a].trust[b] + world.nations[b].trust[a]) / 2;
+  return mutual <= CONFIG.relations.hostileBelow ? 'hostile' : 'neutral';
+}
+
+/** Whom `nation` counts as friends (allies, or warmly trusted) and as enemies (at war, or bitterly distrusted). */
+export function friendsAndEnemies(world: WorldState, nation: NationId): { friends: NationId[]; enemies: NationId[] } {
+  const r = CONFIG.relations;
+  const others = NATION_IDS.filter((o) => o !== nation);
+  const trust = world.nations[nation].trust;
+  return {
+    friends: others.filter((o) => allied(world, nation, o) || (trust[o] >= r.friendAbove && !atWar(world, nation, o))),
+    enemies: others.filter((o) => atWar(world, nation, o) || trust[o] <= r.enemyBelow),
+  };
 }
 
 export function alliesOf(world: WorldState, nation: NationId): NationId[] {

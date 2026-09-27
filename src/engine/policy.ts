@@ -5,13 +5,18 @@
  * only writes the words around them.
  */
 import { CONFIG } from './config.js';
+import { provokes, reassures } from './ledger.js';
 import { PROFILES } from './nations.js';
 import type { Rng } from './rng.js';
 import { clamp, redLineCrossedRecently } from './tension.js';
-import { CROSSING, NATION_IDS, type ClaimKind, type Intent, type NationId, type RegionId, type WorldState } from './types.js';
+import { CROSSING, NATION_IDS, type Intent, type NationId, type RegionId, type WorldState } from './types.js';
 import { allied, atWar, bordersOwner, isStanding, regionsOf, totalTroops, warsOf } from './world.js';
 
-const PROVOKING: ReadonlySet<ClaimKind> = new Set(['military_threat', 'hostile_intent', 'secret_alliance']);
+/** How far `nation` believes the Warden, 0 to 1: words from a Warden it distrusts move it not at all. */
+export function belief(w: WorldState, nation: NationId): number {
+  const c = CONFIG.war;
+  return clamp((w.nations[nation].trustPlayer - c.beliefNone) / (c.beliefFull - c.beliefNone), 0, 1);
+}
 
 /** How the Warden's words to `nation` about `target`, this season and last, push it toward war or away. */
 export function wordsAbout(w: WorldState, nation: NationId, target: NationId): number {
@@ -19,11 +24,11 @@ export function wordsAbout(w: WorldState, nation: NationId, target: NationId): n
   let push = 0;
   for (const e of w.player.ledger) {
     if (e.to !== nation || e.about !== target || e.season < w.season - 1) continue;
-    if (e.type === 'claim' && e.claimKind && PROVOKING.has(e.claimKind)) push += c.provoked;
-    else if (e.type === 'claim' && e.claimKind === 'friendly_intent') push -= c.reassured;
+    if (provokes(e)) push += c.provoked;
+    else if (reassures(e)) push -= c.reassured;
     else if (e.promiseKind === 'support_against') push += c.emboldened;
   }
-  return push;
+  return push * belief(w, nation);
 }
 
 /** How much `nation` wants war with `target` right now. War is a coin flip at CONFIG.war.threshold. */
@@ -66,13 +71,22 @@ export function favouriteEnemy(w: WorldState, nation: NationId): { target: Natio
  * story readable; allies, favours and the Warden's words add the rest.
  */
 function planWar(w: WorldState, rng: Rng): Intent[] {
+  // Only a grudge hot enough to hold at the bell is planned, so the crisis card's warning is never hollow:
+  // the war comes unless the Warden talks the nation down or shuts the pass.
   const candidates = NATION_IDS.flatMap((nation) => {
     const best = favouriteEnemy(w, nation);
-    return best ? [{ nation, target: best.target, chance: warChance(best.desire) }] : [];
+    return best && best.desire >= CONFIG.war.standDown ? [{ nation, target: best.target, chance: warChance(best.desire) }] : [];
   });
   if (candidates.length === 0) return [];
   const pick = rng.weighted(candidates, candidates.map((c) => c.chance + 1e-6));
-  return rng.chance(pick.chance) ? [{ kind: 'war', nation: pick.nation, target: pick.target }] : [];
+  return rng.chance(Math.max(pick.chance, restlessness(w))) ? [{ kind: 'war', nation: pick.nation, target: pick.target }] : [];
+}
+
+/** Until the first war, the realm grows restless: the least chance this season's hottest grudge boils over. */
+function restlessness(w: WorldState): number {
+  if (w.stats.firstWarSeason !== null) return 0;
+  const floor = CONFIG.war.firstWarFloor;
+  return floor[Math.min(w.season, floor.length) - 1] ?? 0;
 }
 
 /** Does `nation` have to march through the Crossing to reach `target`? */
@@ -123,8 +137,12 @@ export function planIntents(w: WorldState, rng: Rng): Intent[] {
   return [...wars, ...planAttack(w, rng, wars.map((i) => i.nation))];
 }
 
-/** At the bell: does a planned war still stand, now that the Warden has had a season to talk? */
+/**
+ * At the bell: does a planned war still stand, now that the Warden has had a season to talk? An army
+ * that can only reach its enemy through the valley calls the war off while the Warden's pass is closed.
+ */
 export function warHolds(w: WorldState, nation: NationId, target: NationId): boolean {
+  if (needsPassage(w, nation, target) && w.player.passes[nation] === 'closed') return false;
   return warDesire(w, nation, target) >= CONFIG.war.standDown;
 }
 
@@ -132,9 +150,9 @@ export function warHolds(w: WorldState, nation: NationId, target: NationId): boo
 export function sparkedByWords(w: WorldState, rng: Rng): Intent[] {
   const out: Intent[] = [];
   for (const e of w.player.ledger) {
-    if (e.season !== w.season || e.type !== 'claim' || !e.about || !e.claimKind || !PROVOKING.has(e.claimKind)) continue;
+    if (e.season !== w.season || !provokes(e)) continue;
     const nation = e.to;
-    const target = e.about;
+    const target = e.about!;
     if (out.some((x) => x.nation === nation) || w.intents.some((x) => x.kind === 'war' && x.nation === nation && x.target === target)) continue;
     if (rng.chance(warChance(warDesire(w, nation, target)))) out.push({ kind: 'war', nation, target });
   }

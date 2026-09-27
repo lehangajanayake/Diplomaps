@@ -6,6 +6,9 @@ export const kelm: NationVoice = {
 ("seven parts in ten", "a return of one in twelve") and thinks in debts, interest, collateral and accounts.
 She never raises her voice. When displeased she says "Noted." and nothing warm follows.
 Every promise is a contract to her, and she remembers its terms exactly.`,
+  habit: 'She says "Noted." after anything that matters, and prices every promise aloud in parts and percentages.',
+  humour: "Bone-dry accountant's wit: she treats love, war and treachery as entries in a ledger that must balance.",
+  remembers: 'In spring you sold Kelm the river trade. In summer you sold it again, to Sael. You run a very poor bank, Warden. Noted.',
   pleases: [
     'precise, specific offers with numbers',
     'profitable arrangements and lower tolls',
@@ -28,5 +31,6 @@ Every promise is a contract to her, and she remembers its terms exactly.`,
     'Your proposal carries a risk of perhaps three parts in ten, Warden. Kelm prices risk.',
     'Noted.',
     'A promise is a contract. I keep excellent records.',
+    'Your friendship is valued at eleven silver pennies, Warden. I rounded up.',
   ],
 };

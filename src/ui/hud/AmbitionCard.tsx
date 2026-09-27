@@ -22,10 +22,10 @@ export function AmbitionCard({ world }: { world: WorldState }) {
       aria-label={`Your ambition, ${def.title}: ${def.goal} ${progress.label}.`}
       data-tutorial="ambition"
     >
-      <WaxSeal colour={art.colour} emblem={art.emblem} size="2.7em" seed={31} className="shrink-0" />
+      <WaxSeal colour={art.colour} emblem={art.emblem} size="2.3em" seed={31} className="shrink-0" />
       <div className="min-w-0 flex-1">
         <p className="flex items-baseline justify-between gap-2">
-          <span className="font-display text-[0.86rem] font-semibold tracking-[0.05em]">{def.title}</span>
+          <span className="whitespace-nowrap font-display text-[0.82rem] font-semibold tracking-[0.03em]">{def.title}</span>
           {done && <span className="font-sc text-[0.72rem] text-[#3d5a3a]">achieved</span>}
         </p>
         <div className="mt-[0.3em] h-[0.5em] overflow-hidden rounded-full bg-ink/15 shadow-[inset_0_1px_2px_rgb(0_0_0/0.35)]">

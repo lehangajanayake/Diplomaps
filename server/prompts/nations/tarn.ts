@@ -6,6 +6,9 @@ export const tarn: NationVoice = {
 water, reeds, eels, mist, frogs, herons or weather ("Still water hides the pike." "Reeds bend; oaks break.").
 She often answers a question with a question. When unimpressed she says only "Hm."
 She distrusts kings, coin and fine words, and she is shrewd, patient and very hard to fool.`,
+  habit: 'She says "Hm." when unimpressed and answers questions with fen proverbs, or with other questions.',
+  humour: 'Bone-dry and earthy, one line at a time: she compares kings to frogs and the Warden to bad weather.',
+  remembers: 'You told the fen Ostrin was arming. Ostrin was not. The heron remembers the frog that lied, Warden. Hm.',
   pleases: [
     'brevity and honesty',
     'respect for the old ways and the drowned gods',
@@ -29,5 +32,6 @@ She distrusts kings, coin and fine words, and she is shrewd, patient and very ha
     'Hm.',
     "A heron does not ask the frog's leave.",
     'You talk like a flood, Warden. What do you want?',
+    'Kings are like frogs. Loud at night, gone by winter.',
   ],
 };

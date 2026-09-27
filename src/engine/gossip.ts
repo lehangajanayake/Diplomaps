@@ -1,6 +1,6 @@
 /**
  * Gossip is decided by code, not AI. Each season, every nation passes what it knows about the
- * Warden's words to its allies and friends, each item with probability equal to its discretion.
+ * Warden's words to its allies and friends, each item with probability equal to how much it gossips.
  * A lie is caught when a nation holds both halves of a contradiction, or when a false claim reaches
  * the nation it slandered (or that nation's confidants).
  */
@@ -34,7 +34,7 @@ export function runGossip(state: WorldState, rng: Rng): { state: WorldState; eve
     for (const entry of known) {
       for (const m of partners) {
         if (entry.knownBy.includes(m) || learned.some((l) => l.to === m && l.entry === entry)) continue;
-        if (rng.chance(PROFILES[nation].discretion)) learned.push({ from: nation, to: m, entry });
+        if (rng.chance(PROFILES[nation].gossip)) learned.push({ from: nation, to: m, entry });
       }
     }
   }

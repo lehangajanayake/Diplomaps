@@ -7,6 +7,9 @@ He calls himself only "Varrow", in the third person ("Varrow does not beg." "Var
 His images are horses, iron, frost, wolves and the long steppe winter. Courtly flourishes make him colder.
 He respects anyone who speaks plainly, even with bad news, and despises men "in soft boots" who haggle.
 When irritated he calls the Warden "toll-keeper".`,
+  habit: 'He ends every judgement with "Varrow has spoken." and trusts his warhorse\'s opinion of a man over any courtier\'s.',
+  humour: 'Deadpan and gallows-dry: he jokes about death, winter and Kelmish accountants as if reporting the weather.',
+  remembers: 'Last spring you swore the salt road to Varrow. Now Varrow hears Kelm drinks from it too. Varrow has spoken.',
   pleases: [
     'plain, blunt speech and honesty',
     'courage and directness',
@@ -30,5 +33,6 @@ When irritated he calls the Warden "toll-keeper".`,
     'Varrow hears you, Warden. Speak plainer.',
     'Varrow buried sons on the Kelmish march. Varrow did not bury them for nothing.',
     'You sell roads, toll-keeper. Varrow buys nothing it can take.',
+    'Varrow\'s horse has met Kelm\'s Chancellor. The horse was not impressed. Varrow has spoken.',
   ],
 };

@@ -477,6 +477,20 @@
   50% { opacity: 0.35; transform: scale(1.25); }
 }
 
+@keyframes string-pulse {
+  0%, 100% { opacity: 0.95; stroke-width: 2.6px; }
+  50% { opacity: 0.45; stroke-width: 4.2px; }
+}
+
+@keyframes front-march {
+  to { stroke-dashoffset: -24; }
+}
+
+@keyframes banner-wave {
+  0%, 100% { transform: skewY(0deg) scaleX(1); }
+  50% { transform: skewY(-6deg) scaleX(0.92); }
+}
+
 @layer components {
   .smoke {
     opacity: 0.4;
@@ -494,5 +508,31 @@
     transform-box: fill-box;
     transform-origin: center;
     animation: danger-pulse 1.6s ease-in-out infinite;
+  }
+
+  /* Province names stay hidden until the map is zoomed in (the hovered one is drawn by the hover layer). */
+  .region-name {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  [data-zoomed] .region-name {
+    opacity: 1;
+  }
+
+  .string-war {
+    animation: string-pulse 1.3s ease-in-out infinite;
+  }
+
+  /* A war front: the border between two nations at war, drawn in marching red dashes. */
+  .war-front {
+    stroke-dasharray: 9 3;
+    animation: front-march 0.9s linear infinite;
+  }
+
+  .banner-wave {
+    transform-box: fill-box;
+    transform-origin: left center;
+    animation: banner-wave 1.4s ease-in-out infinite;
   }
 }

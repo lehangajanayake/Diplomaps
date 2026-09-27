@@ -3,9 +3,11 @@
  * move. Written by code from what the nations mean to do, so it is always true.
  */
 import { AMBITION } from './ambitions.js';
+import { friendAgainst } from './favours.js';
 import { nameOf } from './nations.js';
 import { sealedLetters } from './letters.js';
-import type { Crisis, NationId, WorldState } from './types.js';
+import { favouriteEnemy, needsPassage } from './policy.js';
+import { NATION_IDS, type Crisis, type NationId, type WorldState } from './types.js';
 import { regionName } from './world.js';
 
 export function composeCrisis(w: WorldState): Crisis {
@@ -20,7 +22,9 @@ export function composeCrisis(w: WorldState): Crisis {
       tone: 'danger',
       headline: `${cap(attack.nation)} marches on you`,
       line: `${cap(attack.nation)}'s army will attack ${regionName(w, attack.region)} when the season ends.`,
-      suggestion: 'Answer its letter: pay tribute, hire sellswords, or stand and fight.',
+      suggestion: friendAgainst(w, attack.nation)
+        ? 'Answer its letter: pay tribute, hire sellswords, or call in a favour from a friend.'
+        : 'Answer its letter: pay tribute, hire sellswords, or stand and fight.',
       nations: [attack.nation],
       regions: [attack.region],
     };
@@ -45,7 +49,9 @@ export function composeCrisis(w: WorldState): Crisis {
       tone: 'warning',
       headline: `${cap(march.nation)} prepares for war`,
       line: `${cap(march.nation)} means to attack ${nameOf(march.target)} when the season ends.`,
-      suggestion: `Talk to ${nameOf(march.nation)} to stop it, or let the war come and profit from it.`,
+      suggestion: needsPassage(w, march.nation, march.target)
+        ? `Its army must cross your valley: close the pass to ${nameOf(march.nation)}, or charge it for passage.`
+        : `Talk to ${nameOf(march.nation)} to stop it, or let the war come and profit from it.`,
       nations: [march.nation, march.target],
     };
   }
@@ -62,23 +68,35 @@ export function composeCrisis(w: WorldState): Crisis {
     };
   }
 
-  const sealed = sealedLetters(w);
-  if (sealed.length > 0) {
+  // No army marches yet: name the grudge most likely to boil over, so the quiet still has stakes.
+  const letters = sealedLetters(w).length === 0 ? 'Talk to a ruler' : 'Answer your letters, then talk';
+  const hot = hottestGrudge(w);
+  if (hot) {
     return {
       ...base,
       tone: 'calm',
-      headline: 'Letters are waiting',
-      line: `${sealed.length === 1 ? 'A letter waits' : `${sealed.length} letters wait`} on your table.`,
-      suggestion: 'Open them: every answer costs someone something.',
-      nations: sealed.map((l) => l.from),
+      headline: 'An uneasy quiet',
+      line: `No army marches yet, but ${nameOf(hot.nation)}'s grudge against ${nameOf(hot.target)} runs hot.`,
+      suggestion: `${letters}: a word in the right ear could start a war, or stop one.`,
+      nations: [hot.nation, hot.target],
     };
   }
   return {
     ...base,
     tone: 'calm',
     headline: 'An uneasy quiet',
-    line: 'The five nations are watching each other, and every road runs through your valley.',
-    suggestion: 'Talk to a ruler to learn what they want.',
+    line: 'The nations are watching each other, and every road runs through your valley.',
+    suggestion: `${letters} to learn what they want.`,
     nations: [],
   };
+}
+
+/** The nation that most wants war, and with whom. */
+function hottestGrudge(w: WorldState): { nation: NationId; target: NationId } | null {
+  let best: { nation: NationId; target: NationId; desire: number } | null = null;
+  for (const nation of NATION_IDS) {
+    const enemy = favouriteEnemy(w, nation);
+    if (enemy && (!best || enemy.desire > best.desire)) best = { nation, target: enemy.target, desire: enemy.desire };
+  }
+  return best;
 }
