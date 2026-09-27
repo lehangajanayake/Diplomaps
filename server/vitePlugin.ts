@@ -16,12 +16,6 @@ const ENV_KEYS = [
   'RATE_LIMIT_PER_MINUTE',
   'ELEVENLABS_API_KEY',
   'ELEVENLABS_MODEL',
-  'ELEVENLABS_VOICE_ID',
-  'ELEVENLABS_VOICE_VARROW',
-  'ELEVENLABS_VOICE_KELM',
-  'ELEVENLABS_VOICE_SAEL',
-  'ELEVENLABS_VOICE_TARN',
-  'ELEVENLABS_VOICE_OSTRIN',
 ] as const;
 const fromShell = new Set(ENV_KEYS.filter((k) => process.env[k] !== undefined));
 
