@@ -22,6 +22,7 @@ import { SealButton } from '../common/SealButton';
 import { SealList } from '../common/SealList';
 import { TrustNeedle } from '../common/TrustNeedle';
 import { trustWord } from '../hud/words';
+import { PlaceText } from './PlaceText';
 
 const MOOD_WORD: Record<Mood, string> = { pleased: 'Pleased', wary: 'Wary', angry: 'Angry' };
 
@@ -318,12 +319,16 @@ export function AudienceScene() {
               t.role === 'ruler' ? (
                 <div key={i}>
                   <div className="font-sc text-[0.8rem] tracking-[0.1em] text-wax">{first}</div>
-                  <p className="font-body text-[1.02rem] leading-relaxed">{t.text}</p>
+                  <p className="font-body text-[1.02rem] leading-relaxed">
+                    <PlaceText world={world} text={t.text} />
+                  </p>
                 </div>
               ) : (
                 <div key={i} className="pl-[1.6em]">
                   <div className="font-sc text-[0.8rem] tracking-[0.1em] text-ink-soft">You</div>
-                  <p className="font-hand text-[0.98rem] italic leading-relaxed text-ink-soft">{t.text}</p>
+                  <p className="font-hand text-[0.98rem] italic leading-relaxed text-ink-soft">
+                    <PlaceText world={world} text={t.text} />
+                  </p>
                 </div>
               ),
             )}
