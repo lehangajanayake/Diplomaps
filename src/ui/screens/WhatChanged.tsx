@@ -1,4 +1,4 @@
-/** After the bell: what the season did to you first, then what it did to the realm. */
+/** After the bell: what the season did to you first, then what it did to the realm, each with why. */
 import { AnimatePresence, motion } from 'motion/react';
 import { seasonTitle } from '../../engine/config';
 import type { SummaryLine } from '../../engine/types';
@@ -6,6 +6,7 @@ import { continueAfterSummary } from '../../store/flow';
 import { useStore } from '../../store/worldStore';
 import { Arrow } from '../common/Arrow';
 import { SealButton } from '../common/SealButton';
+import { BecauseLine } from '../common/YourDoing';
 
 function Lines({ title, lines }: { title: string; lines: SummaryLine[] }) {
   return (
@@ -21,7 +22,10 @@ function Lines({ title, lines }: { title: string; lines: SummaryLine[] }) {
             transition={{ delay: 0.25 + i * 0.12 }}
           >
             <Arrow tone={l.tone} />
-            <span>{l.text}</span>
+            <span>
+              {l.text}
+              {l.because && <BecauseLine why={l.because} yours={l.yours} />}
+            </span>
           </motion.li>
         ))}
       </ul>
@@ -46,7 +50,7 @@ export function WhatChanged() {
             animate={{ y: 0, rotate: 0.5, opacity: 1 }}
             exit={{ y: -30, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 110, damping: 16 }}
-            className="parchment w-[min(560px,58vw)] px-[2em] pb-[1.3em] pt-[1.3em] text-center text-ink"
+            className="parchment max-h-[92vh] w-[min(720px,70vw)] overflow-y-auto px-[2em] pb-[1.3em] pt-[1.3em] text-center text-ink"
             role="dialog"
             aria-label="What changed this season"
           >

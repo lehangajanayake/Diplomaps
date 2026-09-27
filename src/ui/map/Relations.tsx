@@ -1,16 +1,20 @@
 /**
- * Pins and red string: a brass pin in every capital and a string between every two nations, green for
- * allies, grey for neutral, red for hostile and pulsing red at war.
+ * Pins and string: a brass pin in every capital and a string between every two nations. At war: thick
+ * solid red with crossed swords, pulsing slowly; hostile: thin dashed red; allies: solid green with linked
+ * rings; neutral: faint dotted grey (see STRING).
  */
 import { motion } from 'motion/react';
 import { NATION_IDS, type MapData, type NationId, type Point, type WorldState } from '../../engine/types';
 import { isStanding, relationBetween } from '../../engine/world';
 import { STRING } from './palette';
+import { RelationMark } from './RelationMarks';
 
-/** A string between two pins, sagging a little under its own weight. */
-function sag([x1, y1]: Point, [x2, y2]: Point): string {
+/** A string between two pins, sagging a little under its own weight, and the lowest point of the sag. */
+function sag([x1, y1]: Point, [x2, y2]: Point): { d: string; mid: Point } {
   const drop = Math.hypot(x2 - x1, y2 - y1) * 0.1;
-  return `M${x1} ${y1} Q${(x1 + x2) / 2} ${(y1 + y2) / 2 + drop} ${x2} ${y2}`;
+  const cx = (x1 + x2) / 2;
+  const cy = (y1 + y2) / 2 + drop;
+  return { d: `M${x1} ${y1} Q${cx} ${cy} ${x2} ${y2}`, mid: [(x1 + 2 * cx + x2) / 4, (y1 + 2 * cy + y2) / 4] };
 }
 
 function Pin({ at }: { at: Point }) {
@@ -32,19 +36,12 @@ export function Relations({ world, map }: { world: WorldState; map: MapData }) {
       {pairs.map(([a, b]) => {
         const kind = relationBetween(world, a, b);
         const s = STRING[kind];
+        const { d, mid } = sag(at(a), at(b));
         return (
-          <path
-            key={`${a}-${b}`}
-            d={sag(at(a), at(b))}
-            fill="none"
-            stroke={s.colour}
-            strokeWidth={s.width}
-            strokeLinecap="round"
-            strokeDasharray={kind === 'neutral' ? '6 4' : undefined}
-            className={kind === 'war' ? 'string-war' : undefined}
-            opacity={kind === 'neutral' ? 0.75 : 0.92}
-            data-string={kind}
-          />
+          <g key={`${a}-${b}`} className={kind === 'war' ? 'string-war' : undefined} opacity={kind === 'neutral' ? 0.75 : 0.95} data-string={kind}>
+            <path d={d} fill="none" stroke={s.colour} strokeWidth={s.width} strokeLinecap="round" strokeDasharray={s.dash} />
+            <RelationMark kind={kind} x={mid[0]} y={mid[1]} scale={1.3} />
+          </g>
         );
       })}
       {standing.map((n) => (

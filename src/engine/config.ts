@@ -175,6 +175,11 @@ export const CONFIG = {
 
   /** Attacks on the Crossing: what makes a nation march on the valley, and how often. */
   attack: {
+    /** Every court has some appetite for the rich valley: motive per point of its aggression (0 to 1). */
+    appetiteWeight: 0.22,
+    /** Below this trust the Warden starts to look like prey: motive grows by coldWeight per 100 points under it. */
+    coldTrust: 10,
+    coldWeight: 1.1,
     hostileTrust: -30,
     hostileWeight: 0.5,
     grievanceWeight: 0.25,
@@ -183,12 +188,16 @@ export const CONFIG = {
     largeWeight: 0.12,
     lowNeutrality: 40,
     lowNeutralityWeight: 0.1,
+    /** A court that suspects the Warden's lies wants the valley humbled: motive per point of suspicion. */
+    suspicionWeight: 0.006,
+    /** An army massed at the border stays (and strikes next season) while the motive is at least this. */
+    holdMotive: 0.18,
     /** Fresh soldiers a nation raises for an assault on the valley. */
     assaultTroops: 3,
     /** A nation busy with its own wars has less appetite for the Crossing. */
     busyPenalty: 0.2,
     /** Chance of an attack is the motive minus this, capped. */
-    calm: 0.05,
+    calm: 0.02,
     maxChance: 0.7,
   },
 
@@ -297,7 +306,7 @@ export const CONFIG = {
   },
 
   ambitions: {
-    merchantGold: 330,
+    merchantGold: 320,
     kingdomRegions: 7,
     spiderSuspicion: 40,
     peacemakerTension: 26,

@@ -170,6 +170,7 @@ export function buildAudienceContext(w: WorldState, nation: NationId): AudienceC
     trust: n.trustPlayer,
     suspicion: n.suspicion,
     pass: w.player.passes[nation],
+    marching: marchingOf(w, nation),
     offerable: offerableRegions(w, nation).map((id) => place(w, id)),
     neutrality: Math.round(w.player.neutrality),
     regions: regionsOf(w, nation).length,
@@ -184,6 +185,12 @@ export function buildAudienceContext(w: WorldState, nation: NationId): AudienceC
     news: recentNews(w, nation),
     learned: n.learned.map((l) => l.text).slice(-8),
   };
+}
+
+/** This court's army against the valley, if any, for the ruler to speak of. */
+function marchingOf(w: WorldState, nation: NationId): AudienceContext['marching'] {
+  const i = w.intents.find((x) => (x.kind === 'threat' || x.kind === 'attack') && x.nation === nation);
+  return i && (i.kind === 'threat' || i.kind === 'attack') ? { stage: i.kind, region: place(w, i.region) } : null;
 }
 
 /** The season that just ended, and the letters that open the next one, for the chronicler and the courts' scribes. */

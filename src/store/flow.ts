@@ -11,7 +11,7 @@ import { echoedPromise, patienceFor, trustStep } from '../engine/audience';
 import { biggest, MONTAGE_MAX, type Beat } from '../engine/beats';
 import { callFavour } from '../engine/favours';
 import { offerableRegions, recordOffer } from '../engine/land';
-import { answerLetter } from '../engine/letters';
+import { chooseAnswer } from '../engine/letters';
 import { PROFILES } from '../engine/nations';
 import { setPass } from '../engine/passes';
 import type { AudienceRequest } from '../engine/schema';
@@ -282,8 +282,9 @@ export function togglePass(nation: NationId): void {
 export function decideLetter(id: string, answer: string): void {
   const w = get().world;
   if (!w) return;
-  const { world, events } = answerLetter(w, id, answer);
-  commit(world, events);
+  const world = chooseAnswer(w, id, answer);
+  if (world === w) return;
+  commit(world, []);
   set({ overlay: null });
   sound.play('quill');
 }
@@ -436,7 +437,7 @@ async function closeAudience(endedByRuler: boolean, calledAway: boolean): Promis
         learned: extraction.learned,
         offer,
         entries: added.added,
-        caught: added.events.flatMap((e) => (e.kind === 'lie_caught' ? [e.how] : [])),
+        caught: [...new Set(added.events.flatMap((e) => (e.kind === 'lie_caught' ? [e.how] : [])))],
         fallback: extraction.fallback,
       },
     },

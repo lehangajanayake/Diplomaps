@@ -7,6 +7,7 @@ import {
   CROSSING,
   NATION_IDS,
   type Alliance,
+  type Letter,
   type NationId,
   type NationState,
   type Owner,
@@ -117,6 +118,7 @@ export function createWorld(seed: number): WorldState {
       regionsChanged: 0,
       audiencesHeld: 0,
       crossingAttacked: false,
+      threats: 0,
     },
     ending: null,
   };
@@ -177,9 +179,9 @@ export function atWar(world: WorldState, a: NationId, b: NationId): boolean {
   return world.wars.some((w) => (w.a === a && w.b === b) || (w.a === b && w.b === a));
 }
 
-/** Does this nation mean to attack the valley when the bell rings? */
+/** Is this nation's army massed at the valley's border, or marching on it? */
 export function marchingOnCrossing(world: WorldState, nation: NationId): boolean {
-  return world.intents.some((i) => i.kind === 'attack' && i.nation === nation);
+  return world.intents.some((i) => (i.kind === 'attack' || i.kind === 'threat') && i.nation === nation);
 }
 
 /** How many wars a nation is fighting. */
@@ -229,4 +231,9 @@ export function cloneWorld(w: WorldState): WorldState {
 
 export function hasGrudge(nation: NationId, against: NationId): boolean {
   return PROFILES[nation].grudges.some((g) => g.against === against);
+}
+
+/** Gold not yet set aside for letters answered this season (paid when the bell rings): what the Warden can still spend. */
+export function spareGold(w: WorldState, except?: Letter): number {
+  return w.player.gold - w.letters.reduce((sum, l) => sum + (l !== except && l.answer === null ? l.pledge : 0), 0);
 }

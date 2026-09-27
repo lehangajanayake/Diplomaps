@@ -81,13 +81,20 @@ export function fallbackChronicle(news: readonly News[], seasonTitle: string): s
 }
 
 /** What each ruler writes on each kind of letter, when the AI cannot write it. */
-export const LETTER_WORDS: Record<'attack' | 'raid' | 'passage' | 'help' | 'spoils' | 'talks' | 'trade', Record<NationId, string>> = {
+export const LETTER_WORDS: Record<'attack' | 'threat' | 'raid' | 'passage' | 'help' | 'spoils' | 'talks' | 'trade', Record<NationId, string>> = {
   attack: {
     varrow: 'Varrow asked. You refused. Now Varrow rides. Pay, or watch the horses drink from your wells.',
     kelm: 'Your account is in arrears, Warden. Kelm has sent collectors. They carry spears.',
     sael: 'Darling, you have been so tiresome. My soldiers are coming to discuss it with you.',
     tarn: 'The water rises slowly, Warden, and then all at once. Hm.',
     ostrin: 'It is written: the proud valley shall be humbled. We have come to see it written.',
+  },
+  threat: {
+    varrow: 'Varrow\u2019s horse waits at your border. Give Varrow reason to turn home before the grass is grazed.',
+    kelm: 'Kelm has priced your valley, Warden. Settle the account before our collectors cross the line. Noted.',
+    sael: 'My soldiers are camped so prettily at your border, darling. Do give them a reason to go home.',
+    tarn: 'The clans gather at your edge like water behind a dam. Dams break. Hm.',
+    ostrin: 'The host of Ostrin kneels at your border in prayer. When it rises, it marches. Repent, child.',
   },
   raid: {
     varrow: 'Varrow\u2019s riders are hungry and your barns are full. Pay, and they eat elsewhere.',

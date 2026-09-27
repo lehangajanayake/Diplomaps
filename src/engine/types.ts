@@ -158,8 +158,13 @@ export type WarCause = 'grudge' | 'ally' | 'favour' | 'words';
  */
 export type Intent =
   | { kind: 'war'; nation: NationId; target: NationId }
-  /** An army marching on one of the Crossing's regions. */
-  | { kind: 'attack'; nation: NationId; region: RegionId };
+  /**
+   * An army massing at the valley's border: it strikes `region` next season unless the Warden answers it.
+   * `held` is set at the bell when it stays, and the army then marches (an `attack`) as the next season opens.
+   */
+  | { kind: 'threat'; nation: NationId; region: RegionId; because?: Because; held?: boolean }
+  /** An army marching on one of the Crossing's regions: it strikes at this season's bell. */
+  | { kind: 'attack'; nation: NationId; region: RegionId; because?: Because };
 
 export interface KnowledgeRef {
   entry: string;
@@ -241,7 +246,7 @@ export interface LedgerEntry {
   broken: boolean;
 }
 
-export const LETTER_KINDS = ['attack', 'raid', 'passage', 'help', 'spoils', 'talks', 'trade', 'last', 'angry'] as const;
+export const LETTER_KINDS = ['attack', 'threat', 'raid', 'passage', 'help', 'spoils', 'talks', 'trade', 'last', 'angry'] as const;
 export type LetterKind = (typeof LETTER_KINDS)[number];
 
 /** A letter on the Warden's table. What it says and what each answer does live in letters.ts. */
@@ -256,7 +261,11 @@ export interface Letter {
   region: RegionId | null;
   /** Gold offered or asked. */
   amount: number;
-  /** The chosen answer, once answered or defaulted at the season's end. */
+  /** The answer chosen this season. It can change until the bell rings, when it is settled into `answer`. */
+  choice: string | null;
+  /** Gold the chosen answer will cost when the bell rings, set aside until then. */
+  pledge: number;
+  /** The settled answer: the choice, or the default for a letter left unanswered. Set when the bell rings. */
   answer: string | null;
   /** A line in the sender's voice: code writes a stand-in, the AI a better one when it can. */
   quote: string;
@@ -307,6 +316,8 @@ export interface War {
   b: NationId;
   aggressor: NationId;
   cause: WarCause;
+  /** Why it was declared, for the battles fought in it and the end screen. */
+  because?: Because;
   since: number;
   /** Seasons in a row without a battle. */
   quiet: number;
@@ -322,7 +333,17 @@ export interface Alliance {
 /* Events                                                              */
 /* ------------------------------------------------------------------ */
 
-export type GameEvent =
+/** Why an event happened: words that finish "…, because ___", and whether the Warden had a hand in it. */
+export interface Because {
+  why: string;
+  /** Something the Warden did contributed: shown as "Your doing". */
+  yours: boolean;
+}
+
+/** Every event can carry its cause (see causes.ts); the ones the player is shown always do. */
+export type GameEvent = GameEventBase & { because?: Because };
+
+type GameEventBase =
   | { kind: 'mobilise'; season: number; nation: NationId; region: RegionId; amount: number }
   | { kind: 'alliance'; season: number; a: NationId; b: NationId }
   | { kind: 'cede'; season: number; nation: Owner; target: Owner; region: RegionId }
@@ -361,10 +382,13 @@ export type GameEvent =
   | { kind: 'gossip'; season: number; from: NationId; to: NationId; entry: string }
   | { kind: 'lie_caught'; season: number; entry: string; by: NationId[]; how: string }
   | { kind: 'letter'; season: number; letter: string; nation: NationId; letterKind: LetterKind; answer: string }
-  | { kind: 'tension'; season: number; from: number; to: number };
+  | { kind: 'tension'; season: number; from: number; to: number }
+  /** At the bell, an army massed at the valley's border either stays (it strikes next season) or goes home. */
+  | { kind: 'threat'; season: number; nation: NationId; region: RegionId; outcome: 'holds' | 'lifted' };
 
 /** What kind of moment a chronicle line (and a montage beat) is: it picks the icon and the map's effect. */
 export type BeatKind =
+  | 'threat'
   | 'war'
   | 'battle'
   | 'capture'
@@ -462,6 +486,10 @@ export interface Crisis {
 export interface SummaryLine {
   text: string;
   tone: 'good' | 'bad' | 'neutral';
+  /** Finishes "because ___". */
+  because?: string;
+  /** A Warden's action contributed. */
+  yours?: boolean;
 }
 
 /** The "What changed" card shown after a season resolves. */
@@ -481,10 +509,12 @@ export interface WorldStats {
   regionsChanged: number;
   audiencesHeld: number;
   crossingAttacked: boolean;
+  /** Armies that massed at the valley's border (each gives a season's warning). */
+  threats: number;
 }
 
 /** Bumped whenever the saved shape changes, so an old save is never loaded into a new game. */
-export const WORLD_VERSION = 4;
+export const WORLD_VERSION = 7;
 
 export interface WorldState {
   version: typeof WORLD_VERSION;

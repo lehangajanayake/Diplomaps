@@ -197,7 +197,7 @@ export function MapView({ world: current, fx = null, onSelect, children, interac
       </div>
 
       <div className="map-clouds pointer-events-none absolute inset-0" />
-      <Legend />
+      <Legend world={world} relations={relations !== 'off'} />
 
       <div
         ref={tooltipRef}

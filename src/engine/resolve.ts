@@ -5,7 +5,7 @@
 import { chronicleBeats, seasonBeats, type Beat } from './beats.js';
 import { CONFIG, seasonTitle } from './config.js';
 import { composeCrisis } from './crisis.js';
-import { attackTheCrossing, recoverBurning, resolveMarches } from './crossing.js';
+import { attackTheCrossing, recoverBurning, resolveMarches, reviewThreats } from './crossing.js';
 import { computeIncome } from './economy.js';
 import { checkEnding } from './endings.js';
 import { honourFavours } from './favours.js';
@@ -14,7 +14,8 @@ import { honourOffers } from './land.js';
 import { revealLiesOnTheField } from './ledger.js';
 import { closeLetters, deliverLetters } from './letters.js';
 import { resentClosedPasses } from './passes.js';
-import { planIntents, sparkedByWords, warHolds } from './policy.js';
+import { needsPassage, planIntents, sparkedByWords, warHolds } from './policy.js';
+import { explainEvents, standDownCause } from './causes.js';
 import { Rng } from './rng.js';
 import { addTension, adjustNeutrality, adjustSuspicion } from './tension.js';
 import { NATION_IDS, type Ending, type GameEvent, type SeasonRecord, type WorldState } from './types.js';
@@ -59,11 +60,17 @@ export function resolveSeason(state: WorldState): { state: WorldState; events: G
   for (const intent of w.intents) {
     if (intent.kind !== 'war') continue;
     if (warHolds(w, intent.nation, intent.target)) declareWar(w, intent.nation, intent.target, 'grudge', events);
-    else events.push({ kind: 'stand_down', season: w.season, nation: intent.nation, target: intent.target });
+    else {
+      const barred = needsPassage(w, intent.nation, intent.target) && w.player.passes[intent.nation] === 'closed';
+      events.push({ kind: 'stand_down', season: w.season, nation: intent.nation, target: intent.target, because: standDownCause(w, intent.nation, intent.target, barred) });
+    }
   }
   for (const spark of sparkedByWords(w, rng)) {
     if (spark.kind === 'war') declareWar(w, spark.nation, spark.target, 'words', events);
   }
+
+  //    Armies massed at the valley's border stay, to strike next season, or go home.
+  reviewThreats(w, events);
 
   // 3. Armies muster, march through the valley where they were let (or forced their way), strike at
   //    the Crossing itself, and fight; lies that started wars come out on the field; nations whose
@@ -99,6 +106,7 @@ function openSeason(w: WorldState, events: readonly GameEvent[]): void {
   w.audiencesThisSeason = [];
   const rng = new Rng(w.rng);
   w.intents = planIntents(w, rng);
+  w.stats.threats += w.intents.filter((i) => i.kind === 'threat').length;
   deliverLetters(w, events, rng);
   w.rng = rng.state;
   w.crisis = composeCrisis(w);
@@ -109,6 +117,7 @@ export function openFirstSeason(world: WorldState): WorldState {
   const w = cloneWorld(world);
   const rng = new Rng(w.rng);
   w.intents = planIntents(w, rng);
+  w.stats.threats += w.intents.filter((i) => i.kind === 'threat').length;
   deliverLetters(w, [], rng);
   w.rng = rng.state;
   w.crisis = composeCrisis(w);
@@ -129,12 +138,13 @@ export function playSeason(world: WorldState): SeasonOutcome {
   const resolved = resolveSeason(world);
   const gossip = runGossip(resolved.state, new Rng(resolved.state.rng));
   const w = gossip.state;
-  const events = [...world.seasonLog, ...resolved.events, ...gossip.events];
-  const beats = seasonBeats(world, w, [...resolved.events, ...gossip.events]);
+  // Every event gets its cause now, from the world as it was when the bell rang and as it is after.
+  const bell = explainEvents(world, w, [...resolved.events, ...gossip.events]);
+  const events = [...explainEvents(world, w, world.seasonLog), ...bell];
+  const beats = seasonBeats(world, w, bell);
   // The chronicle's lines (the whole season, the Warden's own deeds too) are decided now; its prose
   // is written later, when the AI returns.
   w.chronicle.push({ season: w.season, title: seasonTitle(w.season), beats: chronicleBeats(seasonBeats(world, w, events)), lines: [], fromAI: false });
-  const ending = checkEnding(w, w.season >= CONFIG.seasons);
   const record: SeasonRecord = {
     season: w.season,
     events,
@@ -145,6 +155,8 @@ export function playSeason(world: WorldState): SeasonOutcome {
   };
   w.history.push(record);
   w.seasonLog = [];
+  // The ending is judged with this season in the history, so its moments can include the last bell.
+  const ending = checkEnding(w, w.season >= CONFIG.seasons);
   if (ending) w.ending = ending;
   else openSeason(w, events);
   return { state: w, events, beats, ending, record };

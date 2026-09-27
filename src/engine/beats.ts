@@ -4,7 +4,7 @@
  * montage; all of them become the chronicle's one-liners.
  */
 import { nameOf } from './nations.js';
-import { CROSSING, UNCLAIMED, type ChronicleBeat, type GameEvent, type Holder, type NationId, type RegionId, type WorldState } from './types.js';
+import { CROSSING, UNCLAIMED, type Because, type ChronicleBeat, type GameEvent, type Holder, type NationId, type RegionId, type WorldState } from './types.js';
 
 export interface Beat extends ChronicleBeat {
   /** The other side: the enemy, the ally, the court the rumour came from. */
@@ -17,6 +17,8 @@ export interface Beat extends ChronicleBeat {
   entry: string | null;
   /** How big the moment is, for choosing the montage. */
   weight: number;
+  /** Why it happened, and whether it was the Warden's doing. */
+  because: Because | null;
 }
 
 /** How many beats the montage plays, and how many one-liners the chronicle keeps, at most. */
@@ -30,15 +32,25 @@ const who = (h: Holder) => nameOf(h);
 export function seasonBeats(before: WorldState, after: WorldState, events: readonly GameEvent[]): Beat[] {
   const beats: Beat[] = [];
   const place = (id: RegionId) => after.map.regions[id]?.name ?? id;
+  // Each beat carries the cause of the event it tells.
+  let because: Because | null = null;
   const beat = (b: Pick<Beat, 'kind' | 'text' | 'seal' | 'tone' | 'weight'> & Partial<Beat>) =>
-    beats.push({ other: null, regions: [], from: null, entry: null, ...b });
+    beats.push({ other: null, regions: [], from: null, entry: null, because, ...b });
   const repulsed = new Set<string>();
 
   for (const e of events) {
+    because = e.because ?? null;
     switch (e.kind) {
+      case 'threat':
+        beat(
+          e.outcome === 'holds'
+            ? { kind: 'threat', text: `${cap(e.nation)}'s army stays at your border: it strikes ${place(e.region)} next season`, seal: e.nation, other: CROSSING, regions: [e.region], tone: 'bad', weight: 82 }
+            : { kind: 'threat', text: `${cap(e.nation)}'s army at your border goes home`, seal: e.nation, other: CROSSING, regions: [e.region], tone: 'good', weight: 72 },
+        );
+        break;
       case 'war': {
         const how = e.cause === 'ally' ? `${cap(e.nation)} joins the war on ${who(e.target)}` : `${cap(e.nation)} declares war on ${who(e.target)}`;
-        beat({ kind: 'war', text: e.cause === 'favour' ? `${how}, as you asked` : how, seal: e.nation, other: e.target, tone: 'bad', weight: e.cause === 'favour' ? 85 : e.cause === 'ally' ? 55 : 80 });
+        beat({ kind: 'war', text: how, seal: e.nation, other: e.target, tone: 'bad', weight: e.cause === 'favour' ? 85 : e.cause === 'ally' ? 55 : 80 });
         break;
       }
       case 'battle': {

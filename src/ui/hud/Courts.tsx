@@ -11,7 +11,8 @@ import { FloatingDelta } from '../common/FloatingDelta';
 import { SuspicionMark } from '../common/SuspicionMark';
 import { TrustNeedle } from '../common/TrustNeedle';
 import { WaxSeal } from '../common/WaxSeal';
-import { STRING } from '../map/palette';
+import { RELATION_ORDER, STRING } from '../map/palette';
+import { RelationSample } from '../map/RelationMarks';
 import { suspicionWord, trustWord } from './words';
 
 /** Height of one court's row, in the arcs' drawing units (tenths of an em): rows are 1.8em tall. */
@@ -100,9 +101,9 @@ export function Courts({ world }: { world: WorldState }) {
       </div>
       {showing && (
         <p className="mt-[0.15em] flex flex-wrap justify-center gap-x-[0.6em] font-body text-[0.7rem] leading-tight">
-          {(['ally', 'neutral', 'hostile', 'war'] as const).map((k) => (
+          {RELATION_ORDER.map((k) => (
             <span key={k} className="inline-flex items-center gap-[0.25em]">
-              <span className="inline-block h-[2px] w-[0.9em]" style={{ background: STRING[k].colour }} />
+              <RelationSample kind={k} className="h-[0.9em] w-[1.9em]" />
               {STRING[k].label}
             </span>
           ))}

@@ -52,6 +52,7 @@ function focusRegions(w: WorldState, b: Beat): RegionId[] {
     case 'march':
       return regionsOf(w, [...nations, CROSSING]);
     case 'turned_back':
+    case 'threat':
       return regionsOf(w, [b.seal, CROSSING]);
     default:
       return [...b.regions, ...(b.from ? [b.from] : [])];

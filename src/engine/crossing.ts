@@ -6,12 +6,12 @@
 import { available, edgeKind, fight, type AttackOption } from './battles.js';
 import { CONFIG } from './config.js';
 import { marchesForTheWarden } from './favours.js';
-import { PROFILES } from './nations.js';
-import { needsPassage } from './policy.js';
+import { nameOf, PROFILES } from './nations.js';
+import { needsPassage, threatHolds } from './policy.js';
 import type { Rng } from './rng.js';
 import { adjustNeutrality } from './tension.js';
 import { CROSSING, type GameEvent, type NationId, type RegionId, type WorldState } from './types.js';
-import { isStanding } from './world.js';
+import { isStanding, warsOf } from './world.js';
 
 /** Who marches through the Crossing this season, and against whom. */
 export type Marches = Map<NationId, NationId>;
@@ -88,6 +88,26 @@ export function attackTheCrossing(w: WorldState, rng: Rng, events: GameEvent[]):
     events.push({ kind: 'mobilise', season: w.season, nation: intent.nation, region: opt.from, amount: raised });
     events.push(...fight(w, intent.nation, opt, rng, true));
   }
+}
+
+/**
+ * At the bell, every army massed at the valley's border (and not already sent home by a letter) either
+ * stays, to strike next season, or goes home because the Warden has taken the heat out of it.
+ */
+export function reviewThreats(w: WorldState, events: GameEvent[]): void {
+  for (const intent of w.intents) {
+    if (intent.kind !== 'threat' || !isStanding(w, intent.nation)) continue;
+    const { nation, region } = intent;
+    if (threatHolds(w, nation)) {
+      intent.held = true;
+      events.push({ kind: 'threat', season: w.season, nation, region, outcome: 'holds', because: intent.because });
+      continue;
+    }
+    const talked = w.player.ledger.some((e) => e.to === nation && e.season === w.season);
+    const why = talked ? `you talked ${nameOf(nation)} down` : warsOf(w, nation) > 0 ? `${nameOf(nation)} needs its army for its own wars` : `${nameOf(nation)}'s anger cooled`;
+    events.push({ kind: 'threat', season: w.season, nation, region, outcome: 'lifted', because: { why, yours: talked } });
+  }
+  w.intents = w.intents.filter((i) => i.kind !== 'threat' || i.held);
 }
 
 /** Raiders set a region of the valley alight. It pays nothing, and costs tolls, until it recovers. */
