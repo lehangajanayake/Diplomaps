@@ -1,8 +1,9 @@
 /** The main screen: the map sheet in the middle of the table, surrounded by the objects you play with. */
 import { AnimatePresence, motion } from 'motion/react';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { CONFIG } from '../../engine/config';
 import { seasonLetters } from '../../engine/letters';
+import { prologueBeats } from '../../engine/prologue';
 import { CROSSING, type RegionId } from '../../engine/types';
 import { regionsOf, spareGold } from '../../engine/world';
 import { sound } from '../../audio/sound';
@@ -21,7 +22,7 @@ import { MapView } from '../map/MapView';
 import { Chronicle } from '../panels/Chronicle';
 import { ChronicleBook } from '../panels/ChronicleBook';
 import { Handbook } from '../panels/Handbook';
-import { OpeningFx } from '../map/OpeningFx';
+import { PrologueFx } from '../map/PrologueFx';
 import { CrossingSheet } from '../panels/CrossingSheet';
 import { Dossier } from '../panels/Dossier';
 import { LedgerView } from '../panels/Ledger';
@@ -38,7 +39,7 @@ import { AmbitionCard } from '../hud/AmbitionCard';
 import { AmbitionChoice } from './AmbitionChoice';
 import { CrisisCard } from './CrisisCard';
 import { MontageCaption } from './MontageCaption';
-import { Opening } from './Opening';
+import { Prologue } from './Prologue';
 import { Tutorial } from './Tutorial';
 import { SeasonCard } from './SeasonCard';
 import { WhatChanged } from './WhatChanged';
@@ -53,7 +54,10 @@ export function GameTable() {
   const fx = useStore((s) => s.fx);
   const muted = useStore((s) => s.muted);
   const tension = useStore((s) => s.world?.tension ?? 0);
-  const opening = useStore((s) => s.opening);
+  const prologue = useStore((s) => s.prologue);
+  const opening = prologue !== null;
+  // The prologue is told from the world as the year opens; it does not change while it plays.
+  const beats = useMemo(() => (opening && world ? prologueBeats(world) : []), [opening, world]);
 
   useEffect(() => {
     sound.setDrums(!muted && tension > CONFIG.tension.drumsAbove);
@@ -125,7 +129,7 @@ export function GameTable() {
         >
           <MapSheet>
             <MapView world={world} fx={fx} onSelect={onSelect} interactive={!resolving && !opening}>
-              {opening && <OpeningFx world={world} />}
+              {opening && prologue !== null && <PrologueFx world={world} beats={beats} beat={prologue} />}
             </MapView>
           </MapSheet>
           <MontageCaption />
@@ -156,7 +160,7 @@ export function GameTable() {
           {overlay?.kind === 'handbook' && <Handbook key="handbook" />}
         </AnimatePresence>
         <Notes />
-        {opening && <Opening />}
+        {opening && <Prologue beats={beats} />}
         <Tutorial />
       </div>
       <AnimatePresence>{audience && <AudienceScene key="audience" />}</AnimatePresence>

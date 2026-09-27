@@ -1,7 +1,4 @@
-/** The first game's introduction: the opening's timeline, and the tutorial's nine steps. */
-
-/** When each part of the opening begins, in seconds from the start. */
-export const OPENING = { seals: 1.8, roads: 4.2, glow: 5.4, line: 7, end: 12.5 } as const;
+/** The first game's tutorial steps. */
 
 /** One tutorial step: it spotlights one thing on the table with one sentence. */
 export interface TutorialStep {

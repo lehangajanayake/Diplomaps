@@ -9,6 +9,7 @@ import { addLedgerEntries, recordAudience, recordExchange } from '../engine/ledg
 import { claimRuin } from '../engine/actions';
 import { echoedPromise, patienceFor, trustStep } from '../engine/audience';
 import { biggest, MONTAGE_MAX, type Beat } from '../engine/beats';
+import { composeCrisis } from '../engine/crisis';
 import { callFavour } from '../engine/favours';
 import { offerableRegions, recordOffer } from '../engine/land';
 import { chooseAnswer } from '../engine/letters';
@@ -100,7 +101,8 @@ export function beginGame(seed?: number): void {
   const chosen = seed ?? (param && /^\d+$/.test(param) ? Number(param) : randomSeed());
   clearSave();
   set({
-    world: createWorld(chosen),
+    // The first season opens at once, so the prologue can tell the crisis it really begins with.
+    world: openFirstSeason(createWorld(chosen)),
     phase: 'table',
     selectedNation: null,
     overlay: null,
@@ -114,22 +116,37 @@ export function beginGame(seed?: number): void {
     summary: null,
     crisisOpen: false,
     relations: 'off',
-    opening: !skipIntro(),
+    prologue: skipIntro() ? null : 0,
     tutorialStep: null,
   });
   sound.startAmbient();
 }
 
-/** The opening is over (or skipped): on to the choice of ambition. */
-export function endOpening(): void {
-  if (get().opening) set({ opening: false });
+/** The next beat of the prologue, or the end of it. */
+export function nextPrologueBeat(beats: number): void {
+  const beat = get().prologue;
+  if (beat === null) return;
+  if (beat + 1 < beats) set({ prologue: beat + 1 });
+  else endPrologue();
+  sound.play('paper');
+}
+
+/** The prologue is over (or skipped): on to the choice of ambition, or back to the game when replayed. */
+export function endPrologue(): void {
+  if (get().prologue !== null) set({ prologue: null });
+}
+
+/** Replay the prologue from the handbook. */
+export function replayPrologue(): void {
+  set({ prologue: 0, overlay: null, selectedNation: null, crisisOpen: false });
 }
 
 /** The player picks the ambition they will win or lose on; the tutorial (first game only) or the first crisis follows. */
 export function chooseAmbition(ambition: AmbitionId): void {
   const w = get().world;
   if (!w || w.player.ambition) return;
-  const world = openFirstSeason({ ...w, player: { ...w.player, ambition } });
+  const chosen = { ...w, player: { ...w.player, ambition } };
+  const world = { ...chosen, crisis: composeCrisis(chosen) };
   set({ world });
   sound.play('quill');
   if (!skipIntro() && !tutorialDone()) showTutorialStep(0);

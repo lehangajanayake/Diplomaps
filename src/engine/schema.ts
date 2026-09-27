@@ -57,6 +57,8 @@ export const NationProfileSchema = z.object({
   secretGoal: z.string().min(10),
   aim: z.string().min(10).max(70),
   hint: z.string().min(5).max(60),
+  /** The prologue's line: who they are and what they want, in about ten plain words. */
+  want: z.string().min(10).max(80),
   redLine: RedLineSchema,
   grudges: z.array(z.object({ against: NationIdSchema, reason: z.string().min(5) })),
   friends: z.array(z.object({ with: NationIdSchema, reason: z.string().min(5) })),

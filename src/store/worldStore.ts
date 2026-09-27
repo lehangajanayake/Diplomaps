@@ -109,8 +109,8 @@ export interface StoreState {
   /** Regions that just joined the Crossing, inking themselves in on the map. */
   gains: { key: number; regions: RegionId[] } | null;
   relations: RelationsView;
-  /** The opening plays: the map unrolls, the seals drop, the valley glows. */
-  opening: boolean;
+  /** The prologue's beat on screen (the valley, the five nations, the first crisis), or null. */
+  prologue: number | null;
   /** The step of the tutorial on screen, or null. */
   tutorialStep: number | null;
   muted: boolean;
@@ -135,7 +135,7 @@ export const useStore = create<StoreState>()((set) => ({
   summary: null,
   gains: null,
   relations: 'off',
-  opening: false,
+  prologue: null,
   tutorialStep: null,
   muted: false,
   notes: [],

@@ -48,6 +48,8 @@ export interface NationProfile {
   aim: string;
   /** What the nation seems to want: a hint, shown in the dossier. */
   hint: string;
+  /** The prologue's line: who they are and what they want, in about ten plain words. */
+  want: string;
   redLine: { kind: RedLineKind; about: NationId | null; text: string };
   grudges: { against: NationId; reason: string }[];
   friends: { with: NationId; reason: string }[];
