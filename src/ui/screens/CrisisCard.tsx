@@ -2,7 +2,7 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { CONFIG, seasonTitle } from '../../engine/config';
 import { PROFILES } from '../../engine/nations';
-import { closeCrisis } from '../../store/flow';
+import { closeCrisis, playAgain } from '../../store/flow';
 import { useStore } from '../../store/worldStore';
 import { AMBITION_SEAL } from '../common/ambitionArt';
 import { SealButton } from '../common/SealButton';
@@ -56,8 +56,9 @@ export function CrisisCard() {
                 {crisis.ambitionNote}
               </p>
             )}
-            <div className="mt-[1em] flex justify-center">
+            <div className="mt-[1em] flex items-center justify-center gap-[1.2em]">
               <SealButton label="Begin the season" onClick={closeCrisis} seed={12} size="2.8em" />
+              <SealButton label="Restart game" onClick={playAgain} seed={13} size="2.2em" colour="#5b4630" hint="Discard this game and begin a new one." />
             </div>
           </motion.article>
         </motion.div>
