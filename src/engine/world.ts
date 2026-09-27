@@ -118,6 +118,7 @@ export function createWorld(seed: number): WorldState {
       regionsChanged: 0,
       audiencesHeld: 0,
       crossingAttacked: false,
+      threats: 0,
     },
     ending: null,
   };
@@ -178,9 +179,9 @@ export function atWar(world: WorldState, a: NationId, b: NationId): boolean {
   return world.wars.some((w) => (w.a === a && w.b === b) || (w.a === b && w.b === a));
 }
 
-/** Does this nation mean to attack the valley when the bell rings? */
+/** Is this nation's army massed at the valley's border, or marching on it? */
 export function marchingOnCrossing(world: WorldState, nation: NationId): boolean {
-  return world.intents.some((i) => i.kind === 'attack' && i.nation === nation);
+  return world.intents.some((i) => (i.kind === 'attack' || i.kind === 'threat') && i.nation === nation);
 }
 
 /** How many wars a nation is fighting. */

@@ -20,6 +20,7 @@ const other = (n: LetterBrief['about']) => (n ? PROFILES[n].name : 'someone');
 /** What each kind of letter is about, for the scribe who writes its one line. */
 const LETTER_WORDS: Record<LetterBrief['kind'], (l: LetterBrief) => string> = {
   attack: (l) => `their army is marching on the Crossing's region of ${l.region ?? 'the valley'}; they demand ${l.amount} gold in tribute to turn back`,
+  threat: (l) => `their army is massed at the Crossing's border and will strike ${l.region ?? 'the valley'} next season; they would go home for ${l.amount} gold`,
   raid: (l) => `their foragers threaten to burn ${l.region ?? 'a region'} of the Crossing unless paid ${l.amount} gold`,
   passage: (l) => `they ask leave to march their army through the Crossing to attack ${other(l.about)}, offering ${l.amount} gold`,
   help: (l) => `${other(l.about)} means to march an army through the Crossing to attack them; they offer ${l.amount} gold if the Warden closes the pass to ${other(l.about)}`,

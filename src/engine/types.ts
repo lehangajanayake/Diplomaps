@@ -158,7 +158,12 @@ export type WarCause = 'grudge' | 'ally' | 'favour' | 'words';
  */
 export type Intent =
   | { kind: 'war'; nation: NationId; target: NationId }
-  /** An army marching on one of the Crossing's regions. */
+  /**
+   * An army massing at the valley's border: it strikes `region` next season unless the Warden answers it.
+   * `held` is set at the bell when it stays, and the army then marches (an `attack`) as the next season opens.
+   */
+  | { kind: 'threat'; nation: NationId; region: RegionId; because?: Because; held?: boolean }
+  /** An army marching on one of the Crossing's regions: it strikes at this season's bell. */
   | { kind: 'attack'; nation: NationId; region: RegionId; because?: Because };
 
 export interface KnowledgeRef {
@@ -241,7 +246,7 @@ export interface LedgerEntry {
   broken: boolean;
 }
 
-export const LETTER_KINDS = ['attack', 'raid', 'passage', 'help', 'spoils', 'talks', 'trade', 'last', 'angry'] as const;
+export const LETTER_KINDS = ['attack', 'threat', 'raid', 'passage', 'help', 'spoils', 'talks', 'trade', 'last', 'angry'] as const;
 export type LetterKind = (typeof LETTER_KINDS)[number];
 
 /** A letter on the Warden's table. What it says and what each answer does live in letters.ts. */
@@ -377,10 +382,13 @@ type GameEventBase =
   | { kind: 'gossip'; season: number; from: NationId; to: NationId; entry: string }
   | { kind: 'lie_caught'; season: number; entry: string; by: NationId[]; how: string }
   | { kind: 'letter'; season: number; letter: string; nation: NationId; letterKind: LetterKind; answer: string }
-  | { kind: 'tension'; season: number; from: number; to: number };
+  | { kind: 'tension'; season: number; from: number; to: number }
+  /** At the bell, an army massed at the valley's border either stays (it strikes next season) or goes home. */
+  | { kind: 'threat'; season: number; nation: NationId; region: RegionId; outcome: 'holds' | 'lifted' };
 
 /** What kind of moment a chronicle line (and a montage beat) is: it picks the icon and the map's effect. */
 export type BeatKind =
+  | 'threat'
   | 'war'
   | 'battle'
   | 'capture'
@@ -501,10 +509,12 @@ export interface WorldStats {
   regionsChanged: number;
   audiencesHeld: number;
   crossingAttacked: boolean;
+  /** Armies that massed at the valley's border (each gives a season's warning). */
+  threats: number;
 }
 
 /** Bumped whenever the saved shape changes, so an old save is never loaded into a new game. */
-export const WORLD_VERSION = 6;
+export const WORLD_VERSION = 7;
 
 export interface WorldState {
   version: typeof WORLD_VERSION;

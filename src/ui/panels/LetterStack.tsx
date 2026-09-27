@@ -7,6 +7,7 @@ import { WaxSeal } from '../common/WaxSeal';
 
 const KIND_LABEL: Record<LetterKind, string> = {
   attack: 'An army marches on you',
+  threat: 'An army at your border',
   raid: 'Raiders at the border',
   passage: 'Asks to march through',
   help: 'Asks you to shut a pass',

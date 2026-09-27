@@ -61,9 +61,13 @@ export function GameTable() {
   }, [tension, muted]);
 
   const onSelect = useCallback((id: RegionId) => {
-    const owner = useStore.getState().world?.regions[id]?.owner;
-    if (!owner) return;
-    if (owner === 'unclaimed') openClaim(id);
+    const w = useStore.getState().world;
+    const owner = w?.regions[id]?.owner;
+    if (!w || !owner) return;
+    // A region an army means to strike opens that army's letter: the ways to answer it are there.
+    const warning = seasonLetters(w).find((l) => (l.kind === 'threat' || l.kind === 'attack') && l.region === id);
+    if (warning) openLetter(warning.id);
+    else if (owner === 'unclaimed') openClaim(id);
     else if (owner === 'crossing') openCrossing();
     else openDossier(owner);
   }, []);

@@ -53,6 +53,10 @@ export function summariseSeason(before: WorldState, after: WorldState, events: r
   }
 
   for (const e of events) {
+    if (e.kind === 'threat' && e.outcome === 'holds') you.push(line(`${cap(e.nation)}'s army stays at your border: it strikes ${place(e.region)} next season`, 'bad', e.because));
+    else if (e.kind === 'threat') you.push(line(`${cap(e.nation)}'s army at your border went home`, 'good', e.because));
+  }
+  for (const e of events) {
     if (e.kind === 'battle' && e.defender === CROSSING && !e.captured) you.push(line(`You held ${place(e.region)} against ${who(e.attacker)}`, 'good', e.because));
     else if (e.kind === 'burn') you.push(line(`${cap(e.nation)} burned ${place(e.region)}`, 'bad', e.because));
     else if (e.kind === 'march' && e.forced) you.push(line(`${cap(e.nation)} forced its way through your valley`, 'bad', e.because));

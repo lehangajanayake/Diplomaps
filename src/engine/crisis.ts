@@ -21,12 +21,26 @@ export function composeCrisis(w: WorldState): Crisis {
       ...base,
       tone: 'danger',
       headline: `${cap(attack.nation)} marches on you`,
-      line: `${cap(attack.nation)}'s army will attack ${regionName(w, attack.region)} when the season ends.`,
+      line: `${cap(attack.nation)}'s army will attack ${regionName(w, attack.region)} when the season ends${attack.because ? `: ${attack.because.why}` : ''}.`,
       suggestion: friendAgainst(w, attack.nation)
         ? 'Answer its letter: pay tribute, hire sellswords, or call in a favour from a friend.'
         : 'Answer its letter: pay tribute, hire sellswords, or stand and fight.',
       nations: [attack.nation],
       regions: [attack.region],
+    };
+  }
+
+  const threat = w.intents.find((i) => i.kind === 'threat');
+  if (threat && threat.kind === 'threat') {
+    const friend = friendAgainst(w, threat.nation);
+    return {
+      ...base,
+      tone: 'danger',
+      headline: `${cap(threat.nation)}'s army at your border`,
+      line: `${cap(threat.nation)} will strike ${regionName(w, threat.region)} next season unless you act${threat.because ? `: ${threat.because.why}` : ''}.`,
+      suggestion: `Pay it to go home or hire sellswords in its letter${friend ? `, call in a favour from ${nameOf(friend)},` : ','} or win back its trust in an audience.`,
+      nations: [threat.nation],
+      regions: [threat.region],
     };
   }
 

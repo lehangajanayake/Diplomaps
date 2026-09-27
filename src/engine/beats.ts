@@ -41,6 +41,13 @@ export function seasonBeats(before: WorldState, after: WorldState, events: reado
   for (const e of events) {
     because = e.because ?? null;
     switch (e.kind) {
+      case 'threat':
+        beat(
+          e.outcome === 'holds'
+            ? { kind: 'threat', text: `${cap(e.nation)}'s army stays at your border: it strikes ${place(e.region)} next season`, seal: e.nation, other: CROSSING, regions: [e.region], tone: 'bad', weight: 82 }
+            : { kind: 'threat', text: `${cap(e.nation)}'s army at your border goes home`, seal: e.nation, other: CROSSING, regions: [e.region], tone: 'good', weight: 72 },
+        );
+        break;
       case 'war': {
         const how = e.cause === 'ally' ? `${cap(e.nation)} joins the war on ${who(e.target)}` : `${cap(e.nation)} declares war on ${who(e.target)}`;
         beat({ kind: 'war', text: how, seal: e.nation, other: e.target, tone: 'bad', weight: e.cause === 'favour' ? 85 : e.cause === 'ally' ? 55 : 80 });

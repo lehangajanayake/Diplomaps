@@ -114,6 +114,9 @@ const merchant: Bot = {
       switch (l.kind) {
         case 'attack':
           return isCapital(x, l) ? first(a, 'sellswords', 'tribute') : null;
+        case 'threat':
+          // Losing a region costs its tax every season after: worth paying off while the purse is deep.
+          return isCapital(x, l) ? first(a, 'sellswords', 'pay') : x.player.gold >= 200 ? first(a, 'pay') : null;
         case 'raid':
           return first(a, 'burn');
         case 'passage':
@@ -145,6 +148,8 @@ const kingdom: Bot = {
       switch (l.kind) {
         case 'attack':
           return first(a, 'sellswords', 'favour', 'tribute');
+        case 'threat':
+          return first(a, 'sellswords', 'favour', 'pay');
         case 'passage':
           return first(a, 'land', 'grant');
         case 'help':
@@ -180,6 +185,8 @@ const spider: Bot = {
           return first(a, 'apologise');
         case 'attack':
           return first(a, 'tribute', 'sellswords');
+        case 'threat':
+          return first(a, 'pay', 'sellswords');
         case 'passage':
           return first(a, 'grant');
         case 'help':
@@ -227,6 +234,8 @@ const peacemaker: Bot = {
           return first(a, 'close');
         case 'attack':
           return first(a, 'tribute', 'sellswords');
+        case 'threat':
+          return first(a, 'pay', 'sellswords');
         case 'raid':
           return first(a, 'pay', 'burn');
         case 'trade':

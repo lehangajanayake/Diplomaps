@@ -86,15 +86,52 @@ export function Smoke({ map, region }: { map: MapData; region: RegionId }) {
   );
 }
 
-function Danger({ map, region }: { map: MapData; region: RegionId }) {
+/**
+ * An army against the valley: a red ring on the region it will strike, an arrow from the border it
+ * masses on, the nation's flag, and when it strikes. Massing (a season ahead) is drawn dashed; marching
+ * (it strikes at this bell) solid and pulsing.
+ */
+function Danger({ world, nation, region, stage }: { world: WorldState; nation: NationId; region: RegionId; stage: 'threat' | 'attack' }) {
+  const { map } = world;
   const [x, y] = map.regions[region]!.token;
+  const from = map.regions[region]!.neighbours.find((nb) => world.regions[nb]!.owner === nation);
+  const [fx, fy] = from ? map.regions[from]!.token : [x, y];
+  // The arrow runs from the border region toward the ring, stopping short of both.
+  const len = Math.hypot(x - fx, y - fy) || 1;
+  const ux = (x - fx) / len;
+  const uy = (y - fy) / len;
+  const [ax, ay] = [fx + ux * 16, fy + uy * 16];
+  const [bx, by] = [x - ux * 24, y - uy * 24];
+  const label = stage === 'threat' ? 'strikes next season' : 'strikes at the bell';
+  // The label sits with the army, on its own side of the border, clear of the valley's names.
+  const [lx, ly] = from ? [fx - ux * 6, fy - uy * 6 + 30] : [x, y + 36];
   return (
-    <g style={{ pointerEvents: 'none' }} data-danger={region}>
-      <circle cx={x} cy={y} r={20} fill="none" stroke={INK_RED} strokeWidth={2.4} className="danger-ring" />
+    <g style={{ pointerEvents: 'none' }} data-danger={region} data-stage={stage}>
+      <circle cx={x} cy={y} r={20} fill="none" stroke={INK_RED} strokeWidth={2.4} strokeDasharray={stage === 'threat' ? '6 4' : undefined} className={stage === 'attack' ? 'danger-ring' : undefined} />
+      {from && len > 40 && (
+        <g stroke={INK_RED} strokeWidth={2.6} strokeLinecap="round" fill="none">
+          <path d={`M${ax} ${ay} L${bx} ${by}`} strokeDasharray={stage === 'threat' ? '5 5' : undefined} />
+          <path d={`M${bx - ux * 8 - uy * 6} ${by - uy * 8 + ux * 6} L${bx} ${by} L${bx - ux * 8 + uy * 6} ${by - uy * 8 - ux * 6}`} />
+        </g>
+      )}
       <g transform={`translate(${x + 14} ${y - 26})`}>
         <path d="M0 0 V22" stroke="#2a1d12" strokeWidth={1.4} />
-        <path d="M0 0 H14 L10 5 L14 10 H0 Z" fill={INK_RED} stroke="#4a0f0b" strokeWidth={0.6} />
+        <path d="M0 0 H14 L10 5 L14 10 H0 Z" fill={PROFILES[nation].colour} stroke="#4a0f0b" strokeWidth={0.8} />
       </g>
+      <text
+        x={lx}
+        y={ly}
+        textAnchor="middle"
+        className="font-sc"
+        fontSize={14}
+        fill={INK_RED}
+        stroke={LAND}
+        strokeWidth={3.5}
+        paintOrder="stroke"
+        style={{ letterSpacing: '0.04em' }}
+      >
+        {PROFILES[nation].name} {label}
+      </text>
     </g>
   );
 }
@@ -139,7 +176,7 @@ function middleOf(d: string): Point {
 export const WarMarks = memo(function WarMarks({ world }: { world: WorldState }) {
   const { map } = world;
   const burning = Object.keys(world.burning).filter((id) => (world.burning[id] ?? 0) >= world.season);
-  const threatened = world.intents.flatMap((i) => (i.kind === 'attack' ? [i.region] : []));
+  const threatened = world.intents.flatMap((i) => (i.kind === 'attack' || i.kind === 'threat' ? [i] : []));
   const favour = favourThisSeason(world);
   return (
     <g style={{ pointerEvents: 'none' }}>
@@ -153,8 +190,8 @@ export const WarMarks = memo(function WarMarks({ world }: { world: WorldState })
       {burning.map((id) => (
         <Smoke key={id} map={map} region={id} />
       ))}
-      {threatened.map((id) => (
-        <Danger key={id} map={map} region={id} />
+      {threatened.map((i) => (
+        <Danger key={i.region} world={world} nation={i.nation} region={i.region} stage={i.kind} />
       ))}
     </g>
   );

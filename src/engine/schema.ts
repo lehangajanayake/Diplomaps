@@ -151,6 +151,8 @@ export const AudienceContextSchema = SeasonInfoSchema.extend({
   trust: z.number().min(-100).max(100),
   suspicion: z.number().min(0).max(100),
   pass: z.enum(['open', 'closed']),
+  /** This court's army against the Crossing: massed at its border (strikes next season), or marching now. */
+  marching: z.object({ stage: z.enum(['threat', 'attack']), region: PlaceNameSchema }).nullable().default(null),
   /** Regions this ruler could hand the Crossing. */
   offerable: z.array(PlaceNameSchema).max(8),
   neutrality: z.number().min(0).max(100),

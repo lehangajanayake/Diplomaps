@@ -5,7 +5,7 @@
 import { chronicleBeats, seasonBeats, type Beat } from './beats.js';
 import { CONFIG, seasonTitle } from './config.js';
 import { composeCrisis } from './crisis.js';
-import { attackTheCrossing, recoverBurning, resolveMarches } from './crossing.js';
+import { attackTheCrossing, recoverBurning, resolveMarches, reviewThreats } from './crossing.js';
 import { computeIncome } from './economy.js';
 import { checkEnding } from './endings.js';
 import { honourFavours } from './favours.js';
@@ -69,6 +69,9 @@ export function resolveSeason(state: WorldState): { state: WorldState; events: G
     if (spark.kind === 'war') declareWar(w, spark.nation, spark.target, 'words', events);
   }
 
+  //    Armies massed at the valley's border stay, to strike next season, or go home.
+  reviewThreats(w, events);
+
   // 3. Armies muster, march through the valley where they were let (or forced their way), strike at
   //    the Crossing itself, and fight; lies that started wars come out on the field; nations whose
   //    capitals fall collapse into ruins.
@@ -103,6 +106,7 @@ function openSeason(w: WorldState, events: readonly GameEvent[]): void {
   w.audiencesThisSeason = [];
   const rng = new Rng(w.rng);
   w.intents = planIntents(w, rng);
+  w.stats.threats += w.intents.filter((i) => i.kind === 'threat').length;
   deliverLetters(w, events, rng);
   w.rng = rng.state;
   w.crisis = composeCrisis(w);
@@ -113,6 +117,7 @@ export function openFirstSeason(world: WorldState): WorldState {
   const w = cloneWorld(world);
   const rng = new Rng(w.rng);
   w.intents = planIntents(w, rng);
+  w.stats.threats += w.intents.filter((i) => i.kind === 'threat').length;
   deliverLetters(w, [], rng);
   w.rng = rng.state;
   w.crisis = composeCrisis(w);

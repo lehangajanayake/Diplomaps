@@ -67,16 +67,22 @@ export function standDownCause(w: WorldState, nation: NationId, target: NationId
   return talked ? yours(`you spoke with ${who(nation)} and its anger cooled`) : theirs(`${who(nation)}'s anger cooled`);
 }
 
-/** Why `nation` means to march on the valley: its strongest reason, and every one the Warden gave it. */
+/**
+ * Why `nation` means to march on the valley: its two strongest reasons. It is the Warden's doing only
+ * when the Warden gave it one (refusals, a valley grown large, taking sides, lies it suspects).
+ */
 export function attackReasons(w: WorldState, nation: NationId): Because {
   const a = CONFIG.attack;
   const n = w.nations[nation];
-  const reasons: string[] = [];
-  if (n.grievances > 0) reasons.push(`you refused or shut out its army`);
-  if (n.trustPlayer <= a.hostileTrust) reasons.push(`it distrusts you`);
-  if (w.map.regionIds.filter((id) => w.regions[id]!.owner === CROSSING).length > a.largeFrom) reasons.push(`your valley has grown large`);
-  if (w.player.neutrality < a.lowNeutrality) reasons.push(`you have taken sides`);
-  return yours(reasons.length ? reasons.slice(0, 2).join(' and ') : `it covets your valley`);
+  const yoursToo: string[] = [];
+  const theirsOnly: string[] = [];
+  if (n.grievances > 0) yoursToo.push('you refused or shut out its army');
+  if (n.suspicion >= 30) yoursToo.push('it suspects your lies');
+  if (w.map.regionIds.filter((id) => w.regions[id]!.owner === CROSSING).length > a.largeFrom) yoursToo.push('your valley has grown large');
+  if (w.player.neutrality < a.lowNeutrality) yoursToo.push('you have taken sides');
+  if (n.trustPlayer < a.coldTrust) theirsOnly.push('it distrusts you');
+  const reasons = [...yoursToo, ...theirsOnly].slice(0, 2);
+  return { why: reasons.length ? reasons.join(' and ') : 'it covets your rich valley', yours: yoursToo.length > 0 };
 }
 
 /** The cause a war was declared with, for the battles fought in it and the land it took. */

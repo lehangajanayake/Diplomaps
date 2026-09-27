@@ -63,6 +63,14 @@ function callOffAttack(x: WorldState, nation: NationId): void {
   x.intents = x.intents.filter((i) => !(i.kind === 'attack' && i.nation === nation));
 }
 
+/** An army massed at the valley's border goes home, and the season's record says why. */
+function sendHome(x: WorldState, nation: NationId, why: string, events: GameEvent[]): void {
+  const threat = x.intents.find((i) => i.kind === 'threat' && i.nation === nation);
+  if (!threat || threat.kind !== 'threat') return;
+  x.intents = x.intents.filter((i) => i !== threat);
+  events.push({ kind: 'threat', season: x.season, nation, region: threat.region, outcome: 'lifted', because: { why, yours: true } });
+}
+
 const KINDS: Record<LetterKind, LetterKindDef> = {
   attack: {
     summary: (w, l) => `${cap(l.from)}'s army marches on ${regionName(w, l.region!)}.`,
@@ -119,6 +127,61 @@ const KINDS: Record<LetterKind, LetterKindDef> = {
     },
     fallback: 'fight',
     quote: (l) => LETTER_WORDS.attack[l.from],
+  },
+  threat: {
+    summary: (w, l) => `${cap(l.from)}'s army masses at your border. It will strike ${regionName(w, l.region!)} next season unless you act.`,
+    answers: (w, l) => {
+      const region = regionName(w, l.region!);
+      const friend = friendAgainst(w, l.from);
+      const favour = friend ? favourOutcome(friend, l.from) : null;
+      return [
+        {
+          id: 'pay',
+          label: `Pay ${l.amount} gold to send them home`,
+          outcome: {
+            gold: -l.amount,
+            trust: { [l.from]: L.tributeTrust },
+            notes: ['their army goes home'],
+            act: (x, events) => {
+              x.nations[l.from].grievances = 0;
+              sendHome(x, l.from, `you paid ${nameOf(l.from)} ${l.amount} gold to go home`, events);
+            },
+          },
+          blocked: afford(w, l, l.amount),
+        },
+        {
+          id: 'sellswords',
+          label: `Hire sellswords for ${L.sellswordsCost} gold`,
+          outcome: {
+            gold: -L.sellswordsCost,
+            notes: [`+${L.sellswordsTroops} soldiers in ${region}`, `${region} ${assaultOdds(w, l.from, l.region!, L.sellswordsTroops)}`],
+            act: (x) => {
+              x.regions[l.region!]!.troops += L.sellswordsTroops;
+            },
+          },
+          blocked: afford(w, l, L.sellswordsCost),
+        },
+        ...(friend && favour
+          ? [
+              {
+                id: 'favour',
+                label: `Call in a favour from ${nameOf(friend)}`,
+                outcome: {
+                  ...favour,
+                  notes: [...(favour.notes ?? []), 'their army goes home'],
+                  act: (x: WorldState, events: GameEvent[]) => {
+                    favour.act?.(x, events);
+                    sendHome(x, l.from, `you sent ${nameOf(friend)} to war against ${nameOf(l.from)}`, events);
+                  },
+                },
+              },
+            ]
+          : []),
+        { id: 'wait', label: 'Wait and see', outcome: { notes: [`talk ${nameOf(l.from)} down, or it strikes ${region} next season`] } },
+      ];
+    },
+    fallback: 'wait',
+    quote: (l) => LETTER_WORDS.threat[l.from],
   },
   raid: {
     summary: (w, l) => `${cap(l.from)}'s foragers threaten to burn ${regionName(w, l.region!)}.`,
@@ -439,7 +502,7 @@ export function deliverLetters(w: WorldState, events: readonly GameEvent[], rng:
   const amount = (range: readonly [number, number]) => rng.int(range[0], range[1]);
 
   for (const intent of w.intents) {
-    if (intent.kind === 'attack' && room()) send({ kind: 'attack', from: intent.nation, region: intent.region, amount: amount(L.tribute) });
+    if ((intent.kind === 'attack' || intent.kind === 'threat') && room()) send({ kind: intent.kind, from: intent.nation, region: intent.region, amount: amount(L.tribute) });
   }
   const raids = raidTargets(w);
   if (raids.length > 0 && room() && rng.chance(L.raidChance)) {
