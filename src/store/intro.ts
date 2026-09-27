@@ -65,8 +65,8 @@ export const TUTORIAL: readonly TutorialStep[] = [
     when: (s) => !!s.summary,
   },
   {
-    target: () => mark('crisis'),
-    text: () => 'That is a season: read the crisis, talk, answer letters, ring the bell. The rest is yours.',
+    target: () => mark('agenda'),
+    text: () => 'Your agenda always suggests a next move; click one to open it. The rest is yours.',
     when: (s) => !s.summary && !s.resolving && !s.fx,
   },
 ];

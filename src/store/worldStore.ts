@@ -3,6 +3,7 @@
  * resolution, animations) lives in ./flow.ts, which reads and writes this store.
  */
 import { create } from 'zustand';
+import type { AgendaItem } from '../engine/agenda';
 import type { Beat } from '../engine/beats';
 import type { FirstGoal } from '../engine/guide';
 import type { Mood } from '../engine/schema';
@@ -114,6 +115,10 @@ export interface StoreState {
   prologue: number | null;
   /** The step of the tutorial on screen, or null. */
   tutorialStep: number | null;
+  /** Agenda items shown this season, so those done can be ticked off. */
+  agendaSeen: { season: number; items: AgendaItem[] };
+  /** The bell asks once before ringing when something urgent is undone: what it says. */
+  confirmBell: string | null;
   /** The guided first season's goal, fixed when the tutorial starts. */
   tutorialGoal: FirstGoal | null;
   muted: boolean;
@@ -141,6 +146,8 @@ export const useStore = create<StoreState>()((set) => ({
   prologue: null,
   tutorialStep: null,
   tutorialGoal: null,
+  confirmBell: null,
+  agendaSeen: { season: 0, items: [] },
   muted: false,
   notes: [],
   setHoverRegion: (id) => set({ hoverRegion: id }),

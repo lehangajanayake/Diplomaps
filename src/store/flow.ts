@@ -9,6 +9,7 @@ import { addLedgerEntries, recordAudience, recordExchange } from '../engine/ledg
 import { claimRuin } from '../engine/actions';
 import { echoedPromise, patienceFor, trustStep } from '../engine/audience';
 import { biggest, MONTAGE_MAX, type Beat } from '../engine/beats';
+import { audiencesLeft, bellWarning, type AgendaAction } from '../engine/agenda';
 import { composeCrisis } from '../engine/crisis';
 import { firstGoal } from '../engine/guide';
 import { callFavour } from '../engine/favours';
@@ -316,9 +317,7 @@ export function decideLetter(id: string, answer: string): void {
 /* Audiences                                                           */
 /* ------------------------------------------------------------------ */
 
-export function audiencesLeft(w: WorldState): number {
-  return CONFIG.audiencesPerSeason - w.audiencesThisSeason.length;
-}
+export { audiencesLeft };
 
 export function canHoldAudience(w: WorldState, nation: NationId): string | null {
   if (w.ending) return 'The game is over.';
@@ -536,6 +535,34 @@ function relationsChanged(before: WorldState, after: WorldState): boolean {
 export function toggleRelations(): void {
   set({ relations: get().relations === 'on' ? 'off' : 'on' });
   sound.play('paper');
+}
+
+/**
+ * The bell is rung. If something urgent is still undone (an army's letter unanswered, a promise due),
+ * the Warden is asked once to confirm first.
+ */
+export function ringBell(): void {
+  const w = get().world;
+  if (!w || get().resolving || get().audience) return;
+  const warning = bellWarning(w);
+  if (warning) set({ confirmBell: warning });
+  else void endSeason();
+}
+
+export function confirmRing(): void {
+  set({ confirmBell: null });
+  void endSeason();
+}
+
+export function cancelRing(): void {
+  set({ confirmBell: null });
+}
+
+/** Do what an agenda item points at: open the letter, the court's dossier or the ruins' card. */
+export function followAgenda(action: AgendaAction): void {
+  if (action.kind === 'letter') openLetter(action.id);
+  else if (action.kind === 'dossier') openDossier(action.nation);
+  else if (action.kind === 'claim') openClaim(action.region);
 }
 
 export async function endSeason(): Promise<void> {

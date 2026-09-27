@@ -2,12 +2,13 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { useCallback, useEffect, useMemo } from 'react';
 import { CONFIG } from '../../engine/config';
+import { bellNote } from '../../engine/agenda';
 import { seasonLetters } from '../../engine/letters';
 import { prologueBeats } from '../../engine/prologue';
 import { CROSSING, type RegionId } from '../../engine/types';
 import { regionsOf, spareGold } from '../../engine/world';
 import { sound } from '../../audio/sound';
-import { closeOverlay, endSeason, openClaim, openCrossing, openDossier, openLedger, openLetter } from '../../store/flow';
+import { closeOverlay, openClaim, openCrossing, openDossier, openLedger, openLetter, ringBell } from '../../store/flow';
 import { useStore } from '../../store/worldStore';
 import { AudienceScene } from '../audience/AudienceScene';
 import { Courts } from '../hud/Courts';
@@ -36,7 +37,9 @@ import { Notes } from '../table/Notes';
 import { Snuffer } from '../hud/Snuffer';
 import { Table } from '../table/Table';
 import { AmbitionCard } from '../hud/AmbitionCard';
+import { Agenda } from '../hud/Agenda';
 import { AmbitionChoice } from './AmbitionChoice';
+import { ConfirmBell } from './ConfirmBell';
 import { CrisisCard } from './CrisisCard';
 import { MontageCaption } from './MontageCaption';
 import { Prologue } from './Prologue';
@@ -94,7 +97,6 @@ export function GameTable() {
   const ledger = shown.player.ledger;
   const letter = overlay?.kind === 'letter' ? world.letters.find((l) => l.id === overlay.id) : undefined;
   const onTable = resolving ? [] : seasonLetters(world);
-  const sealed = onTable.filter((l) => l.choice === null);
 
   return (
     <Table danger={world.tension > CONFIG.tension.drumsAbove}>
@@ -133,6 +135,7 @@ export function GameTable() {
             </MapView>
           </MapSheet>
           <MontageCaption />
+          {!opening && !fx && world.player.ambition && !world.ending && <Agenda world={world} />}
         </motion.div>
 
         <aside className={`absolute bottom-[var(--bottom)] right-[0.9vw] top-[1.4vh] z-20 flex w-[var(--right-col)] flex-col items-center justify-between transition-opacity duration-1000 ${opening ? 'pointer-events-none opacity-0' : 'opacity-100'}`}>
@@ -141,9 +144,9 @@ export function GameTable() {
           <NeutralityScale neutrality={shown.player.neutrality} />
           <LedgerBook entries={ledger.length} caught={ledger.filter((e) => e.caught).length} onOpen={openLedger} />
           <EndSeasonBell
-            onRing={() => void endSeason()}
+            onRing={ringBell}
             disabled={resolving || !!audience}
-            note={sealed.length ? `${sealed.length} ${sealed.length === 1 ? 'letter' : 'letters'} unanswered` : undefined}
+            note={bellNote(world)}
           />
         </aside>
 
@@ -167,6 +170,7 @@ export function GameTable() {
       <WhatChanged />
       <CrisisCard />
       <AmbitionChoice />
+      <ConfirmBell />
       <Tutorial />
     </Table>
   );

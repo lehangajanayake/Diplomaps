@@ -36,6 +36,7 @@ export function LetterStack({ world, letters, onOpen }: { world: WorldState; let
             whileHover={{ y: -4, rotate: 0, zIndex: 5, transition: { duration: 0.2 } }}
             transition={{ delay: 0.15 * i, type: 'spring', stiffness: 120, damping: 14 }}
             onClick={() => onOpen(letter.id)}
+            data-letter-id={letter.id}
             aria-label={`Letter from ${nameOf(letter.from)}: ${chosen ? `your answer, ${chosen.label}. Open to change it.` : KIND_LABEL[letter.kind]}`}
             className={`relative flex items-center gap-[0.6em] px-[0.8em] py-[0.55em] text-left text-ink ${chosen ? 'opacity-80' : ''}`}
             style={{
