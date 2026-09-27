@@ -14,7 +14,8 @@ import { honourOffers } from './land.js';
 import { revealLiesOnTheField } from './ledger.js';
 import { closeLetters, deliverLetters } from './letters.js';
 import { resentClosedPasses } from './passes.js';
-import { planIntents, sparkedByWords, warHolds } from './policy.js';
+import { needsPassage, planIntents, sparkedByWords, warHolds } from './policy.js';
+import { explainEvents, standDownCause } from './causes.js';
 import { Rng } from './rng.js';
 import { addTension, adjustNeutrality, adjustSuspicion } from './tension.js';
 import { NATION_IDS, type Ending, type GameEvent, type SeasonRecord, type WorldState } from './types.js';
@@ -59,7 +60,10 @@ export function resolveSeason(state: WorldState): { state: WorldState; events: G
   for (const intent of w.intents) {
     if (intent.kind !== 'war') continue;
     if (warHolds(w, intent.nation, intent.target)) declareWar(w, intent.nation, intent.target, 'grudge', events);
-    else events.push({ kind: 'stand_down', season: w.season, nation: intent.nation, target: intent.target });
+    else {
+      const barred = needsPassage(w, intent.nation, intent.target) && w.player.passes[intent.nation] === 'closed';
+      events.push({ kind: 'stand_down', season: w.season, nation: intent.nation, target: intent.target, because: standDownCause(w, intent.nation, intent.target, barred) });
+    }
   }
   for (const spark of sparkedByWords(w, rng)) {
     if (spark.kind === 'war') declareWar(w, spark.nation, spark.target, 'words', events);
@@ -129,12 +133,13 @@ export function playSeason(world: WorldState): SeasonOutcome {
   const resolved = resolveSeason(world);
   const gossip = runGossip(resolved.state, new Rng(resolved.state.rng));
   const w = gossip.state;
-  const events = [...world.seasonLog, ...resolved.events, ...gossip.events];
-  const beats = seasonBeats(world, w, [...resolved.events, ...gossip.events]);
+  // Every event gets its cause now, from the world as it was when the bell rang and as it is after.
+  const bell = explainEvents(world, w, [...resolved.events, ...gossip.events]);
+  const events = [...explainEvents(world, w, world.seasonLog), ...bell];
+  const beats = seasonBeats(world, w, bell);
   // The chronicle's lines (the whole season, the Warden's own deeds too) are decided now; its prose
   // is written later, when the AI returns.
   w.chronicle.push({ season: w.season, title: seasonTitle(w.season), beats: chronicleBeats(seasonBeats(world, w, events)), lines: [], fromAI: false });
-  const ending = checkEnding(w, w.season >= CONFIG.seasons);
   const record: SeasonRecord = {
     season: w.season,
     events,
@@ -145,6 +150,8 @@ export function playSeason(world: WorldState): SeasonOutcome {
   };
   w.history.push(record);
   w.seasonLog = [];
+  // The ending is judged with this season in the history, so its moments can include the last bell.
+  const ending = checkEnding(w, w.season >= CONFIG.seasons);
   if (ending) w.ending = ending;
   else openSeason(w, events);
   return { state: w, events, beats, ending, record };

@@ -4,6 +4,7 @@
  * mind. Words the Warden spoke can also start wars nobody planned. Code decides every event: the AI
  * only writes the words around them.
  */
+import { attackReasons } from './causes.js';
 import { CONFIG } from './config.js';
 import { provokes, reassures } from './ledger.js';
 import { PROFILES } from './nations.js';
@@ -128,7 +129,7 @@ function planAttack(w: WorldState, rng: Rng, busy: readonly NationId[]): Intent[
   if (willing.length === 0) return [];
   const pick = rng.weighted(willing, willing.map((c) => c.chance));
   const region = attackTarget(w, pick.nation);
-  return region && rng.chance(pick.chance) ? [{ kind: 'attack', nation: pick.nation, region }] : [];
+  return region && rng.chance(pick.chance) ? [{ kind: 'attack', nation: pick.nation, region, because: attackReasons(w, pick.nation) }] : [];
 }
 
 /** When a season opens: what the nations mean to do before the bell rings again. */

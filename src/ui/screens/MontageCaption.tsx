@@ -13,6 +13,7 @@ import { useStore } from '../../store/worldStore';
 import { TrustNeedle } from '../common/TrustNeedle';
 import { WaxSeal } from '../common/WaxSeal';
 import { STRING } from '../map/palette';
+import { BecauseLine } from '../common/YourDoing';
 
 function SealOf({ holder, size }: { holder: Holder; size: string }) {
   if (holder === CROSSING) return <WaxSeal colour={CROSSING_PROFILE.colour} emblem="crossroads" size={size} seed={2} />;
@@ -112,6 +113,7 @@ export function MontageCaption() {
               <SealOf holder={beat.seal} size="1.9em" />
               <span className={`font-body text-[1.2rem] font-medium leading-snug ${TONE[beat.tone]}`}>{beat.text}</span>
             </p>
+            {beat.because && <BecauseLine why={beat.because.why} yours={beat.because.yours} className="mt-[0.1em]" />}
             {(beat.kind === 'lie' || beat.kind === 'exposed') && <Betrayal beat={beat} before={fx.before} after={world} />}
           </motion.div>
         )}
