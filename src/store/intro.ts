@@ -16,10 +16,14 @@ export interface TutorialStep {
   done?: (s: StoreState) => boolean;
   /** The step waits, unseen, until this holds (the bell's steps wait for the season to turn). */
   when?: (s: StoreState) => boolean;
+  /** Put the card in the bottom-left corner rather than beside the spotlight (in the audience hall, where
+   *  beside it would cover the conversation). */
+  corner?: boolean;
 }
 
 const mark = (name: string) => `[data-tutorial="${name}"]`;
-const calm = (s: StoreState) => !s.resolving && !s.fx && !s.summary;
+/** The table is in play: no audience, no bell being rung, no season's cards. */
+const calm = (s: StoreState) => !s.audience && !s.resolving && !s.fx && !s.summary;
 
 export const TUTORIAL: readonly TutorialStep[] = [
   { target: () => mark('valley'), text: () => 'This is your valley. Every road runs through it.' },
@@ -40,12 +44,19 @@ export const TUTORIAL: readonly TutorialStep[] = [
     when: (s) => calm(s) && !!s.selectedNation,
   },
   {
-    target: (s) => (s.audience?.status === 'closed' ? mark('said') : mark('approaches')),
-    text: (s) =>
-      s.audience?.status === 'closed'
-        ? 'This is what you said, and what follows from it. Leave the hall when you are ready.'
-        : 'Pick a suggested line or write your own, then take your leave.',
+    target: () => mark('approaches'),
+    text: () => 'Pick a suggested line or write your own. Talk as long as you like, then take your leave.',
+    // Done once the Warden has spoken: the conversation is theirs from there.
+    done: (s) => !s.audience || s.audience.turns.some((t) => t.role === 'player'),
+    corner: true,
+  },
+  {
+    target: () => mark('said'),
+    text: () => 'This is what you said, and what follows from it. Leave the hall when you are ready.',
     done: (s) => !s.audience,
+    // It waits, unseen, while the audience goes on, and shows once the audience is over.
+    when: (s) => s.audience?.status === 'closed',
+    corner: true,
   },
   {
     target: () => mark('letters'),
