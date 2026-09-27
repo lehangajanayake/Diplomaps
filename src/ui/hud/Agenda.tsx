@@ -101,9 +101,9 @@ export function Agenda({ world }: { world: WorldState }) {
           aria-controls="agenda-body"
           className="group mx-[8%] flex items-center justify-between gap-[0.5em] px-[0.8em] py-[0.3em] text-left focus-visible:outline-2 focus-visible:outline-wax"
           style={paper}
-          title={rolled ? 'Unroll your agenda' : 'Roll up your agenda'}
+          title={rolled ? 'Unroll hints' : 'Roll up hints'}
         >
-          <span className="font-sc text-[0.78rem] tracking-[0.14em] text-ink-soft group-hover:text-wax">Your agenda</span>
+          <span className="font-sc text-[0.78rem] tracking-[0.14em] text-ink-soft group-hover:text-wax">hints</span>
           <span className="flex items-center gap-[0.5em] font-sc text-[0.74rem] text-ink-faded group-hover:text-wax">
             {rolled && waiting > 0 && (
               <span className={danger ? 'tutorial-pulse text-ink-red' : ''}>
