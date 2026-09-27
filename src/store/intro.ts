@@ -48,7 +48,7 @@ export const TUTORIAL: readonly TutorialStep[] = [
   { target: () => mark('valley'), text: () => 'This is your valley. Every road runs through it.' },
   { target: () => mark('ambition'), text: () => 'This is your ambition. Achieve it by the end of winter to win.' },
   { target: () => mark('courts'), text: () => 'Five nations surround you. The needle shows their trust in you; the eye, their suspicion.' },
-  { target: () => mark('crisis'), text: () => 'Each season brings a crisis. Click the ribbon to read it again.' },
+  { target: () => mark('crisis'), text: () => 'Each season brings a crisis. Click the ribbon to read it again, or to restart your game.' },
   { target: (_s, g) => `[data-court="${g.nation}"]`, text: (_s, g) => `Your first goal: ${g.text}` },
   {
     target: (_s, g) => `[data-court="${g.nation}"]`,
