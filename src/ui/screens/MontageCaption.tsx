@@ -1,6 +1,6 @@
 /**
  * The caption under each moment of the season montage: one plain line under the seal of the nation it
- * is about, the progress through the season, and the way to skip. A caught lie gets its moment: the
+ * is about, the progress through the season, and the way to move on. A caught lie gets its moment: the
  * ledger entry is struck through in red and the betrayed court's needle drops.
  */
 import { AnimatePresence, motion } from 'motion/react';
@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import type { Beat } from '../../engine/beats';
 import { CROSSING_PROFILE, PROFILES } from '../../engine/nations';
 import { CROSSING, type Holder, type NationId, type WorldState } from '../../engine/types';
-import { skipMontage } from '../../store/flow';
+import { nextMontage, skipMontage } from '../../store/flow';
 import { useStore } from '../../store/worldStore';
 import { TrustNeedle } from '../common/TrustNeedle';
 import { WaxSeal } from '../common/WaxSeal';
@@ -71,7 +71,11 @@ export function MontageCaption() {
   useEffect(() => {
     if (!fx) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' || e.key === ' ') skipMontage();
+      if (e.key === 'Escape') skipMontage();
+      else if (e.key === ' ') {
+        e.preventDefault();
+        nextMontage();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -125,8 +129,8 @@ export function MontageCaption() {
             <span key={i} className={`h-[0.4em] w-[0.4em] rounded-full ${i <= fx.index ? 'bg-gold-bright' : 'bg-parchment-300/35'}`} />
           ))}
         </span>
-        <button type="button" onClick={skipMontage} className="font-sc text-[0.82rem] tracking-[0.08em] text-parchment-200 hover:text-gold-bright">
-          Skip ›
+        <button type="button" onClick={nextMontage} className="font-sc text-[0.82rem] tracking-[0.08em] text-parchment-200 hover:text-gold-bright">
+          Next ›
         </button>
       </div>
     </div>

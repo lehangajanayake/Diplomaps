@@ -517,6 +517,11 @@ export function skipMontage(): void {
   skipBeat?.();
 }
 
+/** Advance to the next moment without ending the season montage. */
+export function nextMontage(): void {
+  skipBeat?.();
+}
+
 /** Play the bell's biggest moments one at a time on the map. */
 async function playMontage(beats: readonly Beat[]): Promise<void> {
   skipping = false;
