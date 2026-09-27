@@ -120,16 +120,20 @@ export function synthesize(ctx: BaseAudioContext, name: SoundName): AudioBuffer 
       });
     case 'ambient':
     default:
-      return make(9, (d) => {
+      return make(30, (d) => {
         const room = lowpass(noise(d.length, rate, true), rate, 400);
-        for (let i = 0; i < d.length; i++) d[i] = room[i]! * 0.05;
-        // Fire crackles: tiny filtered pops at random.
-        const pops = 70;
-        for (let p = 0; p < pops; p++) {
-          const s0 = Math.floor(Math.random() * (d.length - rate * 0.05));
-          const len = Math.floor((0.004 + Math.random() * 0.02) * rate);
-          const amp = 0.04 + Math.random() * 0.12;
-          for (let i = 0; i < len; i++) d[s0 + i]! += (Math.random() * 2 - 1) * amp * (1 - i / len);
+        const gustPoints = new Float32Array(31);
+        gustPoints[0] = 0.5 + Math.random() * 0.5;
+        for (let i = 1; i < gustPoints.length - 1; i++) gustPoints[i] = 0.5 + Math.random() * 0.5;
+        gustPoints[gustPoints.length - 1] = gustPoints[0]!;
+        for (let i = 0; i < d.length; i++) {
+          const t = i / rate;
+          const position = Math.min(29.999, t);
+          const segment = Math.floor(position);
+          const progress = position - segment;
+          const smoothProgress = progress * progress * (3 - 2 * progress);
+          const gust = gustPoints[segment]! + (gustPoints[segment + 1]! - gustPoints[segment]!) * smoothProgress;
+          d[i] = room[i]! * gust * 0.05;
         }
         // Fade the loop seam.
         const fade = Math.floor(0.05 * rate);
