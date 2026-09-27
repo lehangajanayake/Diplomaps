@@ -490,9 +490,9 @@ const sleep = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms))
 
 /** How long each beat of the montage holds the map. A caught lie or a betrayal gets a moment to land. */
 function beatMs(beat: Beat): number {
-  if (beat.kind === 'lie' || beat.kind === 'exposed') return 2600;
-  if (beat.kind === 'collapse') return 2000;
-  return 1350;
+  if (beat.kind === 'lie' || beat.kind === 'exposed') return 4600;
+  if (beat.kind === 'collapse') return 4000;
+  return 3350;
 }
 
 let skipBeat: (() => void) | null = null;
