@@ -436,7 +436,7 @@ async function closeAudience(endedByRuler: boolean, calledAway: boolean): Promis
         learned: extraction.learned,
         offer,
         entries: added.added,
-        caught: added.events.flatMap((e) => (e.kind === 'lie_caught' ? [e.how] : [])),
+        caught: [...new Set(added.events.flatMap((e) => (e.kind === 'lie_caught' ? [e.how] : [])))],
         fallback: extraction.fallback,
       },
     },

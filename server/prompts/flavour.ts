@@ -12,7 +12,7 @@ export function flavourInstructions(): string {
 Write two things:
 1. chronicle: 2 to 4 lines of "News of the Realm" for the season, in the voice of a medieval chronicle or a town crier: vivid, concrete, a little ominous. Each line at most 30 words. Report only the events listed; you may add colour (weather, market talk, omens) but never invent battles, treaties or deaths. Mention the Warden only where the events involve the Warden.
 2. letters: for each letter listed, one line of at most 25 words that its sender writes to the Warden, in that ruler's own voice and verbal habit. The line must fit what the letter is about. Witty, in character, period voice.
-Call the nations by name (Varrow, Kelm, Sael, the Tarn, Ostrin); never name their rulers. No modern idiom, no lists or headings inside the lines.`;
+Use only the numbers given here; never invent odds, troop counts or sums. Call the nations by name (Varrow, Kelm, Sael, the Tarn, Ostrin); never name their rulers. No modern idiom, no lists or headings inside the lines.`;
 }
 
 const other = (n: LetterBrief['about']) => (n ? PROFILES[n].name : 'someone');

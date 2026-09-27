@@ -3,7 +3,7 @@
  * early in defeat; otherwise, after the last season, you win or lose on your ambition. Code picks the one
  * or two moments that decided it and one tip for next time.
  */
-import { AMBITION } from './ambitions.js';
+import { AMBITION, bestInstigation } from './ambitions.js';
 import { CONFIG, seasonTitle } from './config.js';
 import { isLie } from './ledger.js';
 import { letterAnswers } from './letters.js';
@@ -106,6 +106,12 @@ function decidingMoments(w: WorldState, ambition: AmbitionId, reason: EndingReas
       const out = w.stats.instigated.map(
         (x) => `${HOW_WORDS[x.how] ?? 'Your hand'} sent ${nameOf(x.a)} to war with ${nameOf(x.b)} in ${seasonTitle(x.season)}.`.replace(/^./, (c) => c.toUpperCase()),
       );
+      // A loss with a war to show for it was decided by the suspicion that stayed too high.
+      const best = bestInstigation(w);
+      if (!won && best) {
+        const n = w.nations[best.war.a].suspicion >= best.worst ? best.war.a : best.war.b;
+        out.unshift(`${nameOf(n, 'start')}'s suspicion of you ended at ${best.worst}; it needed to be below ${CONFIG.ambitions.spiderSuspicion}.`);
+      }
       for (const e of events) {
         if (e.kind === 'lie_caught') out.push(`${nameOf(e.by[0]!, 'start')} caught one of your lies in ${seasonTitle(e.season)}.`);
       }
