@@ -256,7 +256,11 @@ export interface Letter {
   region: RegionId | null;
   /** Gold offered or asked. */
   amount: number;
-  /** The chosen answer, once answered or defaulted at the season's end. */
+  /** The answer chosen this season. It can change until the bell rings, when it is settled into `answer`. */
+  choice: string | null;
+  /** Gold the chosen answer will cost when the bell rings, set aside until then. */
+  pledge: number;
+  /** The settled answer: the choice, or the default for a letter left unanswered. Set when the bell rings. */
   answer: string | null;
   /** A line in the sender's voice: code writes a stand-in, the AI a better one when it can. */
   quote: string;
@@ -484,7 +488,7 @@ export interface WorldStats {
 }
 
 /** Bumped whenever the saved shape changes, so an old save is never loaded into a new game. */
-export const WORLD_VERSION = 4;
+export const WORLD_VERSION = 5;
 
 export interface WorldState {
   version: typeof WORLD_VERSION;

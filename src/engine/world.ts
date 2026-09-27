@@ -7,6 +7,7 @@ import {
   CROSSING,
   NATION_IDS,
   type Alliance,
+  type Letter,
   type NationId,
   type NationState,
   type Owner,
@@ -229,4 +230,9 @@ export function cloneWorld(w: WorldState): WorldState {
 
 export function hasGrudge(nation: NationId, against: NationId): boolean {
   return PROFILES[nation].grudges.some((g) => g.against === against);
+}
+
+/** Gold not yet set aside for letters answered this season (paid when the bell rings): what the Warden can still spend. */
+export function spareGold(w: WorldState, except?: Letter): number {
+  return w.player.gold - w.letters.reduce((sum, l) => sum + (l !== except && l.answer === null ? l.pledge : 0), 0);
 }

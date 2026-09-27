@@ -6,7 +6,7 @@
 import { CONFIG } from './config.js';
 import { adjustNeutrality, adjustTrustPlayer } from './tension.js';
 import { CROSSING, UNCLAIMED, type GainHow, type GameEvent, type Holder, type NationId, type RegionId, type WorldState } from './types.js';
-import { cloneWorld, isStanding, regionsOf, standingNations } from './world.js';
+import { cloneWorld, isStanding, regionsOf, spareGold, standingNations } from './world.js';
 
 export const touchesCrossing = (w: WorldState, id: RegionId) => w.map.regions[id]!.neighbours.some((nb) => w.regions[nb]!.owner === CROSSING);
 
@@ -76,7 +76,7 @@ export function cannotClaim(w: WorldState, region: RegionId): string | null {
   const r = w.regions[region];
   if (!r || r.owner !== UNCLAIMED) return 'Only ruins can be claimed.';
   if (!touchesCrossing(w, region)) return 'Only ruins beside your land can be claimed.';
-  if (w.player.gold < claimCost(w)) return `Claiming costs ${claimCost(w)} gold. You have ${w.player.gold}.`;
+  if (spareGold(w) < claimCost(w)) return `Claiming costs ${claimCost(w)} gold. You have ${spareGold(w)} to spare.`;
   return null;
 }
 

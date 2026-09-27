@@ -2,9 +2,9 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { useCallback, useEffect } from 'react';
 import { CONFIG } from '../../engine/config';
-import { sealedLetters } from '../../engine/letters';
+import { seasonLetters } from '../../engine/letters';
 import { CROSSING, type RegionId } from '../../engine/types';
-import { regionsOf } from '../../engine/world';
+import { regionsOf, spareGold } from '../../engine/world';
 import { sound } from '../../audio/sound';
 import { closeOverlay, endSeason, openClaim, openCrossing, openDossier, openLedger, openLetter } from '../../store/flow';
 import { useStore } from '../../store/worldStore';
@@ -85,7 +85,8 @@ export function GameTable() {
   const shown = fx && !fx.settled ? fx.before : world;
   const ledger = shown.player.ledger;
   const letter = overlay?.kind === 'letter' ? world.letters.find((l) => l.id === overlay.id) : undefined;
-  const sealed = resolving ? [] : sealedLetters(world);
+  const onTable = resolving ? [] : seasonLetters(world);
+  const sealed = onTable.filter((l) => l.choice === null);
 
   return (
     <Table danger={world.tension > CONFIG.tension.drumsAbove}>
@@ -106,7 +107,7 @@ export function GameTable() {
             <Chronicle entries={shown.chronicle} pending={chroniclePending} />
           </div>
           <div className="flex-[0_1_auto]">
-            <LetterStack letters={sealed} onOpen={openLetter} />
+            <LetterStack world={world} letters={onTable} onOpen={openLetter} />
           </div>
         </aside>
 
@@ -128,7 +129,7 @@ export function GameTable() {
 
         <aside className={`absolute bottom-[var(--bottom)] right-[0.9vw] top-[1.4vh] z-20 flex w-[var(--right-col)] flex-col items-center justify-between transition-opacity duration-1000 ${opening ? 'pointer-events-none opacity-0' : 'opacity-100'}`}>
           <TensionCandle tension={shown.tension} />
-          <Purse gold={shown.player.gold} land={regionsOf(shown, CROSSING).length} onClick={openCrossing} />
+          <Purse gold={shown.player.gold} land={regionsOf(shown, CROSSING).length} promised={shown.player.gold - spareGold(shown)} onClick={openCrossing} />
           <NeutralityScale neutrality={shown.player.neutrality} />
           <LedgerBook entries={ledger.length} caught={ledger.filter((e) => e.caught).length} onOpen={openLedger} />
           <EndSeasonBell

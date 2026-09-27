@@ -10,7 +10,7 @@ import { CONFIG } from '../src/engine/config.js';
 import { callFavour, exposureChance, favourBlocked, favourTargets } from '../src/engine/favours.js';
 import { cannotClaim, cedableRegions, claimCost, hasOffered, recordOffer } from '../src/engine/land.js';
 import { addLedgerEntries, recordAudience, recordExchange } from '../src/engine/ledger.js';
-import { answerLetter, letterAnswers, sealedLetters, type LetterAnswer } from '../src/engine/letters.js';
+import { chooseAnswer, letterAnswers, sealedLetters, type LetterAnswer } from '../src/engine/letters.js';
 import { setPass } from '../src/engine/passes.js';
 import { needsPassage } from '../src/engine/policy.js';
 import { openFirstSeason, playSeason } from '../src/engine/resolve.js';
@@ -46,7 +46,7 @@ function answerLetters(w: WorldState, choose: Chooser): WorldState {
   for (const letter of sealedLetters(w)) {
     const answers = letterAnswers(w, letter).filter((a) => !a.blocked && !a.hidden);
     const id = choose(w, letter, answers);
-    if (id) w = answerLetter(w, letter.id, id).world;
+    if (id) w = chooseAnswer(w, letter.id, id);
   }
   return w;
 }

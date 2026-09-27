@@ -1,4 +1,7 @@
-/** One small effect of a choice, with an ink icon: "+25 gold", "− Kelm trust", "− neutrality". */
+/**
+ * One small effect of a choice, with an ink icon and a sign in words as well as colour: "+25 gold",
+ * "− Kelm trust", "−10 gold each season". A chip never breaks across lines.
+ */
 import type { Effect, EffectKind } from '../../engine/outcome';
 
 const ICONS: Record<EffectKind, string> = {
@@ -33,6 +36,7 @@ export function EffectChip({ effect }: { effect: Effect }) {
         />
       </svg>
       {effect.text}
+      {effect.ongoing && <span className="italic opacity-80">{effect.ongoing}</span>}
     </span>
   );
 }
