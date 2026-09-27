@@ -41,6 +41,13 @@ export function seasonBeats(before: WorldState, after: WorldState, events: reado
   for (const e of events) {
     because = e.because ?? null;
     switch (e.kind) {
+      case 'promise':
+        beat(
+          e.outcome === 'kept'
+            ? { kind: 'word', text: `You keep your word to ${who(e.nation)}`, seal: e.nation, other: CROSSING, tone: 'good', weight: 50 }
+            : { kind: 'word', text: `You break your word to ${who(e.nation)}`, seal: e.nation, other: CROSSING, tone: 'bad', weight: 84 },
+        );
+        break;
       case 'threat':
         beat(
           e.outcome === 'holds'

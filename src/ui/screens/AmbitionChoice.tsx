@@ -37,7 +37,7 @@ function TarotCard({ id, index }: { id: AmbitionId; index: number }) {
 }
 
 export function AmbitionChoice() {
-  const show = useStore((s) => s.phase === 'table' && !s.opening && !!s.world && !s.world.player.ambition);
+  const show = useStore((s) => s.phase === 'table' && s.prologue === null && !!s.world && !s.world.player.ambition);
   return (
     <AnimatePresence>
       {show && (

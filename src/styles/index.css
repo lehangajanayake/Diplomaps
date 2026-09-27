@@ -477,6 +477,11 @@
   50% { opacity: 0.35; transform: scale(1.25); }
 }
 
+@keyframes tutorial-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
 @keyframes string-pulse {
   0%, 100% { opacity: 0.95; }
   50% { opacity: 0.5; }
@@ -502,6 +507,15 @@
 
   .ember {
     animation: ember-glow 1.8s ease-in-out infinite;
+  }
+
+  /* The tutorial's ring around what the player should do next, and the agenda's softer glow. */
+  .tutorial-pulse {
+    animation: tutorial-pulse 1.8s ease-in-out infinite;
+  }
+
+  .agenda-glow {
+    animation: tutorial-pulse 2.6s ease-in-out infinite;
   }
 
   .danger-ring {

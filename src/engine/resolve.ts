@@ -16,6 +16,7 @@ import { closeLetters, deliverLetters } from './letters.js';
 import { resentClosedPasses } from './passes.js';
 import { needsPassage, planIntents, sparkedByWords, warHolds } from './policy.js';
 import { explainEvents, standDownCause } from './causes.js';
+import { checkPromises } from './promises.js';
 import { Rng } from './rng.js';
 import { addTension, adjustNeutrality, adjustSuspicion } from './tension.js';
 import { NATION_IDS, type Ending, type GameEvent, type SeasonRecord, type WorldState } from './types.js';
@@ -79,6 +80,7 @@ export function resolveSeason(state: WorldState): { state: WorldState; events: G
   const marches = resolveMarches(w, rng, events);
   attackTheCrossing(w, rng, events);
   fightWars(w, rng, events, marches);
+  checkPromises(w, events);
   revealLiesOnTheField(w, rng, events);
   collapseFallen(w, events);
 

@@ -9,6 +9,10 @@ import { addLedgerEntries, recordAudience, recordExchange } from '../engine/ledg
 import { claimRuin } from '../engine/actions';
 import { echoedPromise, patienceFor, trustStep } from '../engine/audience';
 import { biggest, MONTAGE_MAX, type Beat } from '../engine/beats';
+import { audiencesLeft, bellWarning, type AgendaAction } from '../engine/agenda';
+import { composeCrisis } from '../engine/crisis';
+import { dismissWord } from '../engine/promises';
+import { firstGoal } from '../engine/guide';
 import { callFavour } from '../engine/favours';
 import { offerableRegions, recordOffer } from '../engine/land';
 import { chooseAnswer } from '../engine/letters';
@@ -19,8 +23,7 @@ import { openFirstSeason, playSeason } from '../engine/resolve';
 import type { AmbitionId, GameEvent, NationId, RegionId, WorldState } from '../engine/types';
 import { summariseSeason } from '../engine/summary';
 import { buildAudienceContext, buildEndingRequest, buildFlavourRequest } from '../engine/views';
-import { NATION_IDS } from '../engine/types';
-import { createWorld, isStanding } from '../engine/world';
+import { createWorld } from '../engine/world';
 import { sound } from '../audio/sound';
 import { TUTORIAL } from './intro';
 import { clearSave, loadSave, randomSeed, useStore, type AudienceTurnUI, type Note } from './worldStore';
@@ -100,7 +103,8 @@ export function beginGame(seed?: number): void {
   const chosen = seed ?? (param && /^\d+$/.test(param) ? Number(param) : randomSeed());
   clearSave();
   set({
-    world: createWorld(chosen),
+    // The first season opens at once, so the prologue can tell the crisis it really begins with.
+    world: openFirstSeason(createWorld(chosen)),
     phase: 'table',
     selectedNation: null,
     overlay: null,
@@ -114,25 +118,40 @@ export function beginGame(seed?: number): void {
     summary: null,
     crisisOpen: false,
     relations: 'off',
-    opening: !skipIntro(),
+    prologue: skipIntro() ? null : 0,
     tutorialStep: null,
   });
   sound.startAmbient();
 }
 
-/** The opening is over (or skipped): on to the choice of ambition. */
-export function endOpening(): void {
-  if (get().opening) set({ opening: false });
+/** The next beat of the prologue, or the end of it. */
+export function nextPrologueBeat(beats: number): void {
+  const beat = get().prologue;
+  if (beat === null) return;
+  if (beat + 1 < beats) set({ prologue: beat + 1 });
+  else endPrologue();
+  sound.play('paper');
+}
+
+/** The prologue is over (or skipped): on to the choice of ambition, or back to the game when replayed. */
+export function endPrologue(): void {
+  if (get().prologue !== null) set({ prologue: null });
+}
+
+/** Replay the prologue from the handbook. */
+export function replayPrologue(): void {
+  set({ prologue: 0, overlay: null, selectedNation: null, crisisOpen: false });
 }
 
 /** The player picks the ambition they will win or lose on; the tutorial (first game only) or the first crisis follows. */
 export function chooseAmbition(ambition: AmbitionId): void {
   const w = get().world;
   if (!w || w.player.ambition) return;
-  const world = openFirstSeason({ ...w, player: { ...w.player, ambition } });
+  const chosen = { ...w, player: { ...w.player, ambition } };
+  const world = { ...chosen, crisis: composeCrisis(chosen) };
   set({ world });
   sound.play('quill');
-  if (!skipIntro() && !tutorialDone()) showTutorialStep(0);
+  if (!skipIntro() && !tutorialDone()) startTutorial();
   else set({ crisisOpen: true });
 }
 
@@ -140,11 +159,17 @@ export function chooseAmbition(ambition: AmbitionId): void {
 /* The tutorial and the handbook                                        */
 /* ------------------------------------------------------------------ */
 
-/** Show one tutorial step, opening the friendliest court's dossier when the step is about what lies inside it. */
-function showTutorialStep(step: number): void {
+/** The tutorial starts: its guided season's goal is fixed from the crisis and the ambition as they stand now. */
+function startTutorial(): void {
   const w = get().world;
-  const friend = w ? [...NATION_IDS].filter((n) => isStanding(w, n)).sort((a, b) => w.nations[b].trustPlayer - w.nations[a].trustPlayer)[0] : undefined;
-  set({ tutorialStep: step, overlay: null, crisisOpen: false, selectedNation: TUTORIAL[step]?.dossier && friend ? friend : null });
+  if (!w) return;
+  set({ tutorialGoal: firstGoal(w), tutorialStep: 0, overlay: null, selectedNation: null, crisisOpen: false });
+}
+
+/** Show one tutorial step. Steps the player reads clear the table; steps the player does leave it be. */
+function showTutorialStep(step: number): void {
+  if (TUTORIAL[step]?.done) set({ tutorialStep: step, crisisOpen: false });
+  else set({ tutorialStep: step, overlay: null, selectedNation: null });
 }
 
 export function nextTutorialStep(): void {
@@ -171,7 +196,7 @@ export function openHandbook(): void {
 }
 
 export function replayTutorial(): void {
-  showTutorialStep(0);
+  startTutorial();
 }
 
 export function resumeGame(): boolean {
@@ -293,9 +318,7 @@ export function decideLetter(id: string, answer: string): void {
 /* Audiences                                                           */
 /* ------------------------------------------------------------------ */
 
-export function audiencesLeft(w: WorldState): number {
-  return CONFIG.audiencesPerSeason - w.audiencesThisSeason.length;
-}
+export { audiencesLeft };
 
 export function canHoldAudience(w: WorldState, nation: NationId): string | null {
   if (w.ending) return 'The game is over.';
@@ -513,6 +536,42 @@ function relationsChanged(before: WorldState, after: WorldState): boolean {
 export function toggleRelations(): void {
   set({ relations: get().relations === 'on' ? 'off' : 'on' });
   sound.play('paper');
+}
+
+/**
+ * The bell is rung. If something urgent is still undone (an army's letter unanswered, a promise due),
+ * the Warden is asked once to confirm first.
+ */
+export function ringBell(): void {
+  const w = get().world;
+  if (!w || get().resolving || get().audience) return;
+  const warning = bellWarning(w);
+  if (warning) set({ confirmBell: warning });
+  else void endSeason();
+}
+
+export function confirmRing(): void {
+  set({ confirmBell: null });
+  void endSeason();
+}
+
+export function cancelRing(): void {
+  set({ confirmBell: null });
+}
+
+/** Strike a reminder (a promise the bell cannot check) off the agenda. */
+export function dismissPromise(entry: string): void {
+  const w = get().world;
+  if (!w) return;
+  const world = dismissWord(w, entry);
+  if (world !== w) commit(world);
+}
+
+/** Do what an agenda item points at: open the letter, the court's dossier or the ruins' card. */
+export function followAgenda(action: AgendaAction): void {
+  if (action.kind === 'letter') openLetter(action.id);
+  else if (action.kind === 'dossier') openDossier(action.nation);
+  else if (action.kind === 'claim') openClaim(action.region);
 }
 
 export async function endSeason(): Promise<void> {

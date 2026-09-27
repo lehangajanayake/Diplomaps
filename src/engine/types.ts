@@ -48,6 +48,8 @@ export interface NationProfile {
   aim: string;
   /** What the nation seems to want: a hint, shown in the dossier. */
   hint: string;
+  /** The prologue's line: who they are and what they want, in about ten plain words. */
+  want: string;
   redLine: { kind: RedLineKind; about: NationId | null; text: string };
   grudges: { against: NationId; reason: string }[];
   friends: { with: NationId; reason: string }[];
@@ -243,7 +245,11 @@ export interface LedgerEntry {
   caughtBy: NationId[];
   caughtSeason: number | null;
   caughtHow: string | null;
+  /** Promises the code can check (see promises.ts): kept, or broken, once the bell has shown which. */
+  kept: boolean;
   broken: boolean;
+  /** A promise the code cannot check, which the Warden has struck off the agenda. */
+  dismissed: boolean;
 }
 
 export const LETTER_KINDS = ['attack', 'threat', 'raid', 'passage', 'help', 'spoils', 'talks', 'trade', 'last', 'angry'] as const;
@@ -383,11 +389,14 @@ type GameEventBase =
   | { kind: 'lie_caught'; season: number; entry: string; by: NationId[]; how: string }
   | { kind: 'letter'; season: number; letter: string; nation: NationId; letterKind: LetterKind; answer: string }
   | { kind: 'tension'; season: number; from: number; to: number }
+  /** At the bell, a promise the code can check was kept or broken. */
+  | { kind: 'promise'; season: number; entry: string; nation: NationId; outcome: 'kept' | 'broken' }
   /** At the bell, an army massed at the valley's border either stays (it strikes next season) or goes home. */
   | { kind: 'threat'; season: number; nation: NationId; region: RegionId; outcome: 'holds' | 'lifted' };
 
 /** What kind of moment a chronicle line (and a montage beat) is: it picks the icon and the map's effect. */
 export type BeatKind =
+  | 'word'
   | 'threat'
   | 'war'
   | 'battle'
@@ -514,7 +523,7 @@ export interface WorldStats {
 }
 
 /** Bumped whenever the saved shape changes, so an old save is never loaded into a new game. */
-export const WORLD_VERSION = 7;
+export const WORLD_VERSION = 8;
 
 export interface WorldState {
   version: typeof WORLD_VERSION;

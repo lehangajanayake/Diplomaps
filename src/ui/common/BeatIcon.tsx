@@ -2,6 +2,7 @@
 import type { BeatKind } from '../../engine/types';
 
 const PATHS: Record<BeatKind, string> = {
+  word: 'M-5 7 L5 -3 C6 -5 5 -7 3 -6 L-7 4 Z M-6 6 L-4 4',
   threat: 'M-7 5 H3 M-7 5 V-6 M-7 -5.5 H1 L-1 -3 L1 -0.5 H-7 M3 1 L7 5 L3 9',
   war: 'M-6 -6 L6 6 M6 -6 L-6 6 M-6.5 3 L-3 6.5 M6.5 3 L3 6.5',
   battle: 'M-5 -6 H5 V0 C5 4 0 6.5 0 6.5 C0 6.5 -5 4 -5 0 Z',

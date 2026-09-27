@@ -2,7 +2,7 @@
 import { motion } from 'motion/react';
 import type { ReactNode } from 'react';
 import { CONFIG } from '../../engine/config';
-import { closeOverlay, replayTutorial } from '../../store/flow';
+import { closeOverlay, replayPrologue, replayTutorial } from '../../store/flow';
 import { BeatIcon } from '../common/BeatIcon';
 import { SealButton } from '../common/SealButton';
 import { GateIcon } from './PassControl';
@@ -69,7 +69,10 @@ export function Handbook() {
           ))}
         </ul>
         <div className="mt-[1em] flex items-center justify-between">
-          <SealButton label="Replay the tutorial" onClick={replayTutorial} colour="#3f5a3a" seed={81} size="2.4em" />
+          <span className="flex flex-wrap gap-x-[1.2em] gap-y-[0.4em]">
+            <SealButton label="Replay the prologue" onClick={replayPrologue} colour="#8a6a26" seed={82} size="2.4em" />
+            <SealButton label="Replay the tutorial" onClick={replayTutorial} colour="#3f5a3a" seed={81} size="2.4em" />
+          </span>
           <button type="button" onClick={closeOverlay} className="font-sc text-[0.9rem] text-ink-faded hover:text-wax">
             close ✕
           </button>
